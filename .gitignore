@@ -1,0 +1,20 @@
+# Mac
+.DS_Store
+.idea/*
+
+# Python
+__pycache__/
+*.pyc
+
+# Project
+*.mp4
+input/
+output/
+*.MOV
+*.avi
+*.csv
+*.txt
+
+# Data junk
+haarcascade_frontalface_default.xml
+shape_predictor_68_face_landmarks.dat
