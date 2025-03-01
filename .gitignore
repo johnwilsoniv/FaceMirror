@@ -14,7 +14,7 @@ output/
 *.avi
 *.csv
 *.txt
-
+*.log
 # Data junk
 haarcascade_frontalface_default.xml
 shape_predictor_68_face_landmarks.dat

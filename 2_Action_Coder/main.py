@@ -277,23 +277,26 @@ class ApplicationController(QObject):
             # Only update overlay if needed
             if self.video_player.current_action != self.active_action:
                 self.video_player.set_action(self.active_action)
-    
+
     def init_video_player(self):
         """Initialize the video player with the selected video path."""
+        # In batch tab, don't show warnings if no video is selected yet
         if not self.window.video_path:
-            QMessageBox.warning(self.window, "Warning", "Please select a video file first.")
+            # Only show the warning if we're not in the batch tab
+            if not self.window.tab_widget.currentIndex() == 1:  # Not the batch tab
+                QMessageBox.warning(self.window, "Warning", "Please select a video file first.")
             return False
-            
+
         # Initialize with new video
         if not self.video_player.set_video_path(self.window.video_path):
             QMessageBox.critical(self.window, "Error", f"Could not open video file: {self.window.video_path}")
             return False
-        
+
         # Update UI with video information
         video_props = self.video_player.get_video_properties()
         if video_props:
             self.window.set_total_frames(video_props['total_frames'])
-            
+
             # Update refresh timer based on video FPS (use at most 4 updates per frame)
             fps = video_props['fps']
             if fps > 0:
@@ -301,7 +304,7 @@ class ApplicationController(QObject):
                 interval = max(50, int(250 / fps))
                 self.state_refresh_timer.setInterval(interval)
                 print(f"Action state refresh interval set to {interval}ms based on {fps} FPS")
-            
+
             return True
         return False
     
@@ -358,11 +361,17 @@ class ApplicationController(QObject):
 
     def toggle_play_pause(self, play):
         """Toggle between play and pause states."""
+        # If we're in batch mode and no video is selected yet, just update the UI state
+        # without showing any warning messages
+        if self.window.batch_mode and not self.window.video_path:
+            self.window.play_pause_btn.setText("Play")
+            return
+
         # Ensure video is loaded
         if not self.init_video_player():
             self.window.play_pause_btn.setText("Play")
             return
-            
+
         if play:
             self.video_player.play()
             # Start the state refresh timer only when playing
@@ -489,59 +498,59 @@ class ApplicationController(QObject):
         self.window.play_pause_btn.setText("Play")
         # Stop the refresh timer when video finishes
         self.state_refresh_timer.stop()
-    
+
     def save_outputs(self):
         """Generate output files."""
         # Check video loaded
         if not self.init_video_player():
             return
-            
-        # Check CSV loaded
-        if not self.csv_handler.data and not self.init_csv_handler():
+
+        # Check CSV loaded - avoid using DataFrame in Boolean context
+        if self.csv_handler.data is None and not self.init_csv_handler():
             return
-        
+
         # Create output directory if it doesn't exist
         # If we're in batch mode, create output in the batch directory
         if self.window.batch_mode and self.window.batch_directory:
             output_dir = os.path.join(self.window.batch_directory, "output")
         else:
             output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
-            
+
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Generate output filenames based on input files
         video_basename = os.path.splitext(os.path.basename(self.window.video_path))[0]
-        
+
         # First CSV output
         csv_basename = os.path.splitext(os.path.basename(self.window.csv_path))[0]
         output_csv = os.path.join(output_dir, f"{csv_basename}_annotated.csv")
-        
+
         # Second CSV output (if available)
         second_output_csv = None
         if self.window.second_csv_path:
             second_csv_basename = os.path.splitext(os.path.basename(self.window.second_csv_path))[0]
             second_output_csv = os.path.join(output_dir, f"{second_csv_basename}_annotated.csv")
-        
+
         output_video = os.path.join(output_dir, f"{video_basename}_annotated.mp4")
-        
+
         # Store output paths in window for progress messages
         self.window.output_csv_path = output_csv
         self.window.output_second_csv_path = second_output_csv
         self.window.output_video_path = output_video
-        
+
         # Validate that we have some actions to save
         actions = self.action_tracker.get_all_actions()
         if not actions:
             reply = QMessageBox.question(
-                self.window, 
-                "No Actions", 
+                self.window,
+                "No Actions",
                 "No actions have been recorded. Do you want to continue anyway?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No
             )
             if reply == QMessageBox.No:
                 return
-        
+
         # Create processing thread to avoid UI freezing
         self.processing_thread = ProcessingThread(
             self.window.video_path,
@@ -551,10 +560,10 @@ class ApplicationController(QObject):
             self.window.output_video_path,
             self.window.output_second_csv_path
         )
-        
+
         # Connect signals
         self.processing_thread.progress_signal.connect(self.window.progress_update_signal.emit)
-        
+
         # If in batch mode, connect to batch-aware completion handler
         if self.window.batch_mode:
             self.processing_thread.finished_signal.connect(self.batch_file_processed)
@@ -563,7 +572,7 @@ class ApplicationController(QObject):
             # Otherwise use standard completion handler
             self.processing_thread.finished_signal.connect(self.processing_completed)
             self.processing_thread.error_signal.connect(self.processing_error)
-        
+
         # Start processing
         self.processing_thread.start()
     
@@ -716,32 +725,15 @@ class ApplicationController(QObject):
             total_files = self.batch_processor.get_total_files()
             current_index = self.batch_processor.get_current_index()
             self.window.set_batch_mode(True, current_index, total_files)
-    
+
     def batch_file_processed(self):
         """Handle completion of processing a file in batch mode."""
         self.window.show_progress_bar(False)
-        
+
         # Check if there are more files to process
         if self.batch_processor.has_next_file():
-            # Ask user if they want to continue to the next file
-            reply = QMessageBox.question(
-                self.window,
-                "Batch Processing",
-                "File processed successfully. Continue to the next file?",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.Yes
-            )
-            
-            if reply == QMessageBox.Yes:
-                # Load the next file
-                self.load_next_file()
-            else:
-                # Show summary message
-                QMessageBox.information(
-                    self.window,
-                    "Batch Processing Paused",
-                    "Batch processing has been paused. You can continue from this point later."
-                )
+            # Automatically continue to the next file without asking
+            self.load_next_file()
         else:
             # This was the last file, show completion message
             QMessageBox.information(
@@ -749,7 +741,7 @@ class ApplicationController(QObject):
                 "Batch Processing Complete",
                 "All files in the batch have been processed!"
             )
-            
+
             # Reset batch mode
             self.window.set_batch_mode(False)
     

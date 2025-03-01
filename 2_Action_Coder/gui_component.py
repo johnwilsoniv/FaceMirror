@@ -559,10 +559,15 @@ class MainWindow(QMainWindow):
 
     def on_tab_changed(self, index):
         """Handle tab change events."""
-        # If switching to batch tab, pause any video playback
+        # If switching to batch tab, we'll just update the UI without emitting signals
         if index == 1:  # Batch tab
             self.play_pause_btn.setText("Play")
-            self.play_pause_signal.emit(False)
+            # Don't emit the signal as it causes the "Please select video" warning
+            # self.play_pause_signal.emit(False)
+
+            # If we have direct access to the video player, pause it directly
+            if hasattr(self, 'video_player') and self.video_player:
+                self.video_player.pause()
     
     def update_action_display(self, action_code):
         """Update the action display with the current action."""

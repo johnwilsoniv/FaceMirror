@@ -14,60 +14,79 @@ class BatchProcessor(QObject):
         super().__init__()
         self.file_sets = []  # List of file sets to process
         self.current_index = -1  # Index of currently loaded file set
-    
+
     def find_matching_files(self, directory):
         """
         Find matching video and CSV files in the given directory.
-        
+
         Args:
             directory: Path to the directory containing files
-            
+
         Returns:
             A list of dicts with matched file sets
         """
         if not os.path.isdir(directory):
             return []
-        
+
+        print(f"Scanning directory: {directory}")
         all_files = os.listdir(directory)
+
+        # Debug: Print all files found
+        print(f"Found {len(all_files)} files in directory")
+
+        # Case-insensitive file extension matching
         video_files = [f for f in all_files if f.lower().endswith(('.mp4', '.mov', '.avi', '.mkv'))]
         csv_files = [f for f in all_files if f.lower().endswith('.csv')]
-        
-        # Create a dictionary to group files by their base identifier
-        file_groups = {}
-        
-        # Process video files
+
+        print(f"Found {len(video_files)} video files and {len(csv_files)} CSV files")
+
+        # Print the first few files of each type for debugging
+        if video_files:
+            print(f"Video file examples: {video_files[:3]}")
+        if csv_files:
+            print(f"CSV file examples: {csv_files[:3]}")
+
+        # Extract base identifiers using a more robust method
+        video_bases = {}
         for video_file in video_files:
-            # Extract base identifier (e.g., "IMG_0234")
-            match = re.match(r'([\w-]+)_', video_file)
-            if match:
-                base_id = match.group(1)
-                if base_id not in file_groups:
-                    file_groups[base_id] = {'video': None, 'csvs': []}
-                file_groups[base_id]['video'] = os.path.join(directory, video_file)
-        
-        # Process CSV files
+            # First try to extract the base ID before any suffix (like "_rotated")
+            # This should handle "IMG_0935_rotated.MOV" -> "IMG_0935"
+            parts = video_file.split('_')
+            if len(parts) >= 2:
+                # Use the first two parts as the base (e.g., "IMG_0935")
+                base_id = f"{parts[0]}_{parts[1]}"
+                video_bases[base_id] = video_file
+                print(f"Extracted base '{base_id}' from video file '{video_file}'")
+
+        csv_groups = {}
         for csv_file in csv_files:
-            # Extract base identifier (e.g., "IMG_0234")
-            match = re.match(r'([\w-]+)_', csv_file)
-            if match:
-                base_id = match.group(1)
-                if base_id in file_groups:
-                    file_groups[base_id]['csvs'].append(os.path.join(directory, csv_file))
-                    
-        # Filter out incomplete sets and build the final list
-        result = []
-        for base_id, files in file_groups.items():
-            if files['video'] and files['csvs']:
-                # Create a set with video and up to 2 CSVs
+            # Extract the base ID in the same way
+            parts = csv_file.split('_')
+            if len(parts) >= 2:
+                base_id = f"{parts[0]}_{parts[1]}"
+                if base_id not in csv_groups:
+                    csv_groups[base_id] = []
+                csv_groups[base_id].append(csv_file)
+                print(f"Extracted base '{base_id}' from CSV file '{csv_file}'")
+
+        # Match video files with CSV files
+        file_sets = []
+        for base_id, video_file in video_bases.items():
+            if base_id in csv_groups and csv_groups[base_id]:
+                print(f"Matched base ID: {base_id}")
+                print(f"  Video: {video_file}")
+                print(f"  CSVs: {csv_groups[base_id]}")
+
                 file_set = {
                     'base_id': base_id,
-                    'video': files['video'],
-                    'csv1': files['csvs'][0] if len(files['csvs']) > 0 else None,
-                    'csv2': files['csvs'][1] if len(files['csvs']) > 1 else None
+                    'video': os.path.join(directory, video_file),
+                    'csv1': os.path.join(directory, csv_groups[base_id][0]) if len(csv_groups[base_id]) > 0 else None,
+                    'csv2': os.path.join(directory, csv_groups[base_id][1]) if len(csv_groups[base_id]) > 1 else None
                 }
-                result.append(file_set)
-        
-        return result
+                file_sets.append(file_set)
+
+        print(f"Total matched file sets: {len(file_sets)}")
+        return file_sets
     
     def set_file_sets(self, file_sets):
         """

@@ -100,18 +100,18 @@ class CSVHandler:
             print("No data loaded for second CSV.")
 
         return success
-    
+
     def save_data(self, output_file, second_output_file=None):
         """Save the modified data to new CSV files."""
         overall_success = True
-        
+
         if self.data is not None:
             try:
                 # Ensure directory exists
                 output_dir = os.path.dirname(output_file)
                 if output_dir:  # Only create if there's a directory path
                     os.makedirs(output_dir, exist_ok=True)
-                
+
                 self.data.to_csv(output_file, index=False)
                 print(f"Saved first modified CSV to {output_file}")
             except Exception as e:
@@ -120,7 +120,7 @@ class CSVHandler:
         else:
             print("No data to save for first CSV.")
             overall_success = False
-        
+
         # Save second CSV if available
         if self.second_data is not None and second_output_file:
             try:
@@ -128,11 +128,11 @@ class CSVHandler:
                 output_dir = os.path.dirname(second_output_file)
                 if output_dir:  # Only create if there's a directory path
                     os.makedirs(output_dir, exist_ok=True)
-                
+
                 self.second_data.to_csv(second_output_file, index=False)
                 print(f"Saved second modified CSV to {second_output_file}")
             except Exception as e:
                 print(f"Error saving second CSV: {e}")
                 overall_success = False
-        
+
         return overall_success
