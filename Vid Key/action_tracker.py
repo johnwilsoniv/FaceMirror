@@ -62,3 +62,32 @@ class ActionTracker:
         except Exception as e:
             print(f"Error loading actions: {e}")
             return False
+
+    def action_pressed(self, action_code):
+        """Handle action button press event with toggle behavior."""
+        # Toggle behavior: if this action is already active, deactivate it
+        if self.current_active_action == action_code:
+            # Clear the active action
+            self.current_active_action = None
+
+            # Reset button appearance
+            if action_code in self.action_buttons:
+                self.action_buttons[action_code].set_pressed(False)
+
+            # Emit stop signal
+            self.action_stopped_signal.emit()
+        else:
+            # Otherwise, activate this action (deactivating any other first)
+
+            # Clear all other buttons first to ensure only one is active
+            self.clear_all_action_buttons()
+
+            # Set as current active action
+            self.current_active_action = action_code
+
+            # Highlight the correct button
+            if action_code in self.action_buttons:
+                self.action_buttons[action_code].set_pressed(True)
+
+            # Emit signal for action started
+            self.action_started_signal.emit(action_code)

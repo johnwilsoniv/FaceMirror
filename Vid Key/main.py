@@ -180,16 +180,11 @@ class ApplicationController(QObject):
         """
         if obj == self.window:
             if event.type() == QEvent.KeyPress:
-                # For key events, prioritize handling
-                if hasattr(event, 'text') and event.text() in self.window.key_to_action:
-                    # Process immediately without waiting for normal event queue
-                    self.window.keyPressEvent(event)
-                    return True  # Indicate we've handled this event
-
-            elif event.type() == QEvent.KeyRelease:
-                if hasattr(event, 'text') and event.text() in self.window.key_to_action:
-                    self.window.keyReleaseEvent(event)
-                    return True
+                # Process only if not auto-repeat
+                if not event.isAutoRepeat() and hasattr(event, 'text') and event.text() in self.window.key_to_action:
+                    # We'll let the window's keyPressEvent handle this
+                    # which now has toggle logic built in
+                    return False  # Let the event continue to be processed
 
         # Let other events be handled normally
         return super().eventFilter(obj, event)

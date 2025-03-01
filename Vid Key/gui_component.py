@@ -9,7 +9,7 @@ import os
 
 
 class ActionButton(QPushButton):
-    """Custom button for tracking press and release events."""
+    """Custom button for toggling actions."""
     pressed_signal = pyqtSignal(str)
     released_signal = pyqtSignal()
 
@@ -38,44 +38,35 @@ class ActionButton(QPushButton):
 
         self.pressed_state = False
 
-        # Connect signals for mouse press and release
-        self.pressed.connect(self.on_pressed)
-        self.released.connect(self.on_released)
-        
+        # For toggle behavior, we only need clicked signal
+        self.clicked.connect(self.on_clicked)
+
         # Store shortcut key for direct access
         self.key_shortcut = key_shortcut
         self.setShortcut(key_shortcut)
 
-    def on_pressed(self):
-        """Handle button press event."""
-        self.pressed_state = True
-        # No need to set stylesheet - the QPushButton:pressed selector handles this
+    def on_clicked(self):
+        """Handle button click event for toggle behavior."""
+        # Let the parent window handle the toggle logic
         self.pressed_signal.emit(self.action_code)
         # Ensure button gets proper visual focus
         self.setFocus()
-
-    def on_released(self):
-        """Handle button release event."""
-        self.pressed_state = False
-        # No need to set stylesheet - returning to normal state is automatic
-        self.released_signal.emit()
 
     def set_pressed(self, pressed=True):
         """Set the button's pressed state programmatically."""
         self.pressed_state = pressed
         if pressed:
             # Use style property instead of full stylesheet replacement
-            self.setProperty("pressed", True) 
+            self.setProperty("pressed", True)
             self.setDown(True)  # Makes button appear pressed
         else:
             self.setProperty("pressed", False)
             self.setDown(False)  # Makes button appear normal
-        
+
         # Force style refresh - more efficient than setting full stylesheet
         self.style().unpolish(self)
         self.style().polish(self)
         self.update()
-
 class MainWindow(QMainWindow):
     """Main application window."""
     frame_changed_signal = pyqtSignal(int)
@@ -426,43 +417,59 @@ class MainWindow(QMainWindow):
         self.show_progress_bar(True)
 
     def keyPressEvent(self, event):
-        """Handle keyboard events by directly controlling the buttons."""
-        # Process only if not auto-repeat or if it's the first auto-repeat event
-        if not event.isAutoRepeat() or not self.pressed_keys.get(event.text(), False):
+        """Handle keyboard events by toggling action states."""
+        # Process only if not auto-repeat
+        if not event.isAutoRepeat():
             try:
                 key = event.text()
 
-                # Immediately check if key is in our action mapping
+                # Check if key is in our action mapping
                 if key in self.key_to_action:
                     action_code = self.key_to_action[key]
 
-                    # Record this key as pressed - do this first for better responsiveness
-                    self.pressed_keys[key] = True
-                    
-                    # Set current active action immediately
-                    self.current_active_action = action_code
-                    
-                    # Find and activate the button - use direct property access for speed
-                    if action_code in self.action_buttons:
-                        button = self.action_buttons[action_code]
-                        button.setDown(True)  # Make button appear pressed without full style recalc
-                        
-                    # Clear other buttons in a separate step to prioritize activation feedback
-                    for code, button in self.action_buttons.items():
-                        if code != action_code:
-                            button.setDown(False)
-                    
-                    # Emit the action signal
-                    self.action_started_signal.emit(action_code)
-                    
-                    # Accept the event to prevent it from being processed further
+                    # Toggle behavior: if this action is already active, deactivate it
+                    if self.current_active_action == action_code:
+                        # Clear the active action
+                        self.current_active_action = None
+
+                        # Reset button appearance
+                        if action_code in self.action_buttons:
+                            self.action_buttons[action_code].set_pressed(False)
+
+                        # Emit stop signal
+                        self.action_stopped_signal.emit()
+                    else:
+                        # Otherwise, activate this action (deactivating any other first)
+
+                        # Clear any existing active action
+                        if self.current_active_action and self.current_active_action in self.action_buttons:
+                            self.action_buttons[self.current_active_action].set_pressed(False)
+
+                        # Set current active action
+                        self.current_active_action = action_code
+
+                        # Set button visual state
+                        if action_code in self.action_buttons:
+                            self.action_buttons[action_code].set_pressed(True)
+
+                        # Emit the action signal
+                        self.action_started_signal.emit(action_code)
+
+                    # Accept the event
                     event.accept()
                     return
             except Exception as e:
                 print(f"Error in keyPressEvent: {str(e)}")
-        
-        # Pass unhandled events to parent for normal processing
+
+        # Pass unhandled events to parent
         super().keyPressEvent(event)
+
+    # Since we're using toggle behavior, we don't need to handle key release actions
+    # We can greatly simplify keyReleaseEvent
+    def keyReleaseEvent(self, event):
+        """Handle keyboard release events."""
+        # Just pass to parent for normal processing
+        super().keyReleaseEvent(event)
 
     def keyReleaseEvent(self, event):
         """Handle keyboard release events by directly controlling the buttons."""
