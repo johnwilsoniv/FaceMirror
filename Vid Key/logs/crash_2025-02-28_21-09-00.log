@@ -1,0 +1,7 @@
+Timestamp: 2025-02-28_21-09-00
+Exception: AttributeError: 'ApplicationController' object has no attribute 'action_buttons'
+Traceback:
+Traceback (most recent call last):
+  File "/Users/johnwilsoniv/Documents/open2/Vid Key/main.py", line 178, in refresh_action_state
+    if self.active_action in self.action_buttons:
+AttributeError: 'ApplicationController' object has no attribute 'action_buttons'

@@ -16,12 +16,13 @@ class StableFaceSplitter:
         predictor_path = 'shape_predictor_68_face_landmarks.dat'
         self.predictor = dlib.shape_predictor(predictor_path)
 
-        # Cache for face detection results
+        # Face tracking parameters
         self.last_face = None
         self.last_landmarks = None
         self.frame_count = 0
 
-        # Smoothing parameters for midline points
+        # Initialize smoothing history
+        self.landmarks_history = []
         self.glabella_history = []
         self.chin_history = []
         self.history_size = 5
@@ -31,18 +32,149 @@ class StableFaceSplitter:
             logging.basicConfig(level=logging.INFO)
             self.logger = logging.getLogger(__name__)
 
+            def reset_tracking_history(self):
+                """Reset all tracking history between videos"""
+                # Reset face tracking parameters
+                self.last_face = None
+                self.last_landmarks = None
+                self.frame_count = 0
+
+                # Reset smoothing history
+                self.landmarks_history = []
+                self.glabella_history = []
+                self.chin_history = []
+
+                # Reset face ROI if it exists
+                if hasattr(self, 'face_roi'):
+                    self.face_roi = None
+
+    def reset_tracking_history(self):
+        """Reset all tracking history between videos"""
+        # Reset face tracking parameters
+        self.last_face = None
+        self.last_landmarks = None
+        self.frame_count = 0
+
+        # Reset smoothing history
+        self.landmarks_history = []
+        self.glabella_history = []
+        self.chin_history = []
+
+        # Reset face ROI if it exists
+        if hasattr(self, 'face_roi'):
+            self.face_roi = None
+
+    def preprocess_frame(self, frame):
+        """Enhance frame for better face detection"""
+        # Convert to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Apply adaptive histogram equalization
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        enhanced = clahe.apply(gray)
+
+        # Apply bilateral filter to reduce noise while preserving edges
+        denoised = cv2.bilateralFilter(enhanced, 9, 75, 75)
+
+        return denoised, gray
+
+    def update_face_roi(self, face_rect):
+        """Update face ROI with temporal smoothing"""
+        if face_rect is None:
+            return
+
+        current_roi = [face_rect.left(), face_rect.top(),
+                       face_rect.right(), face_rect.bottom()]
+
+        if self.face_roi is None:
+            self.face_roi = current_roi
+        else:
+            # Smooth ROI transition
+            alpha = 0.7  # Smoothing factor
+            self.face_roi = [int(alpha * prev + (1 - alpha) * curr)
+                             for prev, curr in zip(self.face_roi, current_roi)]
+
+    def get_face_mesh(self, frame, detection_interval=2):
+        """Get facial landmarks with temporal smoothing"""
+        self.frame_count += 1
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        if self.frame_count % detection_interval == 0 or self.last_face is None:
+            faces = self.detector(gray)
+            if not faces:
+                self.last_face = None
+                self.last_landmarks = None
+                return None, None
+            self.last_face = max(faces, key=lambda rect: rect.width() * rect.height())
+
+        if self.last_face is not None:
+            # Extract landmarks
+            landmarks = self.predictor(gray, self.last_face)
+            points = np.array([[p.x, p.y] for p in landmarks.parts()], dtype=np.float32)  # Explicitly set dtype
+
+            # Apply temporal smoothing
+            self.landmarks_history.append(points)
+            if len(self.landmarks_history) > self.history_size:
+                self.landmarks_history.pop(0)
+
+            # Calculate weighted average with explicit type handling
+            weights = np.linspace(0.5, 1.0, len(self.landmarks_history))
+            weights = weights / np.sum(weights)  # Normalize weights
+
+            # Initialize smoothed points with the correct type
+            smoothed_points = np.zeros_like(points, dtype=np.float32)
+
+            # Apply weighted average
+            for pts, w in zip(self.landmarks_history, weights):
+                smoothed_points += pts * w
+
+            # Ensure integer coordinates for final output
+            smoothed_points = np.round(smoothed_points).astype(np.int32)
+
+            # Create triangulation
+            triangles = Delaunay(smoothed_points)
+            self.last_landmarks = smoothed_points
+
+            return smoothed_points, triangles
+
+        return None, None
+
+    def validate_landmarks(self, landmarks):
+        """Validate landmark detection quality"""
+        if landmarks is None:
+            return False
+
+        # Check for outliers
+        distances = np.linalg.norm(landmarks - landmarks.mean(axis=0), axis=1)
+        z_scores = (distances - distances.mean()) / distances.std()
+        if np.any(np.abs(z_scores) > 3):
+            return False
+
+        # Check for minimum face size
+        face_width = landmarks[:, 0].max() - landmarks[:, 0].min()
+        face_height = landmarks[:, 1].max() - landmarks[:, 1].min()
+        if face_width < 60 or face_height < 60:
+            return False
+
+        return True
+
     def get_facial_midline(self, landmarks):
-        """Calculate the anatomical midline points (glabella and chin)"""
+        """Calculate the anatomical midline points"""
         if landmarks is None:
             return None, None
 
-        # Get glabella point (between eyebrows, using nose bridge point 27)
-        glabella = landmarks[27].astype(np.float32)
+        # Convert to float32 for calculations
+        landmarks = landmarks.astype(np.float32)
 
-        # Get chin point (point 8)
-        chin = landmarks[8].astype(np.float32)
+        # Get medial eyebrow points
+        left_medial_brow = landmarks[21]
+        right_medial_brow = landmarks[22]
 
-        # Add to history for temporal smoothing
+        # Calculate glabella and chin
+        glabella = (left_medial_brow + right_medial_brow) / 2
+        chin = landmarks[8]
+
+        # Add to history
         self.glabella_history.append(glabella)
         self.chin_history.append(chin)
 
@@ -56,28 +188,6 @@ class StableFaceSplitter:
         smooth_chin = np.mean(self.chin_history, axis=0)
 
         return smooth_glabella, smooth_chin
-
-    def get_face_mesh(self, frame, detection_interval=5):
-        """Get facial landmarks with caching for performance"""
-        self.frame_count += 1
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        if self.frame_count % detection_interval == 0 or self.last_face is None:
-            faces = self.detector(gray)
-            if not faces:
-                self.last_face = None
-                self.last_landmarks = None
-                return None, None
-            self.last_face = max(faces, key=lambda rect: rect.width() * rect.height())
-
-        if self.last_face is not None:
-            landmarks = self.predictor(gray, self.last_face)
-            points = np.array([[p.x, p.y] for p in landmarks.parts()])
-            triangles = Delaunay(points)
-            self.last_landmarks = points
-            return points, triangles
-
-        return None, None
 
     def create_mirrored_faces(self, frame, landmarks):
         """Create mirrored faces by reflecting exactly along the anatomical midline
@@ -174,10 +284,22 @@ class StableFaceSplitter:
         return anatomical_right_face, anatomical_left_face
 
     def create_debug_frame(self, frame, landmarks):
-        """Create debug visualization with landmarks and anatomical midline"""
+        """Create debug visualization with all 68 landmarks and anatomical midline"""
         debug_frame = frame.copy()
 
         if landmarks is not None:
+            # Draw all 68 landmarks as dots
+            for point in landmarks:
+                x, y = point.astype(int)
+                # Draw point
+                cv2.circle(debug_frame, (x, y), 3, (0, 255, 255), -1)  # Yellow dot
+
+            # Highlight medial eyebrow points (21, 22)
+            left_medial_brow = tuple(map(int, landmarks[21]))
+            right_medial_brow = tuple(map(int, landmarks[22]))
+            cv2.circle(debug_frame, left_medial_brow, 4, (255, 0, 0), -1)  # Blue dot
+            cv2.circle(debug_frame, right_medial_brow, 4, (255, 0, 0), -1)  # Blue dot
+
             # Get midline points
             glabella, chin = self.get_facial_midline(landmarks)
 
@@ -191,19 +313,13 @@ class StableFaceSplitter:
                 cv2.circle(debug_frame, chin, 4, (0, 255, 0), -1)  # Green dot for chin
 
                 # Calculate and draw the extended midline
-                # Get frame dimensions
                 height, width = frame.shape[:2]
-
-                # Calculate line direction vector
                 direction = np.array([chin[0] - glabella[0], chin[1] - glabella[1]])
-                if np.any(direction):  # Check if direction vector is non-zero
-                    # Normalize direction vector
-                    direction = direction / np.sqrt(np.sum(direction ** 2))
 
-                    # Calculate extension length (use frame diagonal for full extension)
+                if np.any(direction):
+                    direction = direction / np.sqrt(np.sum(direction ** 2))
                     extension_length = np.sqrt(height ** 2 + width ** 2)
 
-                    # Calculate extended points
                     top_point = (
                         int(glabella[0] - direction[0] * extension_length),
                         int(glabella[1] - direction[1] * extension_length)
@@ -220,10 +336,24 @@ class StableFaceSplitter:
             hull = cv2.convexHull(landmarks.astype(np.int32))
             cv2.polylines(debug_frame, [hull], True, (255, 255, 0), 2)
 
+            # Add legend
+            legend_y = 30
+            cv2.putText(debug_frame, "Yellow: All landmarks", (10, legend_y),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+            cv2.putText(debug_frame, "Blue: Medial eyebrow points", (10, legend_y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
+            cv2.putText(debug_frame, "Green: Calculated midline points", (10, legend_y + 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            cv2.putText(debug_frame, "Red: Extended midline", (10, legend_y + 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
         return debug_frame
 
     def process_video(self, input_path, output_dir):
         """Process video file with progress tracking"""
+        # Reset tracking history at the start of each video
+        self.reset_tracking_history()
+
         input_path = Path(input_path)
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)

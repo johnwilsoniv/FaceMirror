@@ -1,0 +1,7 @@
+Timestamp: 2025-02-28_21-50-59
+Exception: KeyboardInterrupt: 
+Traceback:
+Traceback (most recent call last):
+  File "/Users/johnwilsoniv/Documents/open2/Vid Key/main.py", line 178, in refresh_action_state
+    def refresh_action_state(self):
+KeyboardInterrupt
