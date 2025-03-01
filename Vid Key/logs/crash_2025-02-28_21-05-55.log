@@ -1,9 +1,0 @@
-Timestamp: 2025-02-28_21-05-55
-Exception: NameError: name 'QTimer' is not defined
-Traceback:
-Traceback (most recent call last):
-  File "/Users/johnwilsoniv/Documents/open2/Vid Key/main.py", line 474, in <module>
-    controller = ApplicationController()
-  File "/Users/johnwilsoniv/Documents/open2/Vid Key/main.py", line 139, in __init__
-    self.state_refresh_timer = QTimer()
-NameError: name 'QTimer' is not defined
