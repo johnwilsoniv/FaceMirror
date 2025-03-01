@@ -174,17 +174,40 @@ class ApplicationController(QObject):
 
     def eventFilter(self, obj, event):
         """
-        Event filter to prioritize key events.
-        This helps make key presses more responsive by processing them
-        outside the normal event loop.
+        Event filter to control key events and prevent multiple activations.
         """
         if obj == self.window:
             if event.type() == QEvent.KeyPress:
-                # Process only if not auto-repeat
-                if not event.isAutoRepeat() and hasattr(event, 'text') and event.text() in self.window.key_to_action:
-                    # We'll let the window's keyPressEvent handle this
-                    # which now has toggle logic built in
-                    return False  # Let the event continue to be processed
+                key = event.text()
+                
+                # Only log if this is a key we're interested in
+                if key in self.window.key_to_action:
+                    is_pressed = self.window.pressed_keys.get(key, False)
+                    will_block = is_pressed
+                    
+                    if hasattr(self.window, 'key_logger'):
+                        self.window.key_logger.debug(
+                            f"EVENT FILTER: KeyPress for '{key}' | "
+                            f"Already pressed? {is_pressed} | "
+                            f"Will block? {will_block}"
+                        )
+                    
+                    # If the key is already marked as pressed, block the event
+                    if is_pressed:
+                        return True  # Block the event
+                
+            elif event.type() == QEvent.KeyRelease:
+                key = event.text()
+                
+                # Only log if this is a key we're interested in
+                if key in self.window.key_to_action:
+                    is_pressed = self.window.pressed_keys.get(key, False)
+                    
+                    if hasattr(self.window, 'key_logger'):
+                        self.window.key_logger.debug(
+                            f"EVENT FILTER: KeyRelease for '{key}' | "
+                            f"Is marked as pressed? {is_pressed}"
+                        )
 
         # Let other events be handled normally
         return super().eventFilter(obj, event)
@@ -199,7 +222,17 @@ class ApplicationController(QObject):
             # Get current frame
             current_frame = self.video_player.current_frame
             
-            # Check if UI state needs updating
+            # Only update the action tracker if the frame has changed
+            if current_frame != self.action_tracker.current_frame:
+                self.action_tracker.set_frame(current_frame)
+                self.action_tracker.continue_action()
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"CONTINUE ACTION: {self.active_action} for frame {current_frame}"
+                    )
+            
+            # Ensure UI state is consistent
             if self.window.current_active_action != self.active_action:
                 # Update window state
                 self.window.current_active_action = self.active_action
@@ -210,15 +243,10 @@ class ApplicationController(QObject):
                     if not button.pressed_state:
                         button.set_pressed(True)
                         
-                # Make sure other buttons are not pressed
-                for code, button in self.window.action_buttons.items():
-                    if code != self.active_action and button.pressed_state:
-                        button.set_pressed(False)
-            
-            # Check if we need to update the action tracker
-            if current_frame != self.action_tracker.current_frame:
-                self.action_tracker.set_frame(current_frame)
-                self.action_tracker.continue_action()
+                        if hasattr(self.window, 'key_logger'):
+                            self.window.key_logger.debug(
+                                f"STATE SYNC: Setting button {self.active_action} to pressed state"
+                            )
 
     def connect_signals(self):
         """Connect all signals and slots."""
@@ -242,8 +270,15 @@ class ApplicationController(QObject):
                 current_frame = self.video_player.current_frame
                 self.action_tracker.set_frame(current_frame)
                 self.action_tracker.continue_action()
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"CONTINUE ACTION EXPLICIT: {self.active_action} for frame {current_frame}"
+                    )
         except Exception as e:
             print(f"Error in continue_action: {str(e)}")
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.error(f"Error in continue_action: {str(e)}")
 
     def refresh_action_state(self):
         """
@@ -262,15 +297,30 @@ class ApplicationController(QObject):
             self.action_tracker.set_frame(current_frame)
             self.action_tracker.continue_action()
             
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug(
+                    f"REFRESH ACTION: {self.active_action} for frame {current_frame}"
+                )
+            
             # Only update UI if needed
             if self.window.current_active_action != self.active_action:
                 if self.active_action in self.window.action_buttons:
                     self.window.action_buttons[self.active_action].set_pressed(True)
                 self.window.current_active_action = self.active_action
                 
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"REFRESH UI STATE: {self.active_action}"
+                    )
+                
             # Only update overlay if needed
             if self.video_player.current_action != self.active_action:
                 self.video_player.set_action(self.active_action)
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"REFRESH OVERLAY: {self.active_action}"
+                    )
     
     def init_video_player(self):
         """Initialize the video player with the selected video path."""
@@ -340,18 +390,40 @@ class ApplicationController(QObject):
             if self.active_action in self.window.action_buttons:
                 self.window.action_buttons[self.active_action].set_pressed(True)
 
+            # Log this frame update
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug(
+                    f"FRAME UPDATE: Frame {frame_number} with active action {self.active_action}"
+                )
+
         # Priority 2: Previously recorded action for this frame
         elif not display_action:
             # Get any previously coded action for this frame
             previous_action = self.action_tracker.get_action_for_frame(frame_number)
             if previous_action:
                 display_action = previous_action
+                
+                # Log previous action display
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"FRAME UPDATE: Frame {frame_number} with previous action {previous_action}"
+                    )
 
         # Update the video player's overlay - only if needed (different from current)
         if display_action and display_action != self.video_player.current_action:
             self.video_player.set_action(display_action)
+            # Log overlay update
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug(
+                    f"OVERLAY UPDATE: Setting to {display_action} for frame {frame_number}"
+                )
         elif not display_action and self.video_player.current_action:
             self.video_player.clear_action()
+            # Log overlay clear
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug(
+                    f"OVERLAY CLEAR: Frame {frame_number}"
+                )
 
     def toggle_play_pause(self, play):
         """Toggle between play and pause states."""
@@ -364,10 +436,18 @@ class ApplicationController(QObject):
             self.video_player.play()
             # Start the state refresh timer only when playing
             self.state_refresh_timer.start()
+            
+            # Log playback state
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug("PLAYBACK: Started")
         else:
             self.video_player.pause()
             # Stop the timer when paused to save resources
             self.state_refresh_timer.stop()
+            
+            # Log playback state
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug("PLAYBACK: Paused")
 
     def seek_to_frame(self, frame):
         """Seek to a specific frame in the video."""
@@ -386,9 +466,16 @@ class ApplicationController(QObject):
 
         # Seek to the frame
         self.video_player.seek(frame)
+        
+        # Log the seek operation
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug(f"SEEK: To frame {frame} | Action: {previous_action or 'None'}")
 
     def start_action(self, action_code):
         """Start an action at the current frame."""
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug(f"START ACTION CALLED: {action_code}")
+        
         # First check if video is loaded
         if not self.window.video_path:
             QMessageBox.warning(self.window, "Warning", "Please select a video file first.")
@@ -419,7 +506,15 @@ class ApplicationController(QObject):
                 return
 
         try:
-            # First set the active action - do this FIRST for responsiveness
+            # First clear any current active action
+            if self.active_action and self.active_action != action_code:
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"REPLACING ACTION: {self.active_action} → {action_code}"
+                    )
+                self.stop_action()
+                
+            # Set the active action - do this FIRST for responsiveness
             self.active_action = action_code
             self.window.current_active_action = action_code
             
@@ -428,15 +523,30 @@ class ApplicationController(QObject):
             self.action_tracker.set_frame(current_frame)
             self.action_tracker.start_action(action_code)
             
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.debug(
+                    f"ACTION STARTED: {action_code} at frame {current_frame}"
+                )
+            
             # Update overlay display - but don't do heavy redrawing
             if hasattr(self.video_player, 'current_action') and self.video_player.current_action != action_code:
                 self.video_player.set_action(action_code)
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug(
+                        f"OVERLAY SET: {action_code}"
+                    )
             
             # Ensure the refresh timer is running while an action is active
             if not self.state_refresh_timer.isActive():
                 self.state_refresh_timer.start()
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug("REFRESH TIMER: Started")
         except Exception as e:
             print(f"Error in start_action: {str(e)}")
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.error(f"Error in start_action: {str(e)}")
             QMessageBox.critical(self.window, "Error", f"Error setting action: {str(e)}")
             # Clear any UI action state
             for code, button in self.window.action_buttons.items():
@@ -446,6 +556,9 @@ class ApplicationController(QObject):
 
     def stop_action(self):
         """Stop the active action."""
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug(f"STOP ACTION CALLED: Current active = {self.active_action}")
+        
         # Clear active action immediately for responsiveness
         current_action = self.active_action
         self.active_action = None
@@ -459,22 +572,36 @@ class ApplicationController(QObject):
             if hasattr(self.video_player, 'current_action') and self.video_player.current_action:
                 self.video_player.clear_action()
                 
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug("OVERLAY CLEARED")
+                
             # If we're not playing, we can stop the refresh timer to save resources
             if not self.video_player.is_playing:
                 self.state_refresh_timer.stop()
+                
+                if hasattr(self.window, 'key_logger'):
+                    self.window.key_logger.debug("REFRESH TIMER: Stopped")
         except Exception as e:
             # Just log the error, but don't show message since this is called during cleanup
             print(f"Error in stop_action: {str(e)}")
+            if hasattr(self.window, 'key_logger'):
+                self.window.key_logger.error(f"Error in stop_action: {str(e)}")
 
         # Ensure UI state is consistent
         for code, button in self.window.action_buttons.items():
             button.set_pressed(False)
+        
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug(f"ACTION STOPPED: {current_action}")
     
     def video_finished(self):
         """Handle video playback completion."""
         self.window.play_pause_btn.setText("Play")
         # Stop the refresh timer when video finishes
         self.state_refresh_timer.stop()
+        
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug("VIDEO FINISHED")
     
     def save_outputs(self):
         """Generate output files."""
@@ -509,6 +636,11 @@ class ApplicationController(QObject):
         self.window.output_csv_path = output_csv
         self.window.output_second_csv_path = second_output_csv
         self.window.output_video_path = output_video
+        
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug(
+                f"SAVING OUTPUT FILES: Video={output_video}, CSV1={output_csv}, CSV2={second_output_csv}"
+            )
         
         # Validate that we have some actions to save
         if not self.action_tracker.get_all_actions():
@@ -557,11 +689,17 @@ class ApplicationController(QObject):
             "Success",
             message
         )
+        
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.debug("PROCESSING COMPLETED SUCCESSFULLY")
     
     def processing_error(self, error_message):
         """Handle processing error."""
         self.window.show_progress_bar(False)
         QMessageBox.critical(self.window, "Error", error_message)
+        
+        if hasattr(self.window, 'key_logger'):
+            self.window.key_logger.error(f"PROCESSING ERROR: {error_message}")
     
     def run(self):
         """Run the application."""

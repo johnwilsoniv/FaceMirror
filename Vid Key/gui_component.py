@@ -6,10 +6,45 @@ from PyQt5.QtCore import Qt, pyqtSignal, QTimer
 from PyQt5.QtGui import QPixmap, QFont
 import config
 import os
+import logging
+import datetime
 
+# Setup logging for keyboard events
+def setup_keyboard_logging():
+    """Set up a specialized logger for keyboard events"""
+    # Create logs directory if it doesn't exist
+    os.makedirs("logs", exist_ok=True)
+    
+    # Create a logger
+    logger = logging.getLogger('keyboard_events')
+    logger.setLevel(logging.DEBUG)
+    
+    # Create a timestamp for the log file
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = os.path.join("logs", f"keyboard_events_{timestamp}.log")
+    
+    # Create a file handler
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    
+    # Create a formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    
+    # Add the handler to the logger
+    logger.addHandler(file_handler)
+    
+    # Also create a console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    print(f"Keyboard event logging enabled. Log file: {log_file}")
+    return logger
 
 class ActionButton(QPushButton):
-    """Custom button for toggling actions."""
+    """Custom button for press-and-hold action activation."""
     pressed_signal = pyqtSignal(str)
     released_signal = pyqtSignal()
 
@@ -38,19 +73,27 @@ class ActionButton(QPushButton):
 
         self.pressed_state = False
 
-        # For toggle behavior, we only need clicked signal
-        self.clicked.connect(self.on_clicked)
+        # Connect press and release signals for press-and-hold behavior
+        self.pressed.connect(self.on_pressed)
+        self.released.connect(self.on_released)
 
-        # Store shortcut key for direct access
+        # Store shortcut key for display/reference only, but DON'T set active shortcut
         self.key_shortcut = key_shortcut
-        self.setShortcut(key_shortcut)
+        
+        # REMOVED: self.setShortcut(key_shortcut)
+        # This prevents Qt from automatically triggering button press/release cycles
 
-    def on_clicked(self):
-        """Handle button click event for toggle behavior."""
-        # Let the parent window handle the toggle logic
+    def on_pressed(self):
+        """Handle button press event."""
+        # Emit signal with action code for parent to handle
         self.pressed_signal.emit(self.action_code)
         # Ensure button gets proper visual focus
         self.setFocus()
+
+    def on_released(self):
+        """Handle button release event."""
+        # Emit release signal for parent to handle
+        self.released_signal.emit()
 
     def set_pressed(self, pressed=True):
         """Set the button's pressed state programmatically."""
@@ -67,6 +110,7 @@ class ActionButton(QPushButton):
         self.style().unpolish(self)
         self.style().polish(self)
         self.update()
+
 class MainWindow(QMainWindow):
     """Main application window."""
     frame_changed_signal = pyqtSignal(int)
@@ -89,7 +133,44 @@ class MainWindow(QMainWindow):
         self.key_to_action = {}  # Maps key text to action code
         self.current_active_action = None  # Currently active action code
         
+        # Initialize key logger
+        self.key_logger = setup_keyboard_logging()
+        self.key_event_counter = 0
+        self.last_key_time = datetime.datetime.now()
+        
         self.setup_ui()
+
+    def debug_key_event(self, event, event_type):
+        """Log detailed information about a key event"""
+        # Increment event counter
+        self.key_event_counter += 1
+        
+        key = event.text()
+        key_code = event.key()
+        is_auto_repeat = event.isAutoRepeat()
+        
+        # Calculate time since last event
+        current_time = datetime.datetime.now()
+        time_diff = (current_time - self.last_key_time).total_seconds() * 1000  # in ms
+        time_info = f", {time_diff:.2f}ms since last event"
+        self.last_key_time = current_time
+        
+        # Log the event
+        self.key_logger.debug(
+            f"Event #{self.key_event_counter}: {event_type} | "
+            f"Key: '{key}' (code: {key_code}) | "
+            f"AutoRepeat: {is_auto_repeat}{time_info} | "
+            f"Current pressed keys: {self.pressed_keys} | "
+            f"Active action: {self.current_active_action}"
+        )
+        
+        # Update debug info in UI
+        if hasattr(self, 'debug_label'):
+            self.debug_label.setText(
+                f"Last event: {event_type} | Key: {key} | "
+                f"AutoRepeat: {is_auto_repeat} | "
+                f"Count: {self.key_event_counter}"
+            )
 
     def setup_ui(self):
         """Set up the user interface."""
@@ -216,7 +297,6 @@ class MainWindow(QMainWindow):
             button = ActionButton(code, button_text, key_shortcut)
             button.pressed_signal.connect(self.action_pressed)
             button.released_signal.connect(self.action_released)
-            button.setShortcut(key_shortcut)
 
             # Add to layout
             action_inner_layout.addWidget(button)
@@ -271,9 +351,28 @@ class MainWindow(QMainWindow):
         # Enable keyboard focus
         self.setFocusPolicy(Qt.StrongFocus)
         
+        # Add debug label to status bar
+        self.add_debug_display()
+        
         # Ensure focus when window is shown
         self.activateWindow()
     
+    def add_debug_display(self):
+        """Add a debug display label to the MainWindow"""
+        from PyQt5.QtWidgets import QLabel
+        from PyQt5.QtCore import Qt
+        from PyQt5.QtGui import QFont
+        
+        # Create a debug label at the bottom of the window
+        self.debug_label = QLabel("Keyboard event debugging active")
+        self.debug_label.setFont(QFont('Monospace', 9))
+        self.debug_label.setStyleSheet("background-color: #FFFFCC; color: #000000; padding: 3px;")
+        self.debug_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.debug_label.setMinimumHeight(25)
+        
+        # Make it part of the main layout
+        self.statusBar().addWidget(self.debug_label, 1)
+        
     def select_video(self):
         """Open file dialog to select input video."""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -361,6 +460,8 @@ class MainWindow(QMainWindow):
 
     def action_pressed(self, action_code):
         """Handle action button press event."""
+        self.key_logger.debug(f"BUTTON PRESSED: {action_code}")
+        
         # Clear all other buttons first to ensure only one is active
         self.clear_all_action_buttons()
 
@@ -376,6 +477,8 @@ class MainWindow(QMainWindow):
     
     def action_released(self):
         """Handle action button release event."""
+        self.key_logger.debug(f"BUTTON RELEASED: Active action was {self.current_active_action}")
+        
         # Clear the active action
         self.current_active_action = None
         
@@ -417,89 +520,113 @@ class MainWindow(QMainWindow):
         self.show_progress_bar(True)
 
     def keyPressEvent(self, event):
-        """Handle keyboard events by toggling action states."""
-        # Process only if not auto-repeat
-        if not event.isAutoRepeat():
-            try:
-                key = event.text()
+        """
+        Handle keyboard press events with detailed debugging.
+        """
+        # Debug logging
+        self.debug_key_event(event, "KEY PRESS")
+        
+        try:
+            key = event.text()
 
-                # Check if key is in our action mapping
-                if key in self.key_to_action:
-                    action_code = self.key_to_action[key]
+            # Check if key is in our action mapping
+            if key in self.key_to_action:
+                action_code = self.key_to_action[key]
+                
+                # Log the state before processing
+                self.key_logger.debug(
+                    f"  Processing key press: '{key}' → '{action_code}' | "
+                    f"Already pressed? {self.pressed_keys.get(key, False)}"
+                )
+                
+                # Only process this key if it's not already being tracked as pressed
+                if not self.pressed_keys.get(key, False):
+                    # Record that this key is pressed
+                    self.pressed_keys[key] = True
+                    
+                    # Set as current active action
+                    self.current_active_action = action_code
 
-                    # Toggle behavior: if this action is already active, deactivate it
-                    if self.current_active_action == action_code:
-                        # Clear the active action
-                        self.current_active_action = None
+                    # Highlight the correct button
+                    if action_code in self.action_buttons:
+                        self.action_buttons[action_code].set_pressed(True)
 
-                        # Reset button appearance
-                        if action_code in self.action_buttons:
-                            self.action_buttons[action_code].set_pressed(False)
+                    # Emit signal for action started
+                    self.action_started_signal.emit(action_code)
+                    
+                    # Log action activation
+                    self.key_logger.debug(f"  Action ACTIVATED: {action_code}")
+                else:
+                    # Log that we're ignoring this press
+                    self.key_logger.debug(f"  Ignoring repeated key press for '{key}'")
 
-                        # Emit stop signal
-                        self.action_stopped_signal.emit()
-                    else:
-                        # Otherwise, activate this action (deactivating any other first)
-
-                        # Clear any existing active action
-                        if self.current_active_action and self.current_active_action in self.action_buttons:
-                            self.action_buttons[self.current_active_action].set_pressed(False)
-
-                        # Set current active action
-                        self.current_active_action = action_code
-
-                        # Set button visual state
-                        if action_code in self.action_buttons:
-                            self.action_buttons[action_code].set_pressed(True)
-
-                        # Emit the action signal
-                        self.action_started_signal.emit(action_code)
-
-                    # Accept the event
-                    event.accept()
-                    return
-            except Exception as e:
-                print(f"Error in keyPressEvent: {str(e)}")
+                # Always accept the event
+                event.accept()
+                return
+        except Exception as e:
+            self.key_logger.error(f"Error in keyPressEvent: {str(e)}")
+            print(f"Error in keyPressEvent: {str(e)}")
 
         # Pass unhandled events to parent
         super().keyPressEvent(event)
 
-    # Since we're using toggle behavior, we don't need to handle key release actions
-    # We can greatly simplify keyReleaseEvent
     def keyReleaseEvent(self, event):
-        """Handle keyboard release events."""
-        # Just pass to parent for normal processing
-        super().keyReleaseEvent(event)
+        """
+        Handle keyboard release events with detailed debugging.
+        """
+        # Debug logging
+        self.debug_key_event(event, "KEY RELEASE")
+        
+        try:
+            key = event.text()
 
-    def keyReleaseEvent(self, event):
-        """Handle keyboard release events by directly controlling the buttons."""
-        # Critical: Ignore auto-repeat release events
-        if not event.isAutoRepeat():
-            try:
-                key = event.text()
+            # Only process if this key was previously recorded as pressed
+            if key in self.key_to_action and self.pressed_keys.get(key, False):
+                action_code = self.key_to_action[key]
 
-                # Only process if this key was previously recorded as pressed
-                if key in self.key_to_action and self.pressed_keys.get(key, False):
-                    action_code = self.key_to_action[key]
+                # Log the state before processing
+                self.key_logger.debug(
+                    f"  Processing key release: '{key}' → '{action_code}' | "
+                    f"Current active: {self.current_active_action}"
+                )
 
-                    # Only handle release if this matches the current active action
-                    if action_code == self.current_active_action:
-                        # Clear the pressed state
-                        self.pressed_keys[key] = False
-                        self.current_active_action = None
+                # Clear the pressed state
+                self.pressed_keys[key] = False
+                
+                # Only deactivate if this matches the current active action
+                if action_code == self.current_active_action:
+                    self.current_active_action = None
 
-                        # Use direct property manipulation for all buttons - faster than style recalc
-                        for code, button in self.action_buttons.items():
-                            button.setDown(False)  # Reset pressed appearance
+                    # Reset button appearance
+                    if action_code in self.action_buttons:
+                        self.action_buttons[action_code].set_pressed(False)
 
-                        # Emit the release signal
-                        self.action_stopped_signal.emit()
+                    # Emit the release signal
+                    self.action_stopped_signal.emit()
+                    
+                    # Log action deactivation
+                    self.key_logger.debug(f"  Action DEACTIVATED: {action_code}")
+                else:
+                    # Log that we're ignoring this release
+                    self.key_logger.debug(
+                        f"  Not deactivating - key's action ({action_code}) "
+                        f"doesn't match current active ({self.current_active_action})"
+                    )
 
-                    # Accept the event
-                    event.accept()
-                    return
-            except Exception as e:
-                print(f"Error in keyReleaseEvent: {str(e)}")
+                # Accept the event
+                event.accept()
+                return
+            else:
+                # Log why we're ignoring this release
+                if key in self.key_to_action:
+                    was_pressed = self.pressed_keys.get(key, False)
+                    self.key_logger.debug(
+                        f"  Ignoring key release for '{key}' - "
+                        f"Was marked as pressed? {was_pressed}"
+                    )
+        except Exception as e:
+            self.key_logger.error(f"Error in keyReleaseEvent: {str(e)}")
+            print(f"Error in keyReleaseEvent: {str(e)}")
         
         # Pass unhandled events to parent for normal processing
         super().keyReleaseEvent(event)
