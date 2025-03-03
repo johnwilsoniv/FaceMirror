@@ -9,6 +9,7 @@ import os
 import cv2
 from matplotlib import pyplot as plt
 import logging
+import re
 from facial_au_constants import (
     ACTION_TO_AUS, ACTION_DESCRIPTIONS, ALL_AU_COLUMNS, 
     PARALYSIS_THRESHOLD, MINIMAL_MOVEMENT_THRESHOLD, SYNKINESIS_PATTERNS,
@@ -55,8 +56,14 @@ class FacialAUAnalyzer:
             self.left_data['action'] = self.left_data['action'].fillna('Unknown')
             self.right_data['action'] = self.right_data['action'].fillna('Unknown')
             
-            # Extract patient ID from filename
-            self.patient_id = os.path.basename(left_csv_path).split('_')[0]
+            # Extract patient ID from filename - keep the full IMG_XXXX format
+            filename = os.path.basename(left_csv_path)
+            match = re.search(r'(IMG_\d+)', filename)
+            if match:
+                self.patient_id = match.group(1)  # Extract the full IMG_XXXX format
+            else:
+                # Fallback in case the pattern doesn't match
+                self.patient_id = os.path.basename(left_csv_path).split('_')[0]
             
             logger.info(f"Loaded data for patient {self.patient_id}")
             logger.info(f"Left data shape: {self.left_data.shape}")
@@ -82,9 +89,9 @@ class FacialAUAnalyzer:
             
         self.results = {}
         
-        # Get unique actions in the data, filtering out NaN values
+        # Get unique actions in the data, filtering out NaN values and 'Unknown' actions
         unique_actions = [action for action in pd.unique(self.left_data['action']) 
-                         if isinstance(action, str) and action in self.action_to_aus]
+                         if isinstance(action, str) and action in self.action_to_aus and action != 'Unknown']
         
         for action in unique_actions:
             # Filter data for this action
@@ -168,8 +175,8 @@ class FacialAUAnalyzer:
                 },
                 'synkinesis': {
                     'detected': False,
-                    'type': None,
-                    'details': ""
+                    'types': [],  # Changed from single 'type' to list of 'types'
+                    'details': {}  # Changed from string to dictionary keyed by synkinesis type
                 }
             }
             
@@ -372,12 +379,30 @@ class FacialAUAnalyzer:
                       ha='center', fontsize=10, color='red',
                       bbox=dict(facecolor='white', alpha=0.8, edgecolor='red'))
         
-        # Add synkinesis info if detected
+        # Add synkinesis info if detected - with side information
         if action in self.results and self.results[action]['synkinesis']['detected']:
-            synk_type = self.results[action]['synkinesis']['type']
-            plt.figtext(0.5, 0.04, f"Potential {synk_type} synkinesis detected", 
-                      ha='center', fontsize=10, color='blue',
-                      bbox=dict(facecolor='white', alpha=0.8, edgecolor='blue'))
+            synk_types = self.results[action]['synkinesis']['types']
+            if synk_types:
+                # Extract side information from details
+                synk_sides = {"left": [], "right": []}
+                for synk_type, details_list in self.results[action]['synkinesis']['details'].items():
+                    for detail in details_list:
+                        if "left side" in detail.lower():
+                            synk_sides["left"].append(synk_type)
+                        if "right side" in detail.lower():
+                            synk_sides["right"].append(synk_type)
+                
+                # Create text with side information
+                side_texts = []
+                if synk_sides["left"]:
+                    side_texts.append(f"LEFT: {', '.join(synk_sides['left'])}")
+                if synk_sides["right"]:
+                    side_texts.append(f"RIGHT: {', '.join(synk_sides['right'])}")
+                
+                synk_text = f"Potential synkinesis detected: {' | '.join(side_texts)}"
+                plt.figtext(0.5, 0.04, synk_text, 
+                          ha='center', fontsize=10, color='blue',
+                          bbox=dict(facecolor='white', alpha=0.8, edgecolor='blue'))
         
         plt.tight_layout(rect=[0, 0.05, 1, 0.97])  # Adjust layout to make room for annotations
         
@@ -403,44 +428,18 @@ class FacialAUAnalyzer:
         summary_data = []
         
         for action, info in self.results.items():
-            action_desc = self.action_descriptions.get(action, action)
-            key_aus = ', '.join(self.action_to_aus[action])
-            
-            # Calculate key AU values on both sides
-            left_key_au_values = {k: v for k, v in info['left']['au_values'].items() 
-                                if k in self.action_to_aus[action]}
-            right_key_au_values = {k: v for k, v in info['right']['au_values'].items() 
-                                  if k in self.action_to_aus[action]}
-            
-            left_max = np.mean(list(left_key_au_values.values())) if left_key_au_values else 0
-            right_max = np.mean(list(right_key_au_values.values())) if right_key_au_values else 0
-            
-            # Calculate symmetry ratio
-            if right_max != 0 and not np.isnan(right_max):
-                symmetry_ratio = left_max / right_max
-            else:
-                symmetry_ratio = np.nan
-                
-            # Determine if there's asymmetry (this is a simple threshold, may need adjustment)
-            asymmetry = abs(1 - symmetry_ratio) > 0.2 if not np.isnan(symmetry_ratio) else False
-            
-            # Create data row
+            # Create data row - removed Description, Key AUs, Symmetry Ratio, Asymmetry Detected, and Synkinesis Details
             row_data = {
                 'Patient ID': self.patient_id,
                 'Action': action,
-                'Description': action_desc,
-                'Key AUs': key_aus,
                 'Max Side': info['max_side'],
                 'Max Frame': info['max_frame'],
                 'Max Value': info['max_value'],
-                'Symmetry Ratio': symmetry_ratio,
-                'Asymmetry Detected': asymmetry,
                 'Paralysis Detected': info['paralysis']['detected'],
                 'Paralyzed Side': info['paralysis']['side'] if info['paralysis']['detected'] else 'None',
                 'Affected AUs': ', '.join(info['paralysis']['affected_aus']) if info['paralysis']['affected_aus'] else 'None',
                 'Synkinesis Detected': info['synkinesis']['detected'],
-                'Synkinesis Type': info['synkinesis']['type'] if info['synkinesis']['detected'] else 'None',
-                'Synkinesis Details': info['synkinesis']['details'] if info['synkinesis']['detected'] else 'None'
+                'Synkinesis Types': ', '.join(info['synkinesis']['types']) if info['synkinesis']['types'] else 'None'
             }
             
             # Add all AU values for both sides
@@ -529,10 +528,65 @@ class FacialAUAnalyzer:
             logger.info(f"Potential facial paralysis detected on {paralysis_side} side")
             logger.info(f"Affected AUs: {', '.join(affected_aus)}")
     
+    def _detect_snarl_smile(self, action, info):
+        """
+        Special detection for snarl smile synkinesis.
+        Uses individual AU thresholds instead of averages for more accurate detection.
+        
+        Args:
+            action (str): The facial action being analyzed
+            info (dict): Action data from results dictionary
+        """
+        # Only check for snarl smile during smile actions
+        if action not in ['BS', 'SS']:
+            return
+        
+        # Check both sides
+        for side in ['left', 'right']:
+            # Get smile activation value
+            smile_value = info[side]['au_values'].get('AU12_r', 0)
+            
+            # Check if we have a significant smile
+            if smile_value > 0.4:
+                # Check each snarl component individually
+                nose_wrinkle = info[side]['au_values'].get('AU09_r', 0) 
+                upper_lip = info[side]['au_values'].get('AU10_r', 0)
+                dimpler = info[side]['au_values'].get('AU14_r', 0)
+                
+                # If ANY of these are activated significantly, we have a potential snarl smile
+                if nose_wrinkle > 0.3 or upper_lip > 0.3 or dimpler > 0.4:
+                    # Create list of detected snarl components
+                    snarl_components = []
+                    if nose_wrinkle > 0.3:
+                        snarl_components.append('AU09_r (Nose Wrinkler)')
+                    if upper_lip > 0.3:
+                        snarl_components.append('AU10_r (Upper Lip Raiser)')
+                    if dimpler > 0.4:
+                        snarl_components.append('AU14_r (Dimpler)')
+                    
+                    # Add this synkinesis type if not already detected
+                    if 'Snarl-Smile' not in info['synkinesis']['types']:
+                        info['synkinesis']['detected'] = True
+                        info['synkinesis']['types'].append('Snarl-Smile')
+                        
+                    # Create synkinesis detail message
+                    detail_msg = (
+                        f"Snarl-Smile on {side} side: AU12_r (Smile) triggers "
+                        f"{', '.join(snarl_components)}"
+                    )
+                    
+                    # Store details for this synkinesis type
+                    if 'Snarl-Smile' not in info['synkinesis']['details']:
+                        info['synkinesis']['details']['Snarl-Smile'] = []
+                    info['synkinesis']['details']['Snarl-Smile'].append(detail_msg)
+                    
+                    logger.info(f"Potential Snarl-Smile synkinesis detected on {side} side")
+    
     def detect_synkinesis(self):
         """
         Detect potential synkinesis (unwanted co-activation of muscles).
-        Focuses on ocular-oral and oral-ocular synkinesis patterns.
+        Detects all possible types of synkinesis patterns and accumulates them rather than overwriting.
+        This allows multiple types of synkinesis to be detected for the same action.
         
         This is added to the results dictionary for each action.
         """
@@ -540,32 +594,45 @@ class FacialAUAnalyzer:
             logger.warning("No results to analyze for synkinesis detection")
             return
         
+        # First call specialized detection functions
+        for action, info in self.results.items():
+            # Detect Snarl Smile using specialized detection
+            self._detect_snarl_smile(action, info)
+        
+        # Always check both sides for synkinesis
+        sides_to_check = ['left', 'right']
+        
         # Look for synkinesis in each relevant action
         for action, info in self.results.items():
-            # Only check actions involving eye closure or mouth movements
+            # Get key AUs for this action
             key_aus = self.action_to_aus[action]
             
-            # For each defined synkinesis pattern
+            # For each defined synkinesis pattern (except Snarl-Smile which was handled specially)
             for synk_name, synk_pattern in SYNKINESIS_PATTERNS.items():
+                # Skip Snarl-Smile as it was handled by specialized function
+                if synk_name == 'Snarl-Smile':
+                    continue
+                    
                 trigger_aus = synk_pattern['trigger_aus']
                 coupled_aus = synk_pattern['coupled_aus']
                 
+                # Use different thresholds for Oral-Ocular during smile actions
+                detection_threshold = 0.3
+                if synk_name == 'Oral-Ocular' and action in ['BS', 'SS']:
+                    detection_threshold = 0.25
+                
                 # Check if this action involves trigger AUs
                 if any(au in key_aus for au in trigger_aus):
-                    # Calculate average activation of trigger AUs and coupled AUs
-                    trigger_activations = []
-                    coupled_activations = []
-                    
-                    # Check both sides independently
-                    for side in ['left', 'right']:
-                        # Get trigger AU activations
+                    # Check both sides
+                    for side in sides_to_check:
+                        # Calculate average activation of trigger AUs
                         side_trigger_values = [
                             info[side]['au_values'].get(au, 0) 
                             for au in trigger_aus 
-                            if au in info[side]['au_values']
+                            if au in info[side]['au_values'] and au in key_aus
                         ]
                         
-                        # Get coupled AU activations
+                        # Get coupled AU activations (unwanted responses)
                         side_coupled_values = [
                             info[side]['au_values'].get(au, 0) 
                             for au in coupled_aus 
@@ -576,35 +643,29 @@ class FacialAUAnalyzer:
                             avg_trigger = sum(side_trigger_values) / len(side_trigger_values)
                             avg_coupled = sum(side_coupled_values) / len(side_coupled_values)
                             
-                            trigger_activations.append((side, avg_trigger))
-                            coupled_activations.append((side, avg_coupled))
-                    
-                    # If we have data for both sides
-                    if trigger_activations and coupled_activations:
-                        # Sort by trigger activation (highest first)
-                        trigger_activations.sort(key=lambda x: x[1], reverse=True)
-                        
-                        # Check if there's unwanted co-activation on either side
-                        for side, trigger_value in trigger_activations:
-                            if trigger_value > 0.3:  # Significant trigger activation
-                                # Find corresponding coupled activation
-                                coupled_value = next((val for s, val in coupled_activations if s == side), 0)
+                            # If there's significant trigger activation and unwanted coupled activation
+                            if avg_trigger > detection_threshold and avg_coupled > detection_threshold:
+                                ratio = avg_coupled / avg_trigger if avg_trigger > 0 else 0
                                 
-                                # If coupled activation is also significant, might be synkinesis
-                                if coupled_value > 0.3:
-                                    ratio = coupled_value / trigger_value if trigger_value > 0 else 0
-                                    
-                                    # If coupled activation is proportional to trigger, likely synkinesis
-                                    if 0.3 < ratio < 1.5:
+                                # If coupled activation is proportional to trigger, likely synkinesis
+                                if 0.3 < ratio < 1.5:
+                                    # Add this synkinesis type if not already detected
+                                    if synk_name not in info['synkinesis']['types']:
                                         info['synkinesis']['detected'] = True
-                                        info['synkinesis']['type'] = synk_name
-                                        info['synkinesis']['details'] += (
-                                            f"{synk_name} on {side} side: {', '.join(trigger_aus)} "
-                                            f"triggers {', '.join(coupled_aus)} (ratio: {ratio:.2f}). "
-                                        )
+                                        info['synkinesis']['types'].append(synk_name)
                                         
-                                        logger.info(f"Potential {synk_name} synkinesis detected on {side} side")
-                                        break
+                                    # Create synkinesis detail message
+                                    detail_msg = (
+                                        f"{synk_name} on {side} side: {', '.join([au for au in trigger_aus if au in key_aus])} "
+                                        f"triggers {', '.join(coupled_aus)} (ratio: {ratio:.2f})"
+                                    )
+                                    
+                                    # Store details for this synkinesis type
+                                    if synk_name not in info['synkinesis']['details']:
+                                        info['synkinesis']['details'][synk_name] = []
+                                    info['synkinesis']['details'][synk_name].append(detail_msg)
+                                    
+                                    logger.info(f"Potential {synk_name} synkinesis detected on {side} side")
     
     def create_symmetry_visualization(self, output_dir):
         """
@@ -678,13 +739,14 @@ class FacialAUAnalyzer:
         # Add synkinesis info if detected
         synkinesis_detected = any(info['synkinesis']['detected'] for info in self.results.values())
         if synkinesis_detected:
-            synk_types = set()
+            # Collect all unique synkinesis types across all actions
+            all_synk_types = set()
             for info in self.results.values():
-                if info['synkinesis']['detected'] and info['synkinesis']['type']:
-                    synk_types.add(info['synkinesis']['type'])
+                if info['synkinesis']['detected']:
+                    all_synk_types.update(info['synkinesis']['types'])
             
-            if synk_types:
-                synk_text = f"Synkinesis detected: {', '.join(synk_types)}"
+            if all_synk_types:
+                synk_text = f"Synkinesis detected: {', '.join(all_synk_types)}"
                 plt.figtext(0.5, 0.01, synk_text, ha='center', fontsize=10, 
                            bbox=dict(facecolor='yellow', alpha=0.2))
         

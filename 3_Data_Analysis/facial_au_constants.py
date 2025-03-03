@@ -6,10 +6,10 @@ Contains definitions of Action Units (AUs) for different facial actions.
 # Define the key AUs for each action
 ACTION_TO_AUS = {
     'RE': ['AU01_r', 'AU02_r'],  # Raise Eyebrows
-    'ES': ['AU45_r', 'AU07_r'],  # Close Eyes Softly
-    'ET': ['AU45_r', 'AU07_r'],  # Close Eyes Tightly
+    'ES': ['AU45_r'],            # Close Eyes Softly (removed AU07_r)
+    'ET': ['AU45_r'],            # Close Eyes Tightly (removed AU07_r)
     'SS': ['AU12_r'],            # Soft Smile
-    'BS': ['AU12_r'],            # Big Smile
+    'BS': ['AU12_r', 'AU25_r'],  # Big Smile (added AU25_r)
     'SO': ['AU25_r', 'AU26_r'],  # Say 'O' (mouth opening)
     'SE': ['AU12_r', 'AU25_r'],  # Say 'E'
     'BL': ['AU45_r', 'AU07_r'],  # Blink
@@ -79,9 +79,9 @@ ALL_AU_COLUMNS = [
     'AU25_r', 'AU26_r', 'AU45_r'
 ]
 
-# Output columns for summary CSV - only including AU_r values
+# Output columns for summary CSV - removed Description, Key AUs, Symmetry Ratio, Asymmetry Detected, and Synkinesis Details
 SUMMARY_COLUMNS = [
-    'Patient ID', 'Action', 'Description', 'Key AUs', 
+    'Patient ID', 'Action', 
     'Max Side', 'Max Frame', 'Max Value',
     'Left AU01_r', 'Left AU02_r', 'Left AU04_r', 'Left AU05_r', 'Left AU06_r',
     'Left AU07_r', 'Left AU09_r', 'Left AU10_r', 'Left AU12_r', 'Left AU14_r',
@@ -91,24 +91,39 @@ SUMMARY_COLUMNS = [
     'Right AU07_r', 'Right AU09_r', 'Right AU10_r', 'Right AU12_r', 'Right AU14_r',
     'Right AU15_r', 'Right AU17_r', 'Right AU20_r', 'Right AU23_r', 'Right AU25_r',
     'Right AU26_r', 'Right AU45_r',
-    'Symmetry Ratio', 'Asymmetry Detected', 'Paralysis Detected', 'Paralyzed Side',
-    'Affected AUs', 'Synkinesis Detected', 'Synkinesis Type', 'Synkinesis Details'
+    'Paralysis Detected', 'Paralyzed Side',
+    'Affected AUs', 'Synkinesis Detected', 'Synkinesis Types'
 ]
 
 # Threshold values for paralysis detection
 PARALYSIS_THRESHOLD = 0.4  # Significant asymmetry suggesting paralysis
 MINIMAL_MOVEMENT_THRESHOLD = 0.2  # Threshold below which movement is considered minimal/absent
 
-# Define synkinesis patterns to detect - only using AU_r values
+# Define synkinesis patterns to detect - updated with improved definitions
 SYNKINESIS_PATTERNS = {
     'Ocular-Oral': {
-        'trigger_aus': ['AU45_r', 'AU07_r'],  # Eye closure AUs
-        'coupled_aus': ['AU12_r', 'AU15_r'],  # Mouth movement AUs
-        'description': 'Eye closure causes unwanted mouth movement'
+        'trigger_aus': ['AU45_r', 'AU01_r', 'AU02_r', 'AU07_r'],  # Eye closure and eyebrow AUs
+        'coupled_aus': ['AU12_r', 'AU25_r', 'AU14_r'],  # Mouth movement AUs
+        'description': 'Eye actions cause unwanted mouth movement'
     },
     'Oral-Ocular': {
-        'trigger_aus': ['AU12_r', 'AU10_r', 'AU25_r'],  # Mouth movement AUs
-        'coupled_aus': ['AU07_r', 'AU45_r'],  # Eye closure AUs
+        'trigger_aus': ['AU12_r', 'AU25_r'],  # Mouth movement AUs
+        'coupled_aus': ['AU45_r', 'AU07_r', 'AU06_r'],  # Added AU06_r (Cheek Raiser)
         'description': 'Mouth movement causes unwanted eye narrowing/closure'
+    },
+    'Midface': {
+        'trigger_aus': ['AU45_r', 'AU01_r', 'AU02_r', 'AU07_r', 'AU12_r', 'AU25_r'],  # Eye and mouth AUs
+        'coupled_aus': ['AU14_r'],  # Dimpler
+        'description': 'Various facial actions cause unwanted dimpler activation'
+    },
+    'Mentalis': {
+        'trigger_aus': ['AU45_r', 'AU01_r', 'AU02_r', 'AU07_r', 'AU12_r', 'AU25_r'],  # Eye and mouth AUs
+        'coupled_aus': ['AU17_r'],  # Chin Raiser
+        'description': 'Various facial actions cause unwanted chin raiser activation'
+    },
+    'Snarl-Smile': {
+        'trigger_aus': ['AU12_r', 'AU25_r'],  # Smile AUs
+        'coupled_aus': ['AU09_r', 'AU10_r', 'AU14_r'],  # Nose wrinkler, upper lip raiser, dimpler
+        'description': 'Smile causes unwanted nose wrinkling and upper lip raising (snarl)'
     }
 }

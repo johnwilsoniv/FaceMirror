@@ -510,11 +510,16 @@ class ApplicationController(QObject):
             return
 
         # Create output directory if it doesn't exist
-        # If we're in batch mode, create output in the batch directory
+        # If we're in batch mode, create output in the 2.5_Coded_Files directory
         if self.window.batch_mode and self.window.batch_directory:
-            output_dir = os.path.join(self.window.batch_directory, "output")
+            # Going one directory up from batch directory
+            batch_parent_dir = os.path.dirname(self.window.batch_directory)
+            output_dir = os.path.join(batch_parent_dir, "2.5_Coded_Files")
         else:
-            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+            # Going one directory up from script directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            parent_dir = os.path.dirname(script_dir)
+            output_dir = os.path.join(parent_dir, "2.5_Coded_Files")
 
         os.makedirs(output_dir, exist_ok=True)
 

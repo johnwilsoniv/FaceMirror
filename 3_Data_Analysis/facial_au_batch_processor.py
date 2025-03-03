@@ -21,7 +21,7 @@ class FacialAUBatchProcessor:
     Process multiple patients' facial AU data in batch mode.
     """
     
-    def __init__(self, output_dir="output"):
+    def __init__(self, output_dir="../3.5_Results"):
         """
         Initialize the batch processor.
         
@@ -182,41 +182,22 @@ class FacialAUBatchProcessor:
     def analyze_asymmetry_across_patients(self):
         """
         Analyze asymmetry patterns across all patients.
+        Modified to work without the removed columns.
         
         Returns:
-            pd.DataFrame: DataFrame with asymmetry analysis
+            None: Just saves the paralysis and synkinesis analysis
         """
         if not hasattr(self, 'summary_data') or self.summary_data.empty:
             logger.error("No summary data available. Please run process_all() first")
             return None
         
-        # Group by action and calculate asymmetry statistics
-        if isinstance(self.summary_data, list):
-            df = pd.DataFrame(self.summary_data)
-        else:
-            df = self.summary_data
-            
-        asymmetry_by_action = df.groupby(['Action', 'Description']).agg({
-            'Patient ID': 'count',
-            'Asymmetry Detected': 'sum',
-            'Symmetry Ratio': ['mean', 'median', 'std']
-        }).reset_index()
+        # Skip asymmetry analysis since related columns are removed
+        logger.info("Skipping asymmetry analysis since related columns were removed")
         
-        # Calculate percentage of patients with asymmetry for each action
-        asymmetry_by_action['Asymmetry Percentage'] = (
-            asymmetry_by_action[('Asymmetry Detected', 'sum')] / 
-            asymmetry_by_action[('Patient ID', 'count')] * 100
-        )
-        
-        # Save to CSV
-        output_path = os.path.join(self.output_dir, "asymmetry_analysis.csv")
-        asymmetry_by_action.to_csv(output_path)
-        logger.info(f"Saved asymmetry analysis to {output_path}")
-        
-        # Also analyze paralysis and synkinesis across patients
+        # Still perform paralysis and synkinesis analysis
         self.analyze_paralysis_and_synkinesis()
         
-        return asymmetry_by_action
+        return None
         
     def analyze_paralysis_and_synkinesis(self):
         """
@@ -262,11 +243,10 @@ class FacialAUBatchProcessor:
             
             logger.info(f"Saved paralysis analysis to {paralysis_path}")
         
-        # Analyze synkinesis
+        # Analyze synkinesis - updated to use 'Synkinesis Types' instead of 'Synkinesis Type'
         synkinesis_summary = df.groupby(['Patient ID']).agg({
             'Synkinesis Detected': 'max',  # True if detected in any action
-            'Synkinesis Type': lambda x: ', '.join(set([y for y in x if y != 'None'])),
-            'Synkinesis Details': lambda x: ' '.join(set([y for y in x if y != 'None']))
+            'Synkinesis Types': lambda x: ', '.join(set([y for y in x if y != 'None']))
         }).reset_index()
         
         # Add summary of synkinesis by type
@@ -274,7 +254,7 @@ class FacialAUBatchProcessor:
         if synkinesis_count > 0:
             # Count each synkinesis type
             synkinesis_types = []
-            for types in synkinesis_summary[synkinesis_summary['Synkinesis Detected']]['Synkinesis Type']:
+            for types in synkinesis_summary[synkinesis_summary['Synkinesis Detected']]['Synkinesis Types']:
                 synkinesis_types.extend([t.strip() for t in types.split(',')])
             
             type_counts = pd.Series(synkinesis_types).value_counts()

@@ -9,7 +9,7 @@ Usage:
         python main.py
         
     Command line batch mode:
-        python main.py --batch --data-dir /path/to/data --output-dir /path/to/output
+        python main.py --batch --data-dir /path/to/data
 """
 
 import argparse
@@ -37,10 +37,11 @@ def main():
     parser = argparse.ArgumentParser(description='Facial AU Analyzer')
     parser.add_argument('--batch', action='store_true', help='Run in batch mode (no GUI)')
     parser.add_argument('--data-dir', type=str, help='Directory containing data files')
-    parser.add_argument('--output-dir', type=str, default='output', help='Directory to save output files')
-    parser.add_argument('--no-frames', action='store_true', help='Do not extract frames from videos')
     
     args = parser.parse_args()
+    
+    # Default output directory
+    output_dir = "../3.5_Results"
     
     # Run in batch mode if specified
     if args.batch:
@@ -50,10 +51,10 @@ def main():
             return 1
         
         logger.info(f"Running in batch mode. Data directory: {args.data_dir}")
-        logger.info(f"Output directory: {args.output_dir}")
+        logger.info(f"Output directory: {output_dir}")
         
         # Create batch processor
-        processor = FacialAUBatchProcessor(args.output_dir)
+        processor = FacialAUBatchProcessor(output_dir)
         
         # Detect patients
         num_patients = processor.auto_detect_patients(args.data_dir)
@@ -63,13 +64,13 @@ def main():
             logger.error("No patients detected")
             return 1
         
-        # Process all patients
-        output_path = processor.process_all(extract_frames=not args.no_frames)
+        # Process all patients - always extract frames
+        output_path = processor.process_all(extract_frames=True)
         
         if output_path:
             # Analyze asymmetry across patients
             processor.analyze_asymmetry_across_patients()
-            logger.info(f"Batch analysis complete. Results saved to {args.output_dir}")
+            logger.info(f"Batch analysis complete. Results saved to {output_dir}")
             return 0
         else:
             logger.error("Failed to process patients")
