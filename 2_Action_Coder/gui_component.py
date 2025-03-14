@@ -92,6 +92,9 @@ class MainWindow(QMainWindow):
     next_file_signal = pyqtSignal()
     previous_file_signal = pyqtSignal()
     first_file_signal = pyqtSignal()
+    
+    # New signal for multi-video selection
+    videos_selected_signal = pyqtSignal(list)  # List of video file paths
 
     def __init__(self):
         """Initialize the main window."""
@@ -267,7 +270,7 @@ class MainWindow(QMainWindow):
         video_file_layout = QHBoxLayout()
         video_file_layout.setSpacing(config.STANDARD_SPACING)
 
-        self.select_video_btn = QPushButton("Select Video")
+        self.select_video_btn = QPushButton("Select Videos")  # Changed from "Select Video"
         self.select_video_btn.setFixedWidth(100)
         self.select_video_btn.clicked.connect(self.select_video)
         self.select_video_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE)
@@ -280,21 +283,13 @@ class MainWindow(QMainWindow):
         video_file_layout.addWidget(self.select_video_btn)
         video_file_layout.addWidget(self.video_path_label, 1)
 
-        # CSV selection
-        csv_file_layout = QHBoxLayout()
+        # CSV file status
+        csv_file_layout = QVBoxLayout()
         csv_file_layout.setSpacing(config.STANDARD_SPACING)
 
-        self.select_csv_btn = QPushButton("Select CSV")
-        self.select_csv_btn.setFixedWidth(100)
-        self.select_csv_btn.clicked.connect(self.select_csv_files)
-        self.select_csv_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE)
-
-        csv_file_layout.addWidget(self.select_csv_btn)
-
-        # CSV file status
-        csv_status_layout = QVBoxLayout()
-        csv_status_layout.setSpacing(config.STANDARD_SPACING)
-
+        csv_label = QLabel("Matched CSV Files:")
+        csv_label.setFont(QFont('Arial', 9, QFont.Bold))
+        
         self.csv_path_label = QLabel("No CSV 1 selected")
         self.csv_path_label.setTextFormat(Qt.PlainText)
         self.csv_path_label.setWordWrap(True)
@@ -305,10 +300,9 @@ class MainWindow(QMainWindow):
         self.second_csv_path_label.setWordWrap(True)
         self.second_csv_path_label.setFont(QFont('Arial', 9))
 
-        csv_status_layout.addWidget(self.csv_path_label)
-        csv_status_layout.addWidget(self.second_csv_path_label)
-
-        csv_file_layout.addLayout(csv_status_layout)
+        csv_file_layout.addWidget(csv_label)
+        csv_file_layout.addWidget(self.csv_path_label)
+        csv_file_layout.addWidget(self.second_csv_path_label)
 
         file_layout.addLayout(video_file_layout)
         file_layout.addLayout(csv_file_layout)
@@ -381,7 +375,7 @@ class MainWindow(QMainWindow):
         # Create action buttons
         self.action_buttons = {}
 
-        # Define our desired order and key mappings
+        # Define our desired order and key mappings - UPDATED
         button_order = [
             ("RE", "1"),  # Raise Eyebrows - key 1
             ("ES", "2"),  # Close Eyes Softly - key 2
@@ -390,9 +384,7 @@ class MainWindow(QMainWindow):
             ("BS", "5"),  # Big Smile - key 5
             ("SO", "6"),  # Say 'O' - key 6
             ("SE", "7"),  # Say 'E' - key 7
-            ("BL", "8"),  # Blink - key 8
-            ("WN", "9"),  # Wrinkle Nose - key 9
-            ("PL", "0")  # Pucker Lips - key 0
+            ("BL", "0")   # Baseline - key 0
         ]
 
         # Create buttons in our specified order with assigned keys
@@ -537,7 +529,6 @@ class MainWindow(QMainWindow):
         
         # Show/hide manual selection buttons
         self.select_video_btn.setEnabled(not enabled)
-        self.select_csv_btn.setEnabled(not enabled)
         
         # Update batch status label if enabled
         if enabled:
@@ -598,45 +589,16 @@ class MainWindow(QMainWindow):
         """)
 
     def select_video(self):
-        """Open file dialog to select input video."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select Video File", "", "Video Files (*.mp4 *.avi *.mov *.mkv)"
-        )
-        if file_path:
-            self.video_path = file_path
-            self.video_path_label.setText(os.path.basename(file_path))
-    
-    def select_csv_files(self):
-        """Open file dialog to select one or two CSV files."""
+        """Open file dialog to select input video(s)."""
         file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "Select CSV File(s)", "", "CSV Files (*.csv)"
+            self, "Select Video File(s)", "", "Video Files (*.mp4 *.avi *.mov *.mkv)"
         )
         
         if file_paths:
-            # Clear previous selections
-            self.csv_path = None
-            self.second_csv_path = None
-            self.csv_path_label.setText("No CSV 1 selected")
-            self.second_csv_path_label.setText("No CSV 2 selected")
-            
-            # Set the first file
-            if len(file_paths) >= 1:
-                self.csv_path = file_paths[0]
-                self.csv_path_label.setText(os.path.basename(file_paths[0]))
-            
-            # Set the second file if available
-            if len(file_paths) >= 2:
-                self.second_csv_path = file_paths[1]
-                self.second_csv_path_label.setText(os.path.basename(file_paths[1]))
-                
-            # Warn if more than 2 files were selected
-            if len(file_paths) > 2:
-                QMessageBox.warning(
-                    self, 
-                    "Too Many Files", 
-                    "More than 2 CSV files were selected. Only the first 2 will be used."
-                )
+            # Emit signal with the selected video paths
+            self.videos_selected_signal.emit(file_paths)
     
+
     def update_video_frame(self, frame_number, qimage, action_code):
         """Update the video display with a new frame."""
         pixmap = QPixmap.fromImage(qimage)

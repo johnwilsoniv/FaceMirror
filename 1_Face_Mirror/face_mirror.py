@@ -103,25 +103,13 @@ class FaceMirror:
         return anatomical_right_face, anatomical_left_face
     
     def create_debug_frame(self, frame, landmarks):
-        """Create debug visualization with all 68 landmarks, anatomical midline, and head yaw analysis"""
+        """Create debug visualization with anatomical midline and head yaw analysis"""
         debug_frame = frame.copy()
 
         if landmarks is not None:
             # Get frame dimensions
             height, width = frame.shape[:2]
             
-            # Draw all 68 landmarks as dots
-            for point in landmarks:
-                x, y = point.astype(int)
-                # Draw point
-                cv2.circle(debug_frame, (x, y), 3, (0, 255, 255), -1)  # Yellow dot
-
-            # Highlight medial eyebrow points (21, 22)
-            left_medial_brow = tuple(map(int, landmarks[21]))
-            right_medial_brow = tuple(map(int, landmarks[22]))
-            cv2.circle(debug_frame, left_medial_brow, 4, (255, 0, 0), -1)  # Blue dot
-            cv2.circle(debug_frame, right_medial_brow, 4, (255, 0, 0), -1)  # Blue dot
-
             # Get midline points
             glabella, chin = self.landmark_detector.get_facial_midline(landmarks)
 
@@ -130,9 +118,7 @@ class FaceMirror:
                 glabella = tuple(map(int, glabella))
                 chin = tuple(map(int, chin))
 
-                # Draw midline points
-                cv2.circle(debug_frame, glabella, 4, (0, 255, 0), -1)  # Green dot for glabella
-                cv2.circle(debug_frame, chin, 4, (0, 255, 0), -1)  # Green dot for chin
+                # Midline points no longer drawn
 
                 # Calculate and draw the extended midline
                 direction = np.array([chin[0] - glabella[0], chin[1] - glabella[1]])
@@ -156,97 +142,24 @@ class FaceMirror:
             # Calculate head yaw
             yaw = self.landmark_detector.calculate_head_pose(landmarks)
             
-            # Create an information panel positioned below the top banner
+            # Head rotation analysis panel removed
             if yaw is not None:
-                panel_width = 220
-                panel_height = 85
-                panel_x = width - panel_width - 10
-                panel_y = 40  # Moved down from 10 to avoid the top banner
-                
-                # Draw semi-transparent panel background
-                overlay = debug_frame.copy()
-                cv2.rectangle(overlay, (panel_x, panel_y), 
-                            (panel_x + panel_width, panel_y + panel_height), 
-                            (20, 20, 20), -1)
-                # Apply transparency
-                cv2.addWeighted(overlay, 0.7, debug_frame, 0.3, 0, debug_frame)
-                
-                # Panel title
-                cv2.putText(debug_frame, "HEAD ROTATION ANALYSIS", 
-                            (panel_x + 10, panel_y + 25),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                
-                # Yaw - color-coded based on stricter thresholds
-                yaw_color = (0, 255, 0) if abs(yaw) <= 3.0 else (0, 165, 255) if abs(yaw) <= 5.0 else (0, 0, 255)
-                cv2.putText(debug_frame, f"Rotation (Yaw): {yaw:.1f}°", 
-                            (panel_x + 10, panel_y + 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, yaw_color, 1)
-                
-                # Calculate frame quality
-                quality = self.landmark_detector.calculate_frame_quality(landmarks)
-                quality_percentage = int(quality * 100)
-                
-                # Quality indicator with color coding
-                quality_color = (0, 255, 0) if quality >= 0.8 else (0, 165, 255) if quality >= 0.6 else (0, 0, 255)
-                cv2.putText(debug_frame, f"Mirror Quality: {quality_percentage}%", 
-                            (panel_x + 10, panel_y + 75),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, quality_color, 1)
 
-                # Validate head yaw
-                pose_valid, pose_warning = self.landmark_detector.validate_head_pose(landmarks)
-                
-                # Add analysis banner at the top
-                if not pose_valid:
-                    # Add a warning banner at the top of the frame
-                    cv2.rectangle(debug_frame, (0, 0), (width, 30), (0, 0, 255), -1)
-                    
-                    # Determine primary message
-                    message = "EXCESSIVE HEAD ROTATION - MIRRORING AFFECTED"
-                    cv2.putText(debug_frame, message, (width//2 - 190, 20), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                    
-                    # Display specific warning
-                    if pose_warning:
-                        # Move warning message to bottom to avoid overlap
-                        cv2.rectangle(debug_frame, (0, height-30), (width, height), (0, 0, 0), -1)
-                        cv2.putText(debug_frame, pose_warning, (10, height-10), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                else:
-                    # Add a green banner when yaw is good
+                # Update top banner based on yaw thresholds
+                if abs(yaw) <= 3.0:
+                    # Green banner for optimal
                     cv2.rectangle(debug_frame, (0, 0), (width, 30), (0, 150, 0), -1)
                     cv2.putText(debug_frame, "OPTIMAL HEAD ROTATION FOR MIRRORING", (width//2 - 180, 20), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                
-                # If yaw is outside acceptable range, draw correction guide
-                if not pose_valid:
-                    # Calculate frame center and face center positions
-                    frame_center_x = width // 2
-                    center_landmarks = [27, 28, 29, 30, 33, 51, 62, 66, 57, 8]  # Midline landmarks
-                    center_points = landmarks[center_landmarks]
-                    face_center_x = int(np.mean(center_points[:, 0]))
-                    
-                    # Draw arrow indicating correction direction
-                    arrow_y = height // 2
-                    if face_center_x < frame_center_x:  # Face is turned left of center
-                        cv2.arrowedLine(debug_frame, (face_center_x, arrow_y), (frame_center_x, arrow_y), 
-                                        (0, 165, 255), 2, tipLength=0.03)
-                    elif face_center_x > frame_center_x:  # Face is turned right of center
-                        cv2.arrowedLine(debug_frame, (face_center_x, arrow_y), (frame_center_x, arrow_y), 
-                                        (0, 165, 255), 2, tipLength=0.03)
-
-            # Draw face boundary
-            hull = cv2.convexHull(landmarks.astype(np.int32))
-            cv2.polylines(debug_frame, [hull], True, (255, 255, 0), 2)
-
-            # Add legend
-            legend_y = 50
-            cv2.putText(debug_frame, "Yellow: All landmarks", (10, legend_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-            cv2.putText(debug_frame, "Blue: Medial eyebrow points", (10, legend_y + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-            cv2.putText(debug_frame, "Green: Calculated midline points", (10, legend_y + 40),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            cv2.putText(debug_frame, "Red: Extended midline", (10, legend_y + 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                elif abs(yaw) <= 5.0:
+                    # Yellow/orange banner for acceptable
+                    cv2.rectangle(debug_frame, (0, 0), (width, 30), (0, 165, 255), -1)
+                    cv2.putText(debug_frame, "ACCEPTABLE HEAD ROTATION", (width//2 - 150, 20), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                else:
+                    # Red banner for excessive
+                    cv2.rectangle(debug_frame, (0, 0), (width, 30), (0, 0, 255), -1)
+                    cv2.putText(debug_frame, "EXCESSIVE HEAD ROTATION - MIRRORING AFFECTED", (width//2 - 190, 20), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         return debug_frame

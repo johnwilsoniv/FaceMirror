@@ -3,11 +3,13 @@ Batch processor for analyzing multiple patients' facial AU data.
 """
 
 import os
+
+import numpy as np
 import pandas as pd
 import logging
 import glob
 from facial_au_analyzer import FacialAUAnalyzer
-from facial_au_constants import SUMMARY_COLUMNS
+from facial_au_constants import SUMMARY_COLUMNS, SYNKINESIS_TYPES, PARALYSIS_SEVERITY_LEVELS
 
 # Configure logging
 logging.basicConfig(
@@ -113,76 +115,151 @@ class FacialAUBatchProcessor:
                 logger.info(f"Detected patient: {base_name} (CSV: {os.path.basename(left_file)}, {os.path.basename(right_file)})")
         
         return patients_added
-    
+
     def process_all(self, extract_frames=True):
         """
         Process all patients in the batch.
-        
+        Creates one row per patient with actions as column prefixes.
+        Places paralysis/synkinesis summary at the beginning of each row.
+        Sets NA for missing actions and filters out BL, WN, and PL actions.
+
         Args:
             extract_frames (bool): Whether to extract frames from videos
-            
+
         Returns:
             str: Path to combined summary CSV file
         """
         if not self.patients:
             logger.error("No patients added to batch")
             return None
-        
-        all_summary_data = []
-        
+
+        all_patient_data = []
+
         for i, patient in enumerate(self.patients):
-            logger.info(f"Processing patient {i+1}/{len(self.patients)}: {patient['patient_id']}")
-            
+            logger.info(f"Processing patient {i + 1}/{len(self.patients)}: {patient['patient_id']}")
+
             # Create analyzer for this patient
             analyzer = FacialAUAnalyzer()
-            
+
             # Load data
             if not analyzer.load_data(patient['left_csv'], patient['right_csv']):
                 logger.error(f"Failed to load data for patient {patient['patient_id']}")
                 continue
-            
+
             # Analyze data
             analyzer.analyze_maximal_intensity()
-            
+
             # Extract frames if video is available and extraction is requested
             if extract_frames and patient['video_path']:
                 analyzer.extract_frames(patient['video_path'], self.output_dir)
-            
-            # Create symmetry visualization
-            analyzer.create_symmetry_visualization(self.output_dir)
-            
-            # Get summary data
+            else:
+                # Even if we don't extract frames, create symmetry visualization
+                analyzer.create_symmetry_visualization(self.output_dir)
+
+            # Get summary data in new format (one row per patient)
             patient_summary = analyzer.generate_summary_data()
-            all_summary_data.extend(patient_summary)
-            
+
+            # Ensure all paralysis and synkinesis fields are strings at this stage too
+            for key in list(patient_summary.keys()):
+                if ("Paralysis" in key or "Ocular" in key or "Smile" in key) and not isinstance(patient_summary[key],
+                                                                                                str):
+                    # Convert any non-string values to strings
+                    if patient_summary[key] is None or (
+                            isinstance(patient_summary[key], float) and np.isnan(patient_summary[key])):
+                        patient_summary[key] = 'None'
+                    else:
+                        patient_summary[key] = str(patient_summary[key])
+
+            all_patient_data.append(patient_summary)
             logger.info(f"Completed processing for patient {patient['patient_id']}")
-        
+
         # Create combined summary CSV
-        if all_summary_data:
-            df = pd.DataFrame(all_summary_data)
+        if all_patient_data:
+            # Convert to DataFrame
+            df = pd.DataFrame(all_patient_data)
+
+            # Define columns that should always be strings
+            string_cols = [
+                'Patient ID',
+                'Left Upper Face Paralysis', 'Left Mid Face Paralysis', 'Left Lower Face Paralysis',
+                'Right Upper Face Paralysis', 'Right Mid Face Paralysis', 'Right Lower Face Paralysis',
+                'Ocular-Oral Left', 'Ocular-Oral Right',
+                'Oral-Ocular Left', 'Oral-Ocular Right',
+                'Snarl-Smile Left', 'Snarl-Smile Right',
+                'Paralysis Detected', 'Synkinesis Detected'
+            ]
+
+            # First, ensure these columns exist and replace any NaN values
+            for col in string_cols:
+                if col in df.columns:
+                    # Replace NaN with None string first
+                    df[col] = df[col].fillna('None')
+
+                    # Then convert to string type
+                    df[col] = df[col].astype(str)
+
+                    # Finally replace any 'nan' strings with 'None'
+                    df[col] = df[col].replace({'nan': 'None', 'NaN': 'None', 'NAN': 'None'})
+
+            # Log the column types to verify our fix worked
+            logger.info("Column types after conversion:")
+            for col in string_cols:
+                if col in df.columns:
+                    logger.info(f"{col}: {df[col].dtype}")
+
+            # Reorder columns to follow the requested structure
+            # First get the Patient ID and summary columns
+            summary_cols = [
+                'Patient ID',
+                'Left Upper Face Paralysis', 'Left Mid Face Paralysis', 'Left Lower Face Paralysis',
+                'Right Upper Face Paralysis', 'Right Mid Face Paralysis', 'Right Lower Face Paralysis',
+                'Ocular-Oral Left', 'Ocular-Oral Right',
+                'Oral-Ocular Left', 'Oral-Ocular Right',
+                'Snarl-Smile Left', 'Snarl-Smile Right',
+                'Paralysis Detected', 'Synkinesis Detected'
+            ]
+
+            # Then get the action-specific columns
+            action_cols = [col for col in df.columns if col not in summary_cols]
+
+            # Combine to get all columns in order
+            ordered_cols = summary_cols + action_cols
+
+            # Apply the column ordering if all columns exist
+            available_cols = [col for col in ordered_cols if col in df.columns]
+            df = df[available_cols]
+
+            # Replace NaN with NA for missing values in other columns
+            df = df.fillna('NA')
             
-            # Ensure all expected columns are present (fill missing with NaN)
-            for col in SUMMARY_COLUMNS:
-                if col not in df.columns:
-                    df[col] = pd.NA
+            # Force midface paralysis columns to be strings
+            midface_cols = ['Left Mid Face Paralysis', 'Right Mid Face Paralysis']
+            for col in midface_cols:
+                if col in df.columns:
+                    # Convert to string and replace NaN/None values
+                    df[col] = df[col].astype(str)
+                    df[col] = df[col].replace({'nan': 'None', 'NaN': 'None', 'NA': 'None'})
             
-            # Reorder columns to match expected order
-            df = df[SUMMARY_COLUMNS]
-            
+            # Log midface column types after the special handling
+            logger.info("Midface column types after explicit conversion:")
+            for col in midface_cols:
+                if col in df.columns:
+                    logger.info(f"{col}: {df[col].dtype}")
+
             # Save to CSV
             output_path = os.path.join(self.output_dir, "combined_results.csv")
             df.to_csv(output_path, index=False)
             logger.info(f"Saved combined results to {output_path}")
-            
+
             self.summary_data = df
             return output_path
-        
+
         return None
     
     def analyze_asymmetry_across_patients(self):
         """
         Analyze asymmetry patterns across all patients.
-        Modified to work without the removed columns.
+        Modified to work with enhanced zone-specific detection.
         
         Returns:
             None: Just saves the paralysis and synkinesis analysis
@@ -191,10 +268,7 @@ class FacialAUBatchProcessor:
             logger.error("No summary data available. Please run process_all() first")
             return None
         
-        # Skip asymmetry analysis since related columns are removed
-        logger.info("Skipping asymmetry analysis since related columns were removed")
-        
-        # Still perform paralysis and synkinesis analysis
+        # Perform paralysis and synkinesis analysis
         self.analyze_paralysis_and_synkinesis()
         
         return None
@@ -202,7 +276,7 @@ class FacialAUBatchProcessor:
     def analyze_paralysis_and_synkinesis(self):
         """
         Analyze patterns of facial paralysis and synkinesis across all patients.
-        Creates summary reports of these conditions.
+        Creates summary reports of these conditions with zone-specific information.
         """
         if not hasattr(self, 'summary_data') or self.summary_data.empty:
             logger.error("No summary data available for analysis")
@@ -213,72 +287,64 @@ class FacialAUBatchProcessor:
         else:
             df = self.summary_data
         
-        # Count patients with paralysis and identify side
-        paralysis_summary = df.groupby(['Patient ID']).agg({
-            'Paralysis Detected': 'max',  # True if detected in any action
-            'Paralyzed Side': lambda x: x.mode()[0] if len(x.mode()) > 0 else None,
-            'Affected AUs': lambda x: ', '.join(set([y for y in x if y != 'None']))
-        }).reset_index()
+        # Create separate summaries for paralysis and synkinesis
         
-        # Add summary of paralysis by side
-        paralysis_count = paralysis_summary['Paralysis Detected'].sum()
+        # Paralysis summary - count total and by zone/side/severity
+        paralysis_count = (df['Paralysis Detected'] == 'Yes').sum()
+        
         if paralysis_count > 0:
-            side_counts = paralysis_summary[paralysis_summary['Paralysis Detected']]['Paralyzed Side'].value_counts()
-            paralysis_summary_stats = {
-                'Total Patients': len(df['Patient ID'].unique()),
-                'Patients with Paralysis': paralysis_count,
-                'Paralysis Percentage': (paralysis_count / len(df['Patient ID'].unique())) * 100,
-                'Left Side Paralysis': side_counts.get('left', 0),
-                'Right Side Paralysis': side_counts.get('right', 0)
-            }
+            # Count zone-specific statistics
+            zone_stats = {}
+            for side in ['Left', 'Right']:
+                for zone in ['Upper', 'Mid', 'Lower']:
+                    col = f'{side} {zone} Face Paralysis'
+                    
+                    # Count by severity
+                    for severity in ['Partial', 'Complete']:
+                        count = (df[col] == severity).sum()
+                        zone_stats[f'{side} {zone} Face {severity}'] = count
+                        zone_stats[f'{side} {zone} Face {severity} Percentage'] = (count / paralysis_count) * 100
             
-            # Save paralysis summary
-            paralysis_path = os.path.join(self.output_dir, "paralysis_analysis.csv")
-            paralysis_summary.to_csv(paralysis_path, index=False)
+            paralysis_summary_stats = {
+                'Total Patients': len(df),
+                'Patients with Paralysis': paralysis_count,
+                'Paralysis Percentage': (paralysis_count / len(df)) * 100,
+                **zone_stats
+            }
             
             # Save paralysis stats
             stats_df = pd.DataFrame([paralysis_summary_stats])
             stats_path = os.path.join(self.output_dir, "paralysis_statistics.csv")
             stats_df.to_csv(stats_path, index=False)
             
-            logger.info(f"Saved paralysis analysis to {paralysis_path}")
+            logger.info(f"Saved paralysis statistics to {stats_path}")
         
-        # Analyze synkinesis - updated to use 'Synkinesis Types' instead of 'Synkinesis Type'
-        synkinesis_summary = df.groupby(['Patient ID']).agg({
-            'Synkinesis Detected': 'max',  # True if detected in any action
-            'Synkinesis Types': lambda x: ', '.join(set([y for y in x if y != 'None']))
-        }).reset_index()
+        # Synkinesis summary - count by type and side
+        synkinesis_count = (df['Synkinesis Detected'] == 'Yes').sum()
         
-        # Add summary of synkinesis by type
-        synkinesis_count = synkinesis_summary['Synkinesis Detected'].sum()
         if synkinesis_count > 0:
-            # Count each synkinesis type
-            synkinesis_types = []
-            for types in synkinesis_summary[synkinesis_summary['Synkinesis Detected']]['Synkinesis Types']:
-                synkinesis_types.extend([t.strip() for t in types.split(',')])
-            
-            type_counts = pd.Series(synkinesis_types).value_counts()
+            # Calculate side-specific statistics for each type
+            side_stats = {}
+            for synk_type in SYNKINESIS_TYPES:
+                for side in ['Left', 'Right']:
+                    col = f'{synk_type} {side}'
+                    if col in df.columns:
+                        count = (df[col] == 'Yes').sum()
+                        side_stats[f'{synk_type} {side} Count'] = count
+                        side_stats[f'{synk_type} {side} Percentage'] = (count / synkinesis_count) * 100
             
             synkinesis_summary_stats = {
-                'Total Patients': len(df['Patient ID'].unique()),
+                'Total Patients': len(df),
                 'Patients with Synkinesis': synkinesis_count,
-                'Synkinesis Percentage': (synkinesis_count / len(df['Patient ID'].unique())) * 100
+                'Synkinesis Percentage': (synkinesis_count / len(df)) * 100,
+                **side_stats
             }
-            
-            # Add counts for each synkinesis type
-            for synk_type in type_counts.index:
-                synkinesis_summary_stats[f'{synk_type} Count'] = type_counts[synk_type]
-                synkinesis_summary_stats[f'{synk_type} Percentage'] = (type_counts[synk_type] / synkinesis_count) * 100
-            
-            # Save synkinesis summary
-            synkinesis_path = os.path.join(self.output_dir, "synkinesis_analysis.csv")
-            synkinesis_summary.to_csv(synkinesis_path, index=False)
             
             # Save synkinesis stats
             stats_df = pd.DataFrame([synkinesis_summary_stats])
             stats_path = os.path.join(self.output_dir, "synkinesis_statistics.csv")
             stats_df.to_csv(stats_path, index=False)
             
-            logger.info(f"Saved synkinesis analysis to {synkinesis_path}")
+            logger.info(f"Saved synkinesis statistics to {stats_path}")
         
         return

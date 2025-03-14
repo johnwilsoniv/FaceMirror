@@ -88,6 +88,62 @@ class BatchProcessor(QObject):
         print(f"Total matched file sets: {len(file_sets)}")
         return file_sets
     
+    def find_matching_files_for_videos(self, video_files, search_directory=None):
+        """
+        Find matching CSV files for a list of video files.
+
+        Args:
+            video_files: List of full paths to video files
+            search_directory: Optional directory to search for CSV files (defaults to video directories)
+
+        Returns:
+            A list of dicts with matched file sets
+        """
+        file_sets = []
+        
+        # Process each video file
+        for video_file in video_files:
+            video_dir = os.path.dirname(video_file)
+            video_filename = os.path.basename(video_file)
+            
+            # Use the search directory if provided, otherwise use the video's directory
+            csv_search_dir = search_directory if search_directory else video_dir
+            
+            print(f"Looking for CSV matches for video: {video_filename} in {csv_search_dir}")
+            
+            # Extract base identifier from video filename
+            parts = video_filename.split('_')
+            if len(parts) >= 2:
+                # Use the first two parts as the base (e.g., "IMG_0935")
+                base_id = f"{parts[0]}_{parts[1]}"
+                print(f"Extracted base '{base_id}' from video file '{video_filename}'")
+                
+                # Look for matching CSV files in the search directory
+                csv_files = []
+                if os.path.isdir(csv_search_dir):
+                    all_files = os.listdir(csv_search_dir)
+                    for file in all_files:
+                        if file.lower().endswith('.csv'):
+                            file_parts = file.split('_')
+                            if len(file_parts) >= 2 and f"{file_parts[0]}_{file_parts[1]}" == base_id:
+                                csv_files.append(os.path.join(csv_search_dir, file))
+                
+                # If we found matching CSVs, create a file set
+                if csv_files:
+                    file_set = {
+                        'base_id': base_id,
+                        'video': video_file,
+                        'csv1': csv_files[0] if len(csv_files) > 0 else None,
+                        'csv2': csv_files[1] if len(csv_files) > 1 else None
+                    }
+                    file_sets.append(file_set)
+                    print(f"Created match for {base_id}:")
+                    print(f"  Video: {video_file}")
+                    print(f"  CSVs: {csv_files[:2]}")
+                    
+        print(f"Total matched file sets: {len(file_sets)}")
+        return file_sets
+    
     def set_file_sets(self, file_sets):
         """
         Set the file sets to process.

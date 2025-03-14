@@ -79,9 +79,7 @@ ACTION_MAPPINGS = {
     "BS": "Big Smile",
     "SO": "Say 'O'",
     "SE": "Say 'E'",
-    "BL": "Blink",
-    "WN": "Wrinkle Nose",
-    "PL": "Pucker Lips"
+    "BL": "Baseline"          # Kept Baseline with key 0
 }
 
 # Colors for the UI buttons in different states

@@ -4,13 +4,14 @@ import subprocess
 import shutil
 from pathlib import Path
 
-def process_videos(directory_path):
+def process_videos(directory_path, specific_files=None):
     """
-    Processes all video files in the given directory that end with 'mirrored',
+    Processes video files in the given directory that end with 'mirrored',
     ignoring files that end with 'debug'.
     
     Args:
         directory_path (str): Path to the directory containing video files
+        specific_files (list, optional): List of specific files to process. If None, all eligible files in the directory will be processed.
     
     Returns:
         int: Number of files that were processed
@@ -28,10 +29,23 @@ def process_videos(directory_path):
     # Counter for processed files
     processed_count = 0
     
-    # Iterate through all files in the directory
-    for file_path in directory_path.iterdir():
-        # Skip if not a file
+    # Define which files to process
+    files_to_process = []
+    
+    if specific_files:
+        # Process only the specific files
+        files_to_process = [Path(f) for f in specific_files]
+        print(f"Processing {len(files_to_process)} specific files from current session.")
+    else:
+        # Process all eligible files in the directory
+        files_to_process = list(directory_path.iterdir())
+        print(f"Processing all eligible files in {directory_path}")
+    
+    # Process each file
+    for file_path in files_to_process:
+        # Skip if not a file or doesn't exist
         if not file_path.is_file():
+            print(f"Warning: {file_path} does not exist or is not a file. Skipping.")
             continue
         
         filename = file_path.name
@@ -41,7 +55,7 @@ def process_videos(directory_path):
             print(f"Skipping debug file: {filename}")
             continue
         
-        # Process files with 'mirrored' in the filename
+        # Process file with 'mirrored' in the filename
         if 'mirrored' in filename:
             print(f"Processing file: {filename}")
             
@@ -135,13 +149,14 @@ def move_processed_files(output_dir):
     print(f"\nFile moving complete. Moved {moved_mov_count} video files and {moved_csv_count} .csv files to {dest_dir}")
     return moved_mov_count, moved_csv_count
 
-def run_openface_processing(output_dir, move_files=True):
+def run_openface_processing(output_dir, move_files=True, specific_files=None):
     """
     Main function to run OpenFace processing on video files in the output directory.
     
     Args:
         output_dir (str): Path to the output directory containing video files
         move_files (bool): Whether to move processed files after completion
+        specific_files (list, optional): List of specific files to process. If None, all eligible files in the output_dir will be processed.
     
     Returns:
         int: Number of processed files
@@ -156,7 +171,7 @@ def run_openface_processing(output_dir, move_files=True):
         return 0
     
     # Process videos in the output directory
-    processed_count = process_videos(output_dir)
+    processed_count = process_videos(output_dir, specific_files)
     
     # Move processed files if requested
     if move_files:

@@ -240,10 +240,41 @@ class ApplicationController(QObject):
         self.window.next_file_signal.connect(self.load_next_file)
         self.window.previous_file_signal.connect(self.load_previous_file)
         self.window.first_file_signal.connect(self.load_first_file)
+        
+        # New signal for multi-video selection
+        self.window.videos_selected_signal.connect(self.handle_selected_videos)
 
         # Video player signals
         self.video_player.frameChanged.connect(self.update_frame)
         self.video_player.videoFinished.connect(self.video_finished)
+
+    def handle_selected_videos(self, video_files):
+        """
+        Handle a list of selected video files.
+        Finds matching CSVs and sets up batch navigation.
+        
+        Args:
+            video_files: List of paths to selected video files
+        """
+        if not video_files:
+            return
+            
+        # Find matching CSV files for the selected videos
+        file_sets = self.batch_processor.find_matching_files_for_videos(video_files)
+        
+        if not file_sets:
+            QMessageBox.warning(
+                self.window,
+                "No Matches Found",
+                "No matching CSV files were found for the selected videos."
+            )
+            return
+        
+        # Set these file sets in the batch processor
+        self.batch_processor.set_file_sets(file_sets)
+        
+        # Load the first file
+        self.load_first_file()
 
     def continue_action(self):
         """Continue the current action for the current frame."""
