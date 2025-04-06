@@ -1,5 +1,6 @@
 """
 GUI for the Facial AU Analyzer application.
+V1.11 Update: Removed Scan button, added Debug Mode checkbox, fixed layout by removing fixed geometry.
 """
 
 import tkinter as tk
@@ -31,20 +32,19 @@ class FacialAUAnalyzerGUI:
         """
         self.root = root
         self.root.title("Facial AU Analyzer")
-        # Adjusted size slightly
-        self.root.geometry("550x480")
+        # Let Tkinter determine initial size
+        # self.root.geometry("...")
 
         # Initialize variables
         self.data_dir = tk.StringVar()
-        self.output_dir = "../3.5_Results"
-        # --- Variable for visuals checkbox ---
-        self.generate_visuals_var = tk.BooleanVar(value=True) # Default to True
-        # --- END Variable ---
+        self.output_dir = "../3.5_Results" # Assuming main.py is in 3_Data_Analysis
+        self.generate_visuals_var = tk.BooleanVar(value=True)
+        self.debug_mode_var = tk.BooleanVar(value=False)
 
         # Create GUI elements
         self.create_widgets()
 
-        # Initialize batch processor (will be recreated on scan)
+        # Initialize batch processor
         self.batch_processor = None
         self.analysis_thread = None
 
@@ -53,45 +53,35 @@ class FacialAUAnalyzerGUI:
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # --- Directory Selection ---
+        # Directory Selection
         dir_frame = ttk.LabelFrame(main_frame, text="Select Data Directory", padding="10")
-        dir_frame.pack(fill=tk.X, pady=5)
+        dir_frame.pack(fill=tk.X, pady=5, side=tk.TOP, anchor='n')
         ttk.Label(dir_frame, text="Data Directory:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=5)
         ttk.Entry(dir_frame, textvariable=self.data_dir, width=40).grid(row=0, column=1, sticky=tk.EW, padx=5, pady=5)
         ttk.Button(dir_frame, text="Browse...", command=self.browse_data_dir).grid(row=0, column=2, padx=5, pady=5)
         dir_frame.columnconfigure(1, weight=1)
 
-        # --- Batch Analysis Section ---
+        # Batch Analysis Section
         batch_frame = ttk.LabelFrame(main_frame, text="Batch Analysis", padding="10")
-        batch_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        batch_frame.pack(fill=tk.BOTH, expand=True, pady=5, side=tk.TOP)
 
-        # Patient List
+        # Patient List Frame
         list_frame = ttk.Frame(batch_frame)
-        # Expand list box more
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(5,0))
         ttk.Label(list_frame, text="Detected Patients:").pack(anchor=tk.NW)
-        self.patients_listbox = tk.Listbox(list_frame, height=10, exportselection=False) # Increased height
+        self.patients_listbox = tk.Listbox(list_frame, height=10, exportselection=False)
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.patients_listbox.yview)
         self.patients_listbox.config(yscrollcommand=scrollbar.set)
         self.patients_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        # --- Options Frame ---
+        # Options Frame
         options_frame = ttk.Frame(batch_frame)
         options_frame.pack(fill=tk.X, pady=5)
-
         paralysis_info_label = f"Paralysis Levels Used: {', '.join(PARALYSIS_SEVERITY_LEVELS)}"
         ttk.Label(options_frame, text=paralysis_info_label, font=("TkDefaultFont", 8)).pack(anchor=tk.W)
-
-        # --- ADDED: Visuals Checkbox ---
-        ttk.Checkbutton(
-            options_frame,
-            text="Generate Visual Outputs (Frames & Figures)",
-            variable=self.generate_visuals_var,
-            onvalue=True,
-            offvalue=False
-        ).pack(anchor=tk.W, pady=(5,0))
-        # --- END ADDED ---
+        ttk.Checkbutton(options_frame, text="Generate Visual Outputs (Frames & Figures)", variable=self.generate_visuals_var, onvalue=True, offvalue=False).pack(anchor=tk.W, pady=(5,0))
+        ttk.Checkbutton(options_frame, text="Debug Mode (Compare results with 'FPRS FP Key.csv' in data dir)", variable=self.debug_mode_var, onvalue=True, offvalue=False).pack(anchor=tk.W, pady=(2,0))
 
         # Progress Section
         progress_frame = ttk.Frame(batch_frame)
@@ -100,41 +90,55 @@ class FacialAUAnalyzerGUI:
         self.batch_progress_var = tk.DoubleVar()
         self.batch_progress_bar = ttk.Progressbar(progress_frame, variable=self.batch_progress_var, maximum=100)
         self.batch_progress_bar.pack(fill=tk.X)
-        self.batch_status_var = tk.StringVar(value="Ready")
+        self.batch_status_var = tk.StringVar(value="Ready (Select Data Directory)")
         ttk.Label(progress_frame, textvariable=self.batch_status_var, wraplength=450).pack(anchor=tk.W, pady=(2,0))
 
-        # --- Buttons Frame ---
+        # Button Frame (at the bottom)
         button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(10, 5))
-        button_frame.columnconfigure(0, weight=1); button_frame.columnconfigure(1, weight=1) # Equal weight
-        ttk.Button(button_frame, text="Scan for Patients", command=self.scan_for_patients).grid(row=0, column=0, padx=10, sticky=tk.EW)
-        ttk.Button(button_frame, text="Run Batch Analysis", command=self.run_batch_analysis).grid(row=0, column=1, padx=10, sticky=tk.EW)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 5), anchor='s')
+        button_frame.columnconfigure(0, weight=1)
+        self.run_button = ttk.Button(button_frame, text="Run Batch Analysis", command=self.run_batch_analysis)
+        self.run_button.grid(row=0, column=0, padx=10, pady=5, sticky=tk.EW)
+        self.run_button.config(state=tk.DISABLED)
 
     def browse_data_dir(self):
-        """Browse for data directory and automatically scan after selection."""
-        # ... (logic remains the same) ...
+        """Browse for data directory and automatically scan."""
         initial_dir = os.path.expanduser("~"); docs_dir = os.path.join(initial_dir, "Documents")
         if os.path.isdir(docs_dir): initial_dir = docs_dir
         dirpath = filedialog.askdirectory(title="Select Data Directory", initialdir=initial_dir)
-        if dirpath: self.data_dir.set(dirpath); self.scan_for_patients()
+        if dirpath:
+            self.data_dir.set(dirpath)
+            self.scan_for_patients_auto() # Auto-scan
 
-
-    def scan_for_patients(self):
-        """Scan for patients in the data directory."""
-        # ... (logic remains the same) ...
+    def scan_for_patients_auto(self):
+        """Scan for patients automatically."""
         data_dir_path = self.data_dir.get()
-        if not data_dir_path: messagebox.showerror("Error", "Select data directory."); return
-        if not os.path.isdir(data_dir_path): messagebox.showerror("Error", f"Invalid directory:\n{data_dir_path}"); return
-        logger.info(f"Scanning for patients in: {data_dir_path}"); self.patients_listbox.delete(0, tk.END)
-        self.batch_status_var.set("Scanning..."); self.root.update_idletasks()
+        if not data_dir_path or not os.path.isdir(data_dir_path):
+             self.run_button.config(state=tk.DISABLED)
+             return
+
+        logger.info(f"Scanning for patients in: {data_dir_path}")
+        self.patients_listbox.delete(0, tk.END)
+        self.batch_status_var.set("Scanning...")
+        self.root.update_idletasks()
+
         try:
-            self.batch_processor = FacialAUBatchProcessor(self.output_dir); num_patients = self.batch_processor.auto_detect_patients(data_dir_path)
+            self.batch_processor = FacialAUBatchProcessor(self.output_dir)
+            num_patients = self.batch_processor.auto_detect_patients(data_dir_path)
             if self.batch_processor.patients:
                  for patient in self.batch_processor.patients: self.patients_listbox.insert(tk.END, patient['patient_id'])
-                 self.batch_status_var.set(f"Found {num_patients} patients. Ready.")
+                 self.batch_status_var.set(f"Found {num_patients} patients. Ready to Run.")
+                 self.run_button.config(state=tk.NORMAL)
                  logger.info(f"Scan complete. Found {num_patients} patients.")
-            else: self.batch_status_var.set("No patients found."); logger.warning("Scan complete. No patients found."); messagebox.showinfo("Scan Results", "No patient data files found.")
-        except Exception as e: logger.error(f"Scan error: {e}", exc_info=True); messagebox.showerror("Scan Error", f"Error scanning:\n{e}"); self.batch_status_var.set("Scan Error.")
+            else:
+                 self.batch_status_var.set("No patient data pairs found in directory.")
+                 self.run_button.config(state=tk.DISABLED)
+                 logger.warning("Scan complete. No patients found.")
+        except Exception as e:
+            logger.error(f"Error during automatic scan: {e}", exc_info=True)
+            messagebox.showerror("Scan Error", f"Error scanning directory:\n{e}")
+            self.batch_status_var.set("Scan Error.")
+            self.run_button.config(state=tk.DISABLED)
 
 
     def run_batch_analysis(self):
@@ -143,60 +147,73 @@ class FacialAUAnalyzerGUI:
             messagebox.showwarning("Busy", "Analysis already running.")
             return
         if not self.batch_processor or not self.batch_processor.patients:
-            messagebox.showerror("Error", "No patients detected. Scan first.")
+            messagebox.showerror("Error", "No patients detected. Select a valid data directory.")
             return
 
-        # --- Get checkbox state ---
         generate_visuals = self.generate_visuals_var.get()
-        logger.info(f"Starting GUI batch analysis. Generate visuals: {generate_visuals}")
-        # --- End Get checkbox ---
+        debug_mode = self.debug_mode_var.get() # Get debug mode state
+        logger.info(f"Starting GUI batch analysis. Visuals: {generate_visuals}, Debug: {debug_mode}")
 
         self.batch_progress_var.set(0)
         self.batch_status_var.set("Starting batch analysis...")
+        self.run_button.config(state=tk.DISABLED)
         self.root.update_idletasks()
 
-        # Pass the flag to the thread target
-        self.analysis_thread = threading.Thread(target=self.analyze_batch, args=(generate_visuals,))
+        # Pass flags to the thread target
+        self.analysis_thread = threading.Thread(target=self.analyze_batch, args=(generate_visuals, debug_mode))
         self.analysis_thread.daemon = True
         self.analysis_thread.start()
+        self.root.after(100, self.check_analysis_thread)
 
-    # --- Modified to accept the flag ---
-    def analyze_batch(self, generate_visuals):
+    def analyze_batch(self, generate_visuals, debug_mode):
         """Run batch analysis in a separate thread."""
         try:
             total_patients = len(self.batch_processor.patients)
-            logger.info(f"analyze_batch started for {total_patients} patients. Generate visuals: {generate_visuals}")
-            self.batch_status_var.set(f"Processing {total_patients} patients...")
-            self.batch_progress_var.set(5)
-            self.root.update_idletasks()
+            logger.info(f"analyze_batch started for {total_patients} patients. Visuals: {generate_visuals}, Debug: {debug_mode}")
 
-            # --- Pass generate_visuals to extract_frames parameter ---
+            def update_progress(current, total):
+                 progress = int((current / total) * 90)
+                 self.root.after(0, self.batch_progress_var.set, progress)
+                 status_text = f"Processing patient {current}/{total}..."
+                 self.root.after(0, self.batch_status_var.set, status_text)
+
+            # Pass flags and callback to process_all
             output_path = self.batch_processor.process_all(
-                extract_frames=generate_visuals
-                # No need to pass results_file/expert_file
+                extract_frames=generate_visuals,
+                debug_mode=debug_mode, # Pass debug flag
+                progress_callback=update_progress
             )
-            # --- End pass flag ---
 
             if output_path:
-                self.batch_status_var.set("Performing final analysis...")
-                self.batch_progress_var.set(95)
-                self.root.update_idletasks()
+                self.root.after(0, self.batch_status_var.set, "Performing final analysis...")
+                self.root.after(0, self.batch_progress_var.set, 95)
                 self.batch_processor.analyze_asymmetry_across_patients()
 
-                self.batch_status_var.set(f"Batch complete! Results: {output_path}")
-                self.batch_progress_var.set(100)
+                self.root.after(0, self.batch_status_var.set, f"Batch complete! Results: {output_path}")
+                self.root.after(0, self.batch_progress_var.set, 100)
                 logger.info("Batch analysis thread finished successfully.")
                 self.root.after(0, lambda: messagebox.showinfo("Analysis Complete", f"Batch analysis successful!\nResults saved to:\n{output_path}"))
-                # Consider NOT closing automatically from GUI run
-                # self.root.after(1000, self.root.destroy)
             else:
-                self.batch_status_var.set("Processing failed. Check logs.")
+                self.root.after(0, self.batch_status_var.set, "Processing failed. Check logs.")
+                self.root.after(0, self.batch_progress_var.set, 100)
                 logger.error("Batch processing failed to produce output.")
                 self.root.after(0, lambda: messagebox.showerror("Error", "Batch processing failed. Check logs."))
 
         except Exception as e:
             logger.error(f"Error in analyze_batch thread: {e}", exc_info=True)
-            self.batch_status_var.set(f"Error occurred: {e}")
+            self.root.after(0, self.batch_status_var.set, f"Error occurred: {e}")
             self.root.after(0, lambda: messagebox.showerror("Batch Error", f"Error during batch processing:\n{e}\nCheck logs."))
         finally:
-             self.root.after(0, self.batch_progress_var.set, 100) # Ensure progress bar completes
+             self.root.after(0, self.batch_progress_var.set, 100)
+             self.root.after(0, self.run_button.configure, {'state': tk.NORMAL}) # Re-enable button
+
+
+    def check_analysis_thread(self):
+        """Periodically check if the analysis thread is still running."""
+        if self.analysis_thread and self.analysis_thread.is_alive():
+            self.root.after(100, self.check_analysis_thread)
+        else:
+            # Ensure button is enabled once thread definitely finishes
+            # Use configure() which is more standard than config() for widgets
+            self.run_button.configure(state=tk.NORMAL)
+            logger.debug("Analysis thread check: Thread finished.")

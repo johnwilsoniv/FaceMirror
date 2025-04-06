@@ -25,13 +25,6 @@ except ImportError:
     logging.error("Failed to import necessary components from oral_ocular_features or oral_ocular_config.")
     raise SystemExit("Cannot proceed without configuration and feature preparation modules.")
 
-current_dir = os.getcwd()
-print(f"DEBUG: Current Working Directory: {current_dir}")
-config_file_path = os.path.join(current_dir, 'oral_ocular_config.py')
-print(f"DEBUG: Checking for config file at: {config_file_path}")
-print(f"DEBUG: Does config file exist? {os.path.exists(config_file_path)}")
-print(f"DEBUG: Python Path: {sys.path}")
-
 # Configure logging
 os.makedirs(LOG_DIR, exist_ok=True)
 log_file = os.path.join(LOG_DIR, 'oral_ocular_training.log')

@@ -4,9 +4,9 @@ import os
 import sys
 
 # --- Configuration ---
-model_dir = 'models'
+model_dir = 'models/synkinesis/snarl_smile'
 # Select the feature list you want to check:
-feature_list_filename = 'lower_face_features.list'
+feature_list_filename = 'features.list'
 # feature_list_filename = 'mid_face_features.list'
 # feature_list_filename = 'upper_face_features.list'
 # --- End Configuration ---

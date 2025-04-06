@@ -1,14 +1,12 @@
-# ocular_oral_config.py
-# - Model type is XGBoost
-# - SMOTE ENABLED
-# - scale_pos_weight REMOVED
-# - Feature selection ENABLED
+# mentalis_config.py
+# Config for detecting Mentalis Synkinesis.
+# FINAL CONFIG (Pending Error Analysis): Full Features (BS+SE+Context), SMOTE Enabled.
 
 import os
 
 # Base paths
 MODEL_PARENT_DIR = 'models/synkinesis'
-MODEL_DIR = os.path.join(MODEL_PARENT_DIR, 'ocular_oral') # *** CORRECT PATH ***
+MODEL_DIR = os.path.join(MODEL_PARENT_DIR, 'mentalis') # Specific path
 LOG_DIR = 'logs'
 
 # Ensure directories exist
@@ -23,30 +21,30 @@ MODEL_FILENAMES = {
     'feature_list': os.path.join(MODEL_DIR, 'features.list')
 }
 
-# *** CORRECT Define Core Ocular-Oral Actions and AUs ***
-OCULAR_ORAL_ACTIONS = ['ET', 'ES', 'RE', 'BL']
-TRIGGER_AUS = ['AU01_r', 'AU02_r', 'AU45_r']
-COUPLED_AUS = ['AU12_r', 'AU25_r', 'AU14_r']
-# *** END CORRECT AUs ***
+# --- Define Core Mentalis Synkinesis Actions and AUs ---
+MENTALIS_ACTIONS = ['BS', 'SE'] # Actions: Big Smile, Say E
+COUPLED_AUS = ['AU17_r']        # Mentalis / Chin Raiser (Target Synkinesis)
+CONTEXT_AUS = ['AU12_r', 'AU15_r', 'AU16_r'] # Lip Corner Puller, Lip Corner Depressor, Lower Lip Depressor # <<< RESTORED >>>
+# --- END DEFINITIONS ---
 
 # Feature extraction parameters
 FEATURE_CONFIG = {
-    'actions': OCULAR_ORAL_ACTIONS,
-    'trigger_aus': TRIGGER_AUS,
+    'actions': MENTALIS_ACTIONS,
     'coupled_aus': COUPLED_AUS,
-    'use_normalized': True,
+    'context_aus': CONTEXT_AUS,  # <<< RESTORED >>>
+    'use_normalized': True,      # Use normalized values (baseline subtracted)
     'min_value': 0.0001,
     'percent_diff_cap': 200.0
 }
 
 # Feature Selection Configuration
 FEATURE_SELECTION = {
-    'enabled': True, # <<< Should be ENABLED based on previous steps >>>
-    'top_n_features': 40,
+    'enabled': False, # Keep disabled for now
+    'top_n_features': 15,
     'importance_file': MODEL_FILENAMES['feature_importance']
 }
 
-# ML model training parameters
+# ML model training parameters (XGBoost)
 TRAINING_CONFIG = {
     'test_size': 0.25,
     'random_state': 42,
@@ -57,14 +55,14 @@ TRAINING_CONFIG = {
         'objective': 'binary:logistic',
         'eval_metric': 'logloss',
         'learning_rate': 0.1,
-        'max_depth': 5,
+        'max_depth': 4,
         'min_child_weight': 1,
         'subsample': 0.8,
         'colsample_bytree': 0.8,
-        'gamma': 0,
-        'n_estimators': 150,
-        # 'scale_pos_weight' is REMOVED
-        'random_state': 42
+        'gamma': 0.1,
+        'n_estimators': 100,
+        'random_state': 42,
+        # 'scale_pos_weight': 60 / 13 # <<< Ensure this is commented out/removed >>>
     },
 
     'smote': {
@@ -77,7 +75,7 @@ TRAINING_CONFIG = {
 # Class name mapping
 CLASS_NAMES = {
     0: 'None',
-    1: 'Synkinesis'
+    1: 'Mentalis Synkinesis'
 }
 
 # Logging configuration

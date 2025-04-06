@@ -1,4 +1,9 @@
-# snarl_smile_config.py (Mirrors oral_ocular_config.py)
+# snarl_smile_config.py
+# - Focus ONLY on BS action.
+# - Updated AUs based on description (AU14, AU15 coupled)
+# - Switched model to XGBoost
+# - ENABLED SMOTE (removed scale_pos_weight if previously added)
+# - Feature selection DISABLED for first run with new features
 
 import os
 
@@ -19,27 +24,26 @@ MODEL_FILENAMES = {
     'feature_list': os.path.join(MODEL_DIR, 'features.list')
 }
 
-# Define Core Snarl-Smile Actions and AUs
-SNARL_SMILE_ACTIONS = ['BS', 'SS'] # Actions likely to trigger smile
-TRIGGER_AUS = ['AU12_r'] # Primary smile AU (Lip Corner Puller). Can add AU06_r if needed later.
-COUPLED_AUS = ['AU09_r', 'AU10_r', 'AU14_r'] # Nose/Upper Lip/Dimple AUs involved in snarl
+# --- UPDATED Define Core Snarl-Smile Actions and AUs ---
+SNARL_SMILE_ACTIONS = ['BS'] # <<< Actions: ONLY Big Smile >>>
+TRIGGER_AUS = ['AU12_r']           # Primary smile AU (Lip Corner Puller)
+COUPLED_AUS = ['AU14_r', 'AU15_r'] # Unwanted coupled: Dimpler/Buccinator (AU14), DAO (AU15)
+# --- END UPDATED AUs ---
 
 # Feature extraction parameters
 FEATURE_CONFIG = {
-    'actions': SNARL_SMILE_ACTIONS,
+    'actions': SNARL_SMILE_ACTIONS, # <<< UPDATED >>>
     'trigger_aus': TRIGGER_AUS,
     'coupled_aus': COUPLED_AUS,
-    'use_normalized': True,
-    'min_value_for_ratio': 0.05,
-    # Weights for weighted score feature (optional, can be added in feature extraction)
-    # 'weights': {'AU09_r': 0.4, 'AU10_r': 0.3, 'AU14_r': 0.3}
+    'use_normalized': True,      # Use normalized for BS features
+    'min_value': 0.0001,
+    'percent_diff_cap': 200.0
 }
 
 # Feature Selection Configuration
 FEATURE_SELECTION = {
-    # Set enabled=True AFTER the first run generates feature_importance.csv
-    'enabled': False, # <<< SET TO False FOR FIRST RUN >>>
-    'top_n_features': 40, # Example (Adjust after first run)
+    'enabled': False, # <<< KEEP False FOR FIRST RUN >>>
+    'top_n_features': 15, # Placeholder, adjust after first run if enabling FS
     'importance_file': MODEL_FILENAMES['feature_importance']
 }
 
@@ -49,31 +53,35 @@ TRAINING_CONFIG = {
     'random_state': 42,
     'cv_folds': 5,
 
-    # Model parameters
+    # --- UPDATED Model parameters (XGBoost) ---
     'model': {
-        'type': 'random_forest',
+        'type': 'xgboost',
+        'objective': 'binary:logistic',
+        'eval_metric': 'logloss',
+        'learning_rate': 0.1,
+        'max_depth': 5, # Keep other params same for now
+        'min_child_weight': 1,
+        'subsample': 0.8,
+        'colsample_bytree': 0.8,
+        'gamma': 0,
         'n_estimators': 150,
-        'max_depth': None,
-        'min_samples_split': 5,
-        'min_samples_leaf': 2,
-        'class_weight': 'balanced',
         'random_state': 42
     },
+    # --- END UPDATED Model parameters ---
 
-    # SMOTE parameters - ENABLED
+    # --- SMOTE parameters ---
     'smote': {
-        'enabled': True,
-        # k_neighbors must be <= smallest class count in training data - 1.
-        # Adjust if Snarl-Smile minority count in train split is < 6.
-        'k_neighbors': 5, # ASSUMPTION: minority count will be >= 6
+        'enabled': True, # <<< ENABLE SMOTE >>>
+        'k_neighbors': 5, # Will be adjusted dynamically if needed
         'random_state': 42
     }
+    # --- END SMOTE parameters ---
 }
 
 # Class name mapping (Binary: Synkinesis vs. None)
 CLASS_NAMES = {
     0: 'None',
-    1: 'Synkinesis'
+    1: 'Synkinesis' # Assuming 1 indicates Snarl-Smile Synkinesis
 }
 
 # Logging configuration
