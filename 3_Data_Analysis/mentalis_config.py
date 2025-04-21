@@ -1,6 +1,7 @@
 # mentalis_config.py
 # Config for detecting Mentalis Synkinesis.
 # FINAL CONFIG (Pending Error Analysis): Full Features (BS+SE+Context), SMOTE Enabled.
+# Added adjustable DETECTION_THRESHOLD.
 
 import os
 
@@ -24,14 +25,14 @@ MODEL_FILENAMES = {
 # --- Define Core Mentalis Synkinesis Actions and AUs ---
 MENTALIS_ACTIONS = ['BS', 'SE'] # Actions: Big Smile, Say E
 COUPLED_AUS = ['AU17_r']        # Mentalis / Chin Raiser (Target Synkinesis)
-CONTEXT_AUS = ['AU12_r', 'AU15_r', 'AU16_r'] # Lip Corner Puller, Lip Corner Depressor, Lower Lip Depressor # <<< RESTORED >>>
+CONTEXT_AUS = ['AU12_r', 'AU15_r', 'AU16_r'] # Lip Corner Puller, Lip Corner Depressor, Lower Lip Depressor
 # --- END DEFINITIONS ---
 
 # Feature extraction parameters
 FEATURE_CONFIG = {
     'actions': MENTALIS_ACTIONS,
     'coupled_aus': COUPLED_AUS,
-    'context_aus': CONTEXT_AUS,  # <<< RESTORED >>>
+    'context_aus': CONTEXT_AUS,
     'use_normalized': True,      # Use normalized values (baseline subtracted)
     'min_value': 0.0001,
     'percent_diff_cap': 200.0
@@ -40,7 +41,7 @@ FEATURE_CONFIG = {
 # Feature Selection Configuration
 FEATURE_SELECTION = {
     'enabled': False, # Keep disabled for now
-    'top_n_features': 15,
+    'top_n_features': 15, # Note: Actual features used determined by features.list
     'importance_file': MODEL_FILENAMES['feature_importance']
 }
 
@@ -62,15 +63,20 @@ TRAINING_CONFIG = {
         'gamma': 0.1,
         'n_estimators': 100,
         'random_state': 42,
-        # 'scale_pos_weight': 60 / 13 # <<< Ensure this is commented out/removed >>>
     },
 
     'smote': {
-        'enabled': True, # <<< ENABLED >>>
+        'enabled': True,
         'k_neighbors': 5,
         'random_state': 42
     }
 }
+
+# --- Detection Threshold Configuration ---
+# Adjust this threshold to trade off precision and recall.
+# Start lower due to very low recall seen in training logs (0.20).
+DETECTION_THRESHOLD = 0.5
+# --- End Detection Threshold ---
 
 # Class name mapping
 CLASS_NAMES = {

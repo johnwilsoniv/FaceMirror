@@ -1,56 +1,58 @@
-# player_integration.py - Handles integration between the QTMediaPlayer and the MainWindow UI
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QLayout
+# --- START OF FILE player_integration.py ---
 
+# player_integration.py - Handles integration between the QTMediaPlayer and the MainWindow UI
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QLayout, QLabel, QSizePolicy # Added QLabel, QSizePolicy
 
 def integrate_qt_player(window, player):
     """
     Integrates the QTMediaPlayer with the MainWindow UI.
+    Finds the placeholder widget by object name and replaces it.
 
     Args:
         window: The MainWindow instance
         player: The QTMediaPlayer instance
     """
     try:
-        # Get the video widget from the player
-        video_widget = player.get_video_widget()
+        # Get the actual video widget container from the player
+        player_container_widget = player.get_video_widget() # This is the QWidget holding the QVideoWidget
 
-        # Replace the placeholder video_label with the actual video widget
-        if hasattr(window, 'video_label') and window.video_label:
-            parent = window.video_label.parent()
+        # Find the placeholder widget in the MainWindow using its object name
+        placeholder_widget = window.findChild(QLabel, "videoPlaceholder") # Find by name
 
-            if parent and hasattr(parent, 'layout') and parent.layout():
-                parent_layout = parent.layout()
+        if placeholder_widget:
+            # Get the parent layout of the placeholder
+            parent_layout = placeholder_widget.parentWidget().layout()
 
-                # Get the index where video_label is in the layout
-                index = parent_layout.indexOf(window.video_label)
+            if parent_layout:
+                # Replace the placeholder with the player's widget container
+                index = parent_layout.indexOf(placeholder_widget)
+                if index != -1:
+                    # Remove placeholder
+                    parent_layout.removeWidget(placeholder_widget)
+                    placeholder_widget.setParent(None)
+                    placeholder_widget.deleteLater() # Ensure it's properly deleted
 
-                # Remove the video_label
-                parent_layout.removeWidget(window.video_label)
-                window.video_label.setParent(None)
-                window.video_label.hide()
+                    # Ensure the player widget can expand
+                    player_container_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-                # Add the video widget in its place
-                if index >= 0:
-                    parent_layout.insertWidget(index, video_widget)
+                    # Add player widget container
+                    parent_layout.insertWidget(index, player_container_widget, 1) # Add with stretch factor 1
+                    print("QT Media Player view integrated into main layout via findChild.")
+
+                    # Now that the real widget is added, update the window's reference
+                    # This allows other parts of the code (like update_video_frame) to potentially
+                    # interact with the container if needed, although direct interaction is minimal now.
+                    window.video_display_widget = player_container_widget
+
                 else:
-                    print("Warning: Could not find video_label in layout, adding to end")
-                    parent_layout.addWidget(video_widget)
+                    print("CRITICAL ERROR: Could not find placeholder_widget index in parent layout.")
             else:
-                print("Warning: No valid parent layout found for video_label")
+                print("CRITICAL ERROR: Parent layout not found for placeholder_widget.")
         else:
-            print("Warning: No video_label found in MainWindow")
+            print("CRITICAL ERROR: Could not find QLabel with objectName='videoPlaceholder'. Integration failed.")
 
-        # Connect frame updates to action display updates - but check if the method exists first
-        if hasattr(window, 'update_action_display'):
-            player.frameChanged.connect(lambda frame, image, action: window.update_action_display(action))
-        else:
-            print("Warning: update_action_display method not found in MainWindow")
-
-        # Store a reference to the player in the window for convenience
-        window.video_player = player
-
-        print("QT Media Player successfully integrated with UI.")
     except Exception as e:
         print(f"Error integrating video player: {str(e)}")
         import traceback
         traceback.print_exc()
+# --- END OF FILE player_integration.py ---

@@ -1,13 +1,11 @@
-# hypertonicity_config.py
-# Config for detecting hypertonicity/dysfunctional movement patterns involving resting tone.
-# FINAL V3: Using BL + BS actions, Normalized values for BS, SMOTE enabled.
-# Added adjustable DETECTION_THRESHOLD.
+# brow_cocked_config.py
+# Config for detecting Brow Cocked phenomenon (resting asymmetry + dynamic change).
 
 import os
 
 # Base paths
 MODEL_PARENT_DIR = 'models/synkinesis'
-MODEL_DIR = os.path.join(MODEL_PARENT_DIR, 'hypertonicity') # Specific path
+MODEL_DIR = os.path.join(MODEL_PARENT_DIR, 'brow_cocked') # Specific path
 LOG_DIR = 'logs'
 
 # Ensure directories exist
@@ -22,26 +20,28 @@ MODEL_FILENAMES = {
     'feature_list': os.path.join(MODEL_DIR, 'features.list')
 }
 
-# --- Define Core Hypertonicity Actions and AUs ---
-# Use Baseline (BL) for resting tone and Big Smile (BS) for movement context
-HYPERTONICITY_ACTIONS = ['BL', 'BS']
-# AUs potentially involved in hypertonicity or related smile dysfunction
-INTEREST_AUS = ['AU12_r', 'AU14_r', 'AU06_r', 'AU07_r']
+# --- Define Core Brow Cocked Actions and AUs ---
+BROW_COCKED_ACTIONS = ['BL', 'ET'] # Baseline (Raw), Eyes Tight (Normalized Change)
+INTEREST_AUS = ['AU01_r', 'AU02_r'] # Brow Raisers
+CONTEXT_AUS = ['AU07_r']           # Lid Tightener (Eye Closure Context)
+ALL_RELEVANT_AUS = INTEREST_AUS + CONTEXT_AUS
 # --- END DEFINITIONS ---
 
 # Feature extraction parameters
 FEATURE_CONFIG = {
-    'actions': HYPERTONICITY_ACTIONS,
+    'actions': BROW_COCKED_ACTIONS,
     'interest_aus': INTEREST_AUS,
-    'use_normalized': True,      # Use NORMALIZED for BS action features
-    'min_value': 0.0001,
-    'percent_diff_cap': 200.0
+    'context_aus': CONTEXT_AUS,
+    # 'use_normalized': True, # This is ambiguous here; logic is handled in feature extractor
+                              # BL features are RAW, ET features are NORMALIZED
+    'min_value': 0.0001,      # For ratio/perc_diff calculations
+    'percent_diff_cap': 200.0 # For perc_diff calculations
 }
 
 # Feature Selection Configuration
 FEATURE_SELECTION = {
-    'enabled': False,
-    'top_n_features': 20, # Not currently used as FS is disabled
+    'enabled': False, # Keep False for initial run
+    'top_n_features': 15, # Target count for V1 feature set
     'importance_file': MODEL_FILENAMES['feature_importance']
 }
 
@@ -57,11 +57,11 @@ TRAINING_CONFIG = {
         'objective': 'binary:logistic',
         'eval_metric': 'logloss',
         'learning_rate': 0.1,
-        'max_depth': 4,
+        'max_depth': 4, # Start reasonably shallow
         'min_child_weight': 1,
         'subsample': 0.8,
         'colsample_bytree': 0.8,
-        'gamma': 0.1,
+        'gamma': 0.1, # Default regularization
         'n_estimators': 100,
         'random_state': 42,
         # No scale_pos_weight when SMOTE is enabled
@@ -70,7 +70,7 @@ TRAINING_CONFIG = {
 
     # --- SMOTE parameters ---
     'smote': {
-        'enabled': True,
+        'enabled': True, # Enable SMOTE as hypertonicity can be less frequent
         'k_neighbors': 5,
         'random_state': 42
     }
@@ -78,15 +78,14 @@ TRAINING_CONFIG = {
 }
 
 # --- Detection Threshold Configuration ---
-# Adjust this threshold to trade off precision and recall.
-# Start with 0.5 as the default, adjust based on threshold evaluation.
-DETECTION_THRESHOLD = 0.5
+# Start with standard 0.5, adjust after evaluation if needed
+DETECTION_THRESHOLD = 0.25
 # --- End Detection Threshold ---
 
-# Class name mapping (Binary: Hypertonicity vs. None)
+# Class name mapping (Binary: Brow Cocked vs. None)
 CLASS_NAMES = {
     0: 'None',
-    1: 'Hypertonicity'
+    1: 'Brow Cocked'
 }
 
 # Logging configuration

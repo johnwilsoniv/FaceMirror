@@ -1,5 +1,5 @@
 # facial_au_batch_processor.py
-# V1.17 Update: Pass contradictions dict to visualizer calls. Correct Expert Value storage.
+# V1.18 Update: Added keep_default_na=False when loading expert key.
 
 import os
 import numpy as np
@@ -36,7 +36,6 @@ class FacialAUBatchProcessor:
              raise
 
     def add_patient(self, left_csv, right_csv, video_path=None, patient_id=None):
-        # (No changes needed in this method)
         if not patient_id:
             id_match = re.search(r'(IMG_\d+)', os.path.basename(left_csv), re.IGNORECASE)
             if id_match: patient_id = id_match.group(1)
@@ -50,7 +49,6 @@ class FacialAUBatchProcessor:
 
 
     def auto_detect_patients(self, data_dir):
-        # (No changes needed in this method)
         self.data_dir_path = data_dir
         if not os.path.isdir(data_dir): logger.error(f"Data directory not found: {data_dir}"); return 0
         logger.debug(f"Searching for CSVs using glob pattern: {os.path.join(data_dir, '*.csv')}")
@@ -134,35 +132,39 @@ class FacialAUBatchProcessor:
                     expert_row = expert_data_df.loc[patient_id]
                     logger.debug(f"({patient_id}) Found expert data row.")
                     for algo_key, expert_key in EXPERT_KEY_MAPPING.items():
-                        # algo_key is e.g., 'Left Upper Face Paralysis'
-                        # expert_key is e.g., 'Paralysis - Left Upper Face'
                         logger.debug(f"({patient_id}) Comparing Algo Key: '{algo_key}' <-> Expert Key: '{expert_key}'")
                         if algo_key not in patient_summary: logger.warning(f"({patient_id}) Algo key '{algo_key}' missing for comparison."); continue
                         if expert_key not in expert_row.index: logger.warning(f"({patient_id}) Expert key '{expert_key}' missing."); continue
 
-                        algo_val = patient_summary[algo_key]; expert_val = expert_row[expert_key]
+                        algo_val = patient_summary[algo_key];
+                        # Retrieve expert value - it should be a string now if it was "None" due to keep_default_na=False
+                        expert_val = expert_row[expert_key]
                         logger.debug(f"({patient_id}) Raw Values - Algo: '{algo_val}' (Type: {type(algo_val)}), Expert: '{expert_val}' (Type: {type(expert_val)})")
 
-                        if pd.isna(expert_val): logger.debug(f"({patient_id}) Skip compare '{algo_key}': Expert NaN."); continue
+                        # Check for actual missing values (like empty strings if they weren't handled by keep_default_na=False)
+                        # pandas might still make truly empty cells NaN depending on exact CSV format/options
+                        if pd.isna(expert_val) or (isinstance(expert_val, str) and expert_val.strip() == ''):
+                             logger.debug(f"({patient_id}) Skip compare '{algo_key}': Expert value is effectively missing (NaN or empty string).")
+                             continue
 
                         contradiction = False; std_algo, std_expert = None, None
                         # Standardize both values using the appropriate function
                         if algo_key in PARALYSIS_FINDINGS_KEYS:
                             std_algo = standardize_paralysis_label(algo_val)
-                            std_expert = standardize_paralysis_label(expert_val)
+                            std_expert = standardize_paralysis_label(expert_val) # Will handle string "None" correctly
                             logger.debug(f"({patient_id}) Standardized Paralysis - Algo: '{std_algo}', Expert: '{std_expert}'")
                             if std_algo != std_expert: contradiction = True
                         elif algo_key in BOOL_FINDINGS_KEYS:
                             std_algo = standardize_binary_label(algo_val)
-                            std_expert = standardize_binary_label(expert_val)
+                            std_expert = standardize_binary_label(expert_val) # Will handle string "None" correctly now
                             logger.debug(f"({patient_id}) Standardized Binary - Algo: '{std_algo}', Expert: '{std_expert}'")
                             if std_algo is not None and std_expert is not None and std_algo != std_expert: contradiction = True
                             elif std_algo is None or std_expert is None: logger.debug(f"({patient_id}) Skipping comparison for '{algo_key}' due to None after standardization.")
                         else: logger.warning(f"({patient_id}) Unknown finding type for '{algo_key}'."); continue
 
-                        # *** Store STANDARDIZED EXPERT value on contradiction ***
+                        # Store STANDARDIZED EXPERT value on contradiction
                         if contradiction:
-                            patient_contradictions[algo_key] = std_expert # Store standardized expert value for visualization
+                            patient_contradictions[algo_key] = std_expert
                             logger.info(f"({patient_id}) CONTRADICTION for '{algo_key}': Algo='{algo_val}'(std:'{std_algo}'), Expert='{expert_val}'(std:'{std_expert}')")
                         else:
                             logger.debug(f"({patient_id}) MATCH for '{algo_key}': Algo='{algo_val}'(std:'{std_algo}'), Expert='{expert_val}'(std:'{std_expert}')")
@@ -201,57 +203,40 @@ class FacialAUBatchProcessor:
                         plot_path = None
                         if action == 'BL':
                             plot_path = visualizer.create_baseline_visualization(
-                                analyzer=analyzer,
-                                au_values_left=action_results.get('left', {}).get('au_values', {}),
-                                au_values_right=action_results.get('right', {}).get('au_values', {}),
-                                frame_num=frame_num,
-                                patient_output_dir=patient_output_dir,
-                                frame_path=final_frame_path_to_use,
-                                action_descriptions=ACTION_DESCRIPTIONS,
-                                results=results, # Pass full results
-                                contradictions=patient_contradictions # *** PASS CONTRADICTIONS ***
+                                analyzer=analyzer, au_values_left=action_results.get('left', {}).get('au_values', {}),
+                                au_values_right=action_results.get('right', {}).get('au_values', {}), frame_num=frame_num,
+                                patient_output_dir=patient_output_dir, frame_path=final_frame_path_to_use,
+                                action_descriptions=ACTION_DESCRIPTIONS, results=results,
+                                contradictions=patient_contradictions # Pass contradictions
                              )
                         else:
                             if not final_frame_path_to_use: logger.warning(f"({patient_id}-{action}) Frame missing for AU plot."); continue
                             plot_path = visualizer.create_au_visualization(
-                                analyzer=analyzer,
-                                au_values_left=action_results.get('left', {}).get('au_values', {}),
+                                analyzer=analyzer, au_values_left=action_results.get('left', {}).get('au_values', {}),
                                 au_values_right=action_results.get('right', {}).get('au_values', {}),
                                 norm_au_values_left=action_results.get('left', {}).get('normalized_au_values', {}),
                                 norm_au_values_right=action_results.get('right', {}).get('normalized_au_values', {}),
-                                action=action, frame_num=frame_num,
-                                patient_output_dir=patient_output_dir,
-                                frame_path=final_frame_path_to_use,
-                                action_descriptions=ACTION_DESCRIPTIONS,
-                                action_to_aus=ACTION_TO_AUS,
-                                results=results, # Pass full results
-                                contradictions=patient_contradictions # *** PASS CONTRADICTIONS ***
+                                action=action, frame_num=frame_num, patient_output_dir=patient_output_dir,
+                                frame_path=final_frame_path_to_use, action_descriptions=ACTION_DESCRIPTIONS,
+                                action_to_aus=ACTION_TO_AUS, results=results,
+                                contradictions=patient_contradictions # Pass contradictions
                             )
                         if plot_path: generated_plot_paths[action] = plot_path
                     except Exception as e_viz_action: logger.error(f"({patient_id}) Viz error {action}: {e_viz_action}", exc_info=True)
                 # Generate Symmetry and Dashboard Plots (Pass contradictions)
                 try:
                      sym_path = visualizer.create_symmetry_visualization(
-                         analyzer=analyzer,
-                         patient_output_dir=patient_output_dir,
-                         patient_id=patient_id,
-                         results=results,
-                         action_descriptions=ACTION_DESCRIPTIONS) # Symmetry plot doesn't show table
+                         analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
+                         results=results, action_descriptions=ACTION_DESCRIPTIONS)
                      generated_plot_paths['symmetry'] = sym_path if sym_path else None
                 except Exception as e_viz_sym: logger.error(f"({patient_id}) Symmetry viz error: {e_viz_sym}", exc_info=True)
                 try:
                      dash_path = visualizer.create_patient_dashboard(
-                         analyzer=analyzer,
-                         patient_output_dir=patient_output_dir,
-                         patient_id=patient_id,
-                         results=results,
-                         action_descriptions=ACTION_DESCRIPTIONS,
-                         frame_paths=analyzer.frame_paths,
-                         contradictions=patient_contradictions # *** PASS CONTRADICTIONS ***
-                      )
+                         analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
+                         results=results, action_descriptions=ACTION_DESCRIPTIONS,
+                         frame_paths=analyzer.frame_paths, contradictions=patient_contradictions)
                      generated_plot_paths['dashboard'] = dash_path if dash_path else None
                 except Exception as e_viz_dash: logger.error(f"({patient_id}) Dashboard viz error: {e_viz_dash}", exc_info=True)
-                # Cleanup
                 if frames_extracted_successfully and hasattr(analyzer, 'cleanup_extracted_frames'): logger.info(f"({patient_id}) Cleaning up frames..."); analyzer.cleanup_extracted_frames()
             else: logger.info(f"({patient_id}) Skipping visual output generation.")
 
@@ -261,7 +246,6 @@ class FacialAUBatchProcessor:
         except Exception as e_patient:
             logger.error(f"--- UNHANDLED ERROR processing patient {patient_id}: {e_patient} ---", exc_info=True)
             self.errors[patient_id] = str(e_patient); summary_error = {'Patient ID': patient_id, 'Processing Status': f'Error: {e_patient}'}
-            # Simplified error reporting for summary
             if results and isinstance(results, dict):
                  first_info = next((info for act, info in results.items() if act not in ['patient_summary'] and isinstance(info, dict)), None)
                  if first_info: summary_error['Paralysis Detected'] = first_info.get('paralysis', {}).get('detected', 'Error'); summary_error['Synkinesis Detected'] = first_info.get('synkinesis', {}).get('detected', 'Error')
@@ -279,16 +263,18 @@ class FacialAUBatchProcessor:
 
     def process_all(self, extract_frames=True, debug_mode=False, progress_callback=None):
         """ Processes all added patients and saves a combined summary. """
-        # (No changes needed in loading expert key or loop structure)
         if not self.patients: logger.error("No patients added."); return None
         expert_data_df = None
         if debug_mode:
             try:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
-                expert_key_path = os.path.join(script_dir, "FPRS FP Key.csv") # Assumes key is in same dir
+                expert_key_path = os.path.join(script_dir, "FPRS FP Key.csv")
                 logger.info(f"Debug Mode ON: Attempting to load expert key from: {expert_key_path}")
+
                 if os.path.exists(expert_key_path):
-                    expert_data_df = pd.read_csv(expert_key_path)
+                    # *** Use keep_default_na=False ***
+                    expert_data_df = pd.read_csv(expert_key_path, keep_default_na=False)
+                    # *** End Modification ***
                     if 'Patient' not in expert_data_df.columns: logger.error(f"Expert key missing 'Patient' column: {expert_key_path}"); expert_data_df = None
                     else: expert_data_df = expert_data_df.set_index('Patient'); logger.info(f"Successfully loaded expert key: {expert_key_path}")
                 else: logger.warning(f"Debug mode enabled, but expert key file not found at expected location: {expert_key_path}")
@@ -312,11 +298,9 @@ class FacialAUBatchProcessor:
              if patient_summary: all_patient_summaries.append(patient_summary)
 
         if all_patient_summaries:
-            # (No changes needed in summary saving logic)
             logger.info(f"Generating combined summary CSV for {len(all_patient_summaries)} processed patients.")
             try:
                  summary_df = pd.DataFrame(all_patient_summaries)
-                 # Column Ordering
                  all_cols = summary_df.columns.tolist(); id_group = [c for c in ['Patient ID', 'Processing Status'] if c in all_cols]
                  detection_flags = [c for c in ['Paralysis Detected', 'Synkinesis Detected', 'Hypertonicity Detected'] if c in all_cols]
                  paralysis_details = sorted([c for c in all_cols if 'Face Paralysis' in c])
@@ -340,6 +324,7 @@ class FacialAUBatchProcessor:
                  return None
         else: logger.error("No patient summaries generated."); return None
 
+
     def analyze_asymmetry_across_patients(self):
         # (No changes needed in this method)
         if self.summary_data is None or self.summary_data.empty:
@@ -354,6 +339,7 @@ class FacialAUBatchProcessor:
         logger.info("Aggregate analysis complete.")
         return None
 
+
     def analyze_paralysis_synkinesis_hypertonicity(self):
         # (No changes needed in this method)
         if self.summary_data is None or self.summary_data.empty: logger.error("Summary data missing."); return
@@ -367,7 +353,6 @@ class FacialAUBatchProcessor:
         if num_patients == 0: logger.warning("No successfully processed patients found. Skipping stats."); return
         logger.info(f"Analyzing stats for {num_patients} successfully processed patients.")
 
-        # Paralysis Stats
         paralysis_col = 'Paralysis Detected'
         if paralysis_col in df.columns:
             df[paralysis_col] = df[paralysis_col].fillna('No').astype(str)
@@ -387,7 +372,6 @@ class FacialAUBatchProcessor:
                 except Exception as e: logger.error(f"Save paralysis stats failed: {e}", exc_info=True)
         else: logger.warning(f"'{paralysis_col}' column missing.")
 
-        # Synkinesis & Hypertonicity Stats
         synk_col = 'Synkinesis Detected'; hyper_col = 'Hypertonicity Detected'
         synk_detected_flag = (df[synk_col] == 'Yes') if synk_col in df.columns else pd.Series([False]*len(df), index=df.index)
         hyper_detected_flag = (df[hyper_col] == 'Yes') if hyper_col in df.columns else pd.Series([False]*len(df), index=df.index)

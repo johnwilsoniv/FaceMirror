@@ -1,9 +1,12 @@
 # snarl_smile_config.py
 # - Focus ONLY on BS action.
-# - Updated AUs based on description (AU14, AU15 coupled)
-# - Switched model to XGBoost
-# - ENABLED SMOTE (removed scale_pos_weight if previously added)
-# - Feature selection DISABLED for first run with new features
+# - Coupled AUs: AU10, AU14, AU15 (Needed for Max/Asym features)
+# - Switched model to XGBoost.
+# - SMOTE ENABLED, scale_pos_weight DISABLED.
+# - INCREASED XGBoost Regularization.
+# - Feature selection DISABLED.
+# - Using FINAL V7 feature set (15 features: Removed side_indicator).
+# - Added adjustable DETECTION_THRESHOLD.
 
 import os
 
@@ -24,26 +27,27 @@ MODEL_FILENAMES = {
     'feature_list': os.path.join(MODEL_DIR, 'features.list')
 }
 
-# --- UPDATED Define Core Snarl-Smile Actions and AUs ---
+# --- Define Core Snarl-Smile Actions and AUs ---
 SNARL_SMILE_ACTIONS = ['BS'] # <<< Actions: ONLY Big Smile >>>
 TRIGGER_AUS = ['AU12_r']           # Primary smile AU (Lip Corner Puller)
-COUPLED_AUS = ['AU14_r', 'AU15_r'] # Unwanted coupled: Dimpler/Buccinator (AU14), DAO (AU15)
+# <<< Coupled AUs needed for calculations >>>
+COUPLED_AUS = ['AU10_r', 'AU14_r', 'AU15_r'] # Upper Lip Raiser, Dimpler, DAO
 # --- END UPDATED AUs ---
 
 # Feature extraction parameters
 FEATURE_CONFIG = {
-    'actions': SNARL_SMILE_ACTIONS, # <<< UPDATED >>>
+    'actions': SNARL_SMILE_ACTIONS,
     'trigger_aus': TRIGGER_AUS,
     'coupled_aus': COUPLED_AUS,
     'use_normalized': True,      # Use normalized for BS features
     'min_value': 0.0001,
-    'percent_diff_cap': 200.0
+    'percent_diff_cap': 200.0 # Needed for PercDiff feature
 }
 
 # Feature Selection Configuration
 FEATURE_SELECTION = {
-    'enabled': False, # <<< KEEP False FOR FIRST RUN >>>
-    'top_n_features': 15, # Placeholder, adjust after first run if enabling FS
+    'enabled': False, # Keep False, using a curated feature set now
+    'top_n_features': 15, # Expected feature count for V7
     'importance_file': MODEL_FILENAMES['feature_importance']
 }
 
@@ -53,30 +57,40 @@ TRAINING_CONFIG = {
     'random_state': 42,
     'cv_folds': 5,
 
-    # --- UPDATED Model parameters (XGBoost) ---
+    # --- Model parameters (XGBoost with Regularization) ---
     'model': {
         'type': 'xgboost',
         'objective': 'binary:logistic',
         'eval_metric': 'logloss',
         'learning_rate': 0.1,
-        'max_depth': 5, # Keep other params same for now
+        'max_depth': 4,
         'min_child_weight': 1,
         'subsample': 0.8,
         'colsample_bytree': 0.8,
-        'gamma': 0,
-        'n_estimators': 150,
-        'random_state': 42
+        'gamma': 0.5,
+        'reg_alpha': 0.5,
+        'n_estimators': 100,
+        'random_state': 42,
     },
-    # --- END UPDATED Model parameters ---
+    # --- END Model parameters ---
 
     # --- SMOTE parameters ---
     'smote': {
-        'enabled': True, # <<< ENABLE SMOTE >>>
-        'k_neighbors': 5, # Will be adjusted dynamically if needed
+        'enabled': True,
+        'k_neighbors': 5,
         'random_state': 42
     }
     # --- END SMOTE parameters ---
 }
+
+# --- Detection Threshold Configuration ---
+# Adjust this threshold to trade off precision and recall.
+# Lower threshold -> Higher Recall (fewer FNs), Lower Precision (more FPs)
+# Higher threshold -> Lower Recall (more FNs), Higher Precision (fewer FPs)
+# Default was effectively 0.5. Let's try 0.45 as a starting point.
+DETECTION_THRESHOLD = 0.45
+# --- End Detection Threshold ---
+
 
 # Class name mapping (Binary: Synkinesis vs. None)
 CLASS_NAMES = {
