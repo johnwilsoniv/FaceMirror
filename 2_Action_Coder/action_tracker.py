@@ -1,4 +1,3 @@
-# action_tracker.py
 # --- START OF FILE action_tracker.py ---
 
 from PyQt5.QtCore import QObject, pyqtSignal
@@ -13,22 +12,19 @@ class ActionTracker(QObject):
         self.current_frame = 0
         self.active_action = None
 
-    def set_frame(self, frame):
+    # (set_frame, start_action, continue_action, stop_action, get_action_for_frame, get_all_actions_for_export - unchanged)
+    def set_frame(self, frame): # (Unchanged)
         self.current_frame = frame
-
-    def start_action(self, action_code):
-        # (No change)
+    def start_action(self, action_code): # (Unchanged)
         if self.active_action and self.action_ranges:
             self.stop_action()
         self.active_action = action_code
         self.action_ranges.append({
             'action': action_code, 'start': self.current_frame, 'end': None, 'status': None
         })
-
-    def continue_action(self): # (No change)
+    def continue_action(self): # (Unchanged)
         pass
-
-    def stop_action(self): # (No change)
+    def stop_action(self): # (Unchanged)
         action_stopped = False
         if self.active_action and self.action_ranges:
             for i in range(len(self.action_ranges)-1, -1, -1):
@@ -40,8 +36,7 @@ class ActionTracker(QObject):
         if action_stopped:
              original_state = copy.deepcopy(self.action_ranges)
              self.validate_ranges(force_signal_check=True, original_state_before_load=original_state, drag_info=None)
-
-    def get_action_for_frame(self, frame): # (No change)
+    def get_action_for_frame(self, frame): # (Unchanged)
         for range_data in reversed(self.action_ranges):
             start_frame = range_data.get('start'); end_frame = range_data.get('end'); action_code = range_data.get('action')
             if start_frame is None or end_frame is None or action_code is None: continue
@@ -49,59 +44,42 @@ class ActionTracker(QObject):
                 if action_code in ["TBC", "NM"]: return None
                 else: return action_code
         return None
-
-    # --- MODIFIED get_all_actions_for_export ---
-    def get_all_actions_for_export(self):
-        """
-        Generates a dictionary mapping frame numbers to action codes for export,
-        filtering out placeholder ranges (TBC, NM) and unconfirmed ranges,
-        treating uncoded areas as '' (blank). Exports valid 'BL' ranges correctly.
-        """
+    def get_all_actions_for_export(self): # (Unchanged)
         frame_actions = {}
         max_frame = 0
-
-        # Filter ranges before calculating max_frame and generating dict
         exportable_ranges = [
             r for r in self.action_ranges
             if r.get('action') not in ['TBC', 'NM'] and r.get('status') != 'confirm_needed'
         ]
-
         if not exportable_ranges: return {}, 0 # Return empty if no valid ranges exist
-
-        # Calculate max_frame only from valid, exportable ranges
         for range_data in exportable_ranges:
             end = range_data.get('end')
             if end is not None and isinstance(end, int) and end > max_frame: max_frame = end
-            start = range_data.get('start') # Check start too in case of single-frame actions at the end
+            start = range_data.get('start')
             if start is not None and isinstance(start, int) and start > max_frame: max_frame = start
-
         total_frame_count_for_export = max_frame + 1
-        # --- MODIFICATION: Default to blank string instead of 'NC' ---
         frame_actions = {f: "" for f in range(total_frame_count_for_export)} # Default to BLANK
-
-        # Fill dictionary using only exportable ranges (this will correctly add 'BL' if present)
         for range_data in exportable_ranges:
             start = range_data.get('start'); end = range_data.get('end'); action = range_data.get('action')
-            if start is None or end is None or action is None: continue # Should already be filtered, but check again
-
+            if start is None or end is None or action is None: continue
             for frame in range(start, end + 1):
-                if 0 <= frame < total_frame_count_for_export:
-                    frame_actions[frame] = action # Overwrite blank default with action ('BL', 'RE', etc.)
-                else:
-                    # This warning indicates an issue with max_frame calculation or range data
-                    print(f"ActionTracker Export WARN: Frame {frame} out of calculated bounds (0-{max_frame}). Exportable Range: {range_data}")
-
-        # print(f"ActionTracker Export: Returning {len(frame_actions)} frames, based on {len(exportable_ranges)} exportable ranges.") # Less verbose
+                if 0 <= frame < total_frame_count_for_export: frame_actions[frame] = action
+                else: print(f"ActionTracker Export WARN: Frame {frame} out of calculated bounds (0-{max_frame}). Exportable Range: {range_data}")
         return frame_actions, total_frame_count_for_export
-    # --- End MODIFIED ---
 
-    def clear_actions(self): # (No change)
+    # --- MODIFIED clear_actions - Added Print Statement ---
+    def clear_actions(self):
         if self.action_ranges:
-            print("ActionTracker: Clearing actions and emitting signal.")
+            print("DEBUG: ActionTracker.clear_actions called.") # DEBUG
             self.action_ranges = []; self.active_action = None
+            print("DEBUG: ActionTracker emitting action_ranges_changed signal.") # DEBUG
             self.action_ranges_changed.emit()
+        # else: # DEBUG
+        #     print("DEBUG: ActionTracker.clear_actions called, but no ranges to clear.")
 
-    def save_actions(self, file_path): # (No change)
+
+    # (save_actions, load_actions, validate_ranges, _update_timeline_widget_ranges - unchanged)
+    def save_actions(self, file_path): # (Unchanged)
         self.validate_ranges(drag_info=None)
         import json
         try:
@@ -109,22 +87,20 @@ class ActionTracker(QObject):
             print(f"ActionTracker: Saved {len(self.action_ranges)} ranges (including placeholders) to {file_path}")
             return True
         except Exception as e: print(f"Error saving actions: {e}"); return False
-
-    def load_actions(self, file_path): # (No change)
+    def load_actions(self, file_path): # (Unchanged)
         import json
         initial_ranges = copy.deepcopy(self.action_ranges)
         try:
             with open(file_path, 'r') as f: self.action_ranges = json.load(f)
             print(f"ActionTracker: Loaded {len(self.action_ranges)} ranges from {file_path}")
             self.validate_ranges(force_signal_check=True, original_state_before_load=initial_ranges, drag_info=None)
-            self._update_timeline_widget_ranges()
+            # self._update_timeline_widget_ranges() # Let signal handle
             return True
         except Exception as e:
             print(f"Error loading actions: {e}"); self.action_ranges = []
             if initial_ranges: print("ActionTracker: Emitting signal after load error (cleared ranges)."); self.action_ranges_changed.emit()
             return False
-
-    def validate_ranges(self, force_signal_check=False, original_state_before_load=None, drag_info=None): # (No change)
+    def validate_ranges(self, force_signal_check=False, original_state_before_load=None, drag_info=None): # (Unchanged)
         original_ranges_before_validation = copy.deepcopy(self.action_ranges); made_changes_during_validation = False
         valid_ranges = []
         for i, r in enumerate(self.action_ranges):
@@ -151,39 +127,47 @@ class ActionTracker(QObject):
         if self.action_ranges:
             resolved_ranges.append(copy.deepcopy(self.action_ranges[0]))
             for i in range(1, len(self.action_ranges)):
-                current_range_copy = copy.deepcopy(self.action_ranges[i]); last_resolved_range = resolved_ranges[-1]
-                current_start = current_range_copy.get('start'); last_resolved_end = last_resolved_range.get('end')
+                current_range_copy = copy.deepcopy(self.action_ranges[i])
+                if not resolved_ranges: resolved_ranges.append(current_range_copy); continue
+                last_resolved_range = resolved_ranges[-1]
+                current_start = current_range_copy.get('start')
+                last_resolved_end = last_resolved_range.get('end')
                 if current_start is None or last_resolved_end is None: print(f"Validate WARN: Skipping overlap check due to None start/end in range {i} or previous resolved."); resolved_ranges.append(current_range_copy); continue
                 if current_start <= last_resolved_end:
-                    made_changes_during_validation = True; last_resolved_start = last_resolved_range.get('start')
+                    made_changes_during_validation = True
+                    last_resolved_start = last_resolved_range.get('start')
+                    current_end = current_range_copy.get('end')
                     is_end_drag_of_previous = False
                     if drag_info:
                         dragged_idx, drag_type = drag_info
-                        if dragged_idx == (i - 1) and drag_type == "end_edge": is_end_drag_of_previous = True
+                        if dragged_idx is not None and 0 <= dragged_idx < len(original_ranges_before_validation):
+                            original_dragged_range = original_ranges_before_validation[dragged_idx]
+                            if original_dragged_range == last_resolved_range and drag_type == "end_edge": is_end_drag_of_previous = True
                     if is_end_drag_of_previous:
                         new_start_for_current = last_resolved_range['end'] + 1
-                        current_end = current_range_copy.get('end')
-                        if current_end is not None and new_start_for_current <= current_end: current_range_copy['start'] = new_start_for_current; resolved_ranges.append(current_range_copy)
-                        else: print(f"Validate WARN: Pushing start to {new_start_for_current} would invalidate range {i} (End: {current_end}). Keeping original current range and adding."); resolved_ranges.append(self.action_ranges[i].copy())
+                        if current_end is not None and new_start_for_current <= current_end: print(f"  Overlap (End Drag): Pushing start of range {i} ('{current_range_copy.get('action')}') to {new_start_for_current}."); current_range_copy['start'] = new_start_for_current; resolved_ranges.append(current_range_copy)
+                        else: print(f"Validate WARN: End-edge drag overlap resulted in invalid state for range {i}. Skipping add.")
+                        continue
+                    elif current_range_copy['start'] <= last_resolved_range['start'] and current_range_copy['end'] >= last_resolved_range['end']: print(f"  Overlap (Engulf): Range {i} ('{current_range_copy.get('action')}') F{current_start}-{current_end} engulfs previous ('{last_resolved_range.get('action')}') F{last_resolved_start}-{last_resolved_end}. Replacing."); resolved_ranges.pop(); resolved_ranges.append(current_range_copy)
+                    elif last_resolved_range['start'] <= current_range_copy['start'] and last_resolved_range['end'] >= current_range_copy['end']: print(f"  Overlap (Engulf): Range {i} ('{current_range_copy.get('action')}') F{current_start}-{current_end} engulfed by previous ('{last_resolved_range.get('action')}') F{last_resolved_start}-{last_resolved_end}. Discarding current.")
                     else:
                         new_end_for_previous = current_start - 1
-                        if last_resolved_start is None: print(f"Validate WARN: Cannot resolve overlap, previous resolved range has None start."); resolved_ranges.append(current_range_copy); continue
-                        if new_end_for_previous < last_resolved_start: print(f"  -> Range {i} ('{current_range_copy.get('action')}') engulfs previous ('{last_resolved_range.get('action')}'). Replacing previous."); resolved_ranges.pop(); resolved_ranges.append(current_range_copy)
-                        else:
-                            if last_resolved_range['end'] != new_end_for_previous: last_resolved_range['end'] = new_end_for_previous
+                        if last_resolved_start is not None and new_end_for_previous >= last_resolved_start:
+                            if last_resolved_range['end'] != new_end_for_previous: print(f"  Overlap (Partial): Truncating previous range ('{last_resolved_range.get('action')}') end to {new_end_for_previous} due to range {i} ('{current_range_copy.get('action')}') starting at {current_start}."); last_resolved_range['end'] = new_end_for_previous
                             resolved_ranges.append(current_range_copy)
+                        else: print(f"  Overlap (Partial): Truncation invalid ({new_end_for_previous} < {last_resolved_start}). Replacing previous range ('{last_resolved_range.get('action')}') with range {i} ('{current_range_copy.get('action')}')."); resolved_ranges.pop(); resolved_ranges.append(current_range_copy)
                 else: resolved_ranges.append(current_range_copy)
         self.action_ranges = resolved_ranges
         emit_signal = False
         if made_changes_during_validation: print("ActionTracker: Emitting signal due to changes during validation steps."); emit_signal = True
         elif force_signal_check:
             state_before_operation = original_state_before_load if original_state_before_load is not None else []
-            if self.action_ranges != state_before_operation: emit_signal = True
-        if emit_signal: self.action_ranges_changed.emit()
+            if self.action_ranges != state_before_operation: print("ActionTracker: Emitting signal due to state change detected via force_signal_check."); emit_signal = True
+        if emit_signal:
+            self.action_ranges_changed.emit()
         return made_changes_during_validation
-
-    def _update_timeline_widget_ranges(self): # (No change)
+    def _update_timeline_widget_ranges(self): # (Unchanged)
         print("ActionTracker: Explicitly emitting action_ranges_changed for timeline update.")
         self.action_ranges_changed.emit()
 
-# --- END OF FILE action_tracker.py ---
+# --- END OF action_tracker.py ---

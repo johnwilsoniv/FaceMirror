@@ -1,7 +1,6 @@
-# ocular_oral_features.py (Mirrors oral_ocular_features.py)
-# - Capitalization fix for side/opposite_side
-# - Corrected helper functions (calculate_ratio, calculate_percent_diff)
-# - Added ET-specific summary features
+# --- START OF FILE ocular_oral_features.py ---
+
+# ocular_oral_features.py (Refactored V2 - Added Asymmetry Features)
 
 import numpy as np
 import pandas as pd
@@ -9,601 +8,558 @@ import logging
 import os
 import joblib
 
-# Import config for Ocular-Oral
-try:
-    from ocular_oral_config import (
-        FEATURE_CONFIG, OCULAR_ORAL_ACTIONS, TRIGGER_AUS, COUPLED_AUS, LOG_DIR,
-        FEATURE_SELECTION, MODEL_FILENAMES, CLASS_NAMES
-    )
-except ImportError:
-    logging.warning("Could not import from ocular_oral_config. Using fallback definitions.")
-    # Add minimal fallbacks for standalone execution if needed
-    LOG_DIR = 'logs'; MODEL_DIR = 'models/synkinesis/ocular_oral' # Added MODEL_DIR
-    MODEL_FILENAMES = {'feature_list': os.path.join(MODEL_DIR, 'features.list'),
-                       'importance_file': os.path.join(MODEL_DIR, 'feature_importance.csv')}
-    OCULAR_ORAL_ACTIONS = ['ET', 'ES', 'RE', 'BL']; TRIGGER_AUS = ['AU01_r', 'AU02_r', 'AU45_r']; COUPLED_AUS = ['AU12_r', 'AU25_r', 'AU14_r']
-    FEATURE_CONFIG = {'actions': OCULAR_ORAL_ACTIONS, 'trigger_aus': TRIGGER_AUS, 'coupled_aus': COUPLED_AUS,
-                      'use_normalized': True, 'min_value': 0.0001, 'percent_diff_cap': 200.0} # Updated defaults
-    FEATURE_SELECTION = {'enabled': False, 'top_n_features': 40, 'importance_file': MODEL_FILENAMES['importance_file']}
-    CLASS_NAMES = {0: 'None', 1: 'Synkinesis'}
+# Use central config and utils
+from synkinesis_config import SYNKINESIS_CONFIG, CLASS_NAMES, INPUT_FILES
+from paralysis_utils import calculate_ratio, calculate_percent_diff, process_binary_target, standardize_synkinesis_labels
 
-# Configure logging
-os.makedirs(LOG_DIR, exist_ok=True)
-# Ensure logger is configured
-if not logging.getLogger(__name__).hasHandlers():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# --- Define type for this file ---
+SYNK_TYPE = 'ocular_oral'
 
-# --- prepare_data function ---
-def prepare_data(results_file='combined_results.csv', expert_file='FPRS FP Key.csv'):
-    """ Prepares data for Ocular-Oral synkinesis training, including feature selection. """
-    logger.info("Loading datasets for Ocular-Oral Synkinesis...")
+# Get type-specific config
+try:
+    config = SYNKINESIS_CONFIG[SYNK_TYPE]
+    feature_cfg = config.get('feature_extraction', {})
+    actions = config.get('relevant_actions', []) # Use relevant_actions
+    trigger_aus = config.get('trigger_aus', []) # Eyes
+    coupled_aus = config.get('coupled_aus', []) # Mouth
+    feature_sel_cfg = config.get('feature_selection', {})
+    filenames = config.get('filenames', {})
+    expert_cols = config.get('expert_columns', {})
+    target_cols = config.get('target_columns', {})
+    CONFIG_LOADED = True
+except KeyError:
+    logger.critical(f"CRITICAL: Synkinesis type '{SYNK_TYPE}' not found in SYNKINESIS_CONFIG. Feature extraction cannot proceed.")
+    CONFIG_LOADED = False; config = {}; feature_cfg = {}; actions = []; trigger_aus = []; coupled_aus = []; feature_sel_cfg = {}; filenames = {}; expert_cols = {}; target_cols = {}
+
+
+# --- prepare_data function (Standard Refactored Template) ---
+def prepare_data(results_file=None, expert_file=None):
+    """
+    Prepares data for the specific SYNK_TYPE, handling NA/Not Assessed labels,
+    feature selection, and returning metadata alongside features and targets.
+    Maps standardized labels correctly for binary classification.
+    """
+     # --- Configuration Setup ---
     try:
-        results_df = pd.read_csv(results_file, low_memory=False)
-        expert_df = pd.read_csv(expert_file)
-        logger.info(f"Loaded {len(results_df)} results, {len(expert_df)} grades")
-    except FileNotFoundError as e: logger.error(f"Error loading data: {e}."); raise
-    except Exception as e: logger.error(f"Unexpected error loading data: {e}"); raise
+        if 'SYNK_TYPE' not in globals(): raise NameError("SYNK_TYPE variable is not defined globally.")
+        config = SYNKINESIS_CONFIG[SYNK_TYPE]
+        name = config.get('name', SYNK_TYPE.replace('_', ' ').title())
+        feature_cfg = config.get('feature_extraction', {})
+        feature_sel_cfg = config.get('feature_selection', {})
+        filenames = config.get('filenames', {})
+        expert_cols_cfg = config.get('expert_columns', {})
+        target_cols_cfg = config.get('target_columns', {})
+        CONFIG_LOADED = True # Redundant check but keeps structure
+    except NameError as ne:
+        logger.critical(f"CRITICAL: {ne} - Feature extraction cannot proceed.")
+        return None, None, None
+    except KeyError:
+        logger.critical(f"CRITICAL: Synkinesis type '{SYNK_TYPE}' not found in SYNKINESIS_CONFIG.")
+        return None, None, None
 
-    expert_df = expert_df.rename(columns={
-        'Patient': 'Patient ID',
-        # Rename specific expert columns for Ocular-Oral
-        'Ocular-Oral Synkinesis Left': 'Expert_Left_Ocular_Oral',
-        'Ocular-Oral Synkinesis Right': 'Expert_Right_Ocular_Oral'})
+    logger.info(f"[{name}] Loading datasets for training data preparation...")
+    results_file = results_file or INPUT_FILES.get('results_csv')
+    expert_file = expert_file or INPUT_FILES.get('expert_key_csv')
+    if not results_file or not expert_file or not os.path.exists(results_file) or not os.path.exists(expert_file):
+        logger.error(f"[{name}] Input files missing. Abort."); return None, None, None
 
-    # Target Variable Processing (Use the generic binary mapper)
-    if 'Expert_Left_Ocular_Oral' in expert_df.columns:
-        expert_df['Target_Left_Ocular_Oral'] = process_targets(expert_df['Expert_Left_Ocular_Oral'])
-    else:
-        logger.error("Missing 'Expert_Left_Ocular_Oral' column")
-        expert_df['Target_Left_Ocular_Oral'] = 0 # Default to 0 if missing
-    if 'Expert_Right_Ocular_Oral' in expert_df.columns:
-        expert_df['Target_Right_Ocular_Oral'] = process_targets(expert_df['Expert_Right_Ocular_Oral'])
-    else:
-        logger.error("Missing 'Expert_Right_Ocular_Oral' column")
-        expert_df['Target_Right_Ocular_Oral'] = 0 # Default to 0 if missing
+    try: # Load data
+        logger.info(f"[{name}] Loading results: {results_file}"); results_df = pd.read_csv(results_file, low_memory=False)
+        logger.info(f"[{name}] Loading expert key: {expert_file}")
+        expert_df = pd.read_csv(
+            expert_file,
+            dtype=str,             # Keep reading as string
+            keep_default_na=False, # *** Do NOT interpret default NA values as NaN ***
+            na_values=['']         # *** Treat ONLY empty strings as true NA/NaN ***
+        )
+        logger.info(f"[{name}] Loaded {len(results_df)} results rows, {len(expert_df)} expert key rows")
+    except Exception as e: logger.error(f"[{name}] Error loading data: {e}.", exc_info=True); return None, None, None
 
-    logger.info(f"Counts in expert_df['Target_Left_Ocular_Oral'] AFTER mapping: \n{expert_df['Target_Left_Ocular_Oral'].value_counts(dropna=False)}")
-    logger.info(f"Counts in expert_df['Target_Right_Ocular_Oral'] AFTER mapping: \n{expert_df['Target_Right_Ocular_Oral'].value_counts(dropna=False)}")
+    # Rename/Process Expert Columns using config
+    exp_left_orig = expert_cols_cfg.get('left'); exp_right_orig = expert_cols_cfg.get('right')
+    target_left_col = target_cols_cfg.get('left'); target_right_col = target_cols_cfg.get('right')
+    if not exp_left_orig or not exp_right_orig or not target_left_col or not target_right_col:
+         logger.error(f"[{name}] Config missing expert/target column names. Abort."); return None, None, None
+    if exp_left_orig not in expert_df.columns or exp_right_orig not in expert_df.columns:
+         logger.error(f"[{name}] Raw expert columns ('{exp_left_orig}', '{exp_right_orig}') not found in expert key. Abort."); return None, None, None
+    rename_map = {'Patient': 'Patient ID', exp_left_orig: exp_left_orig, exp_right_orig: exp_right_orig}
+    expert_df = expert_df.rename(columns={k: v for k,v in rename_map.items() if k in expert_df.columns})
 
-    # Prepare for Merge
-    results_df['Patient ID'] = results_df['Patient ID'].astype(str).str.strip()
-    expert_df['Patient ID'] = expert_df['Patient ID'].astype(str).str.strip()
+    # --- Standardize Expert Labels ---
+    expert_std_left_col = f'Expert_Std_Left_{SYNK_TYPE}'
+    expert_std_right_col = f'Expert_Std_Right_{SYNK_TYPE}'
+    expert_df[expert_std_left_col] = expert_df[exp_left_orig].apply(standardize_synkinesis_labels)
+    expert_df[expert_std_right_col] = expert_df[exp_right_orig].apply(standardize_synkinesis_labels)
+    logger.info(f"[{name}] Standardized expert labels created.")
+    logger.info(f"Value counts Std Left:\n{expert_df[expert_std_left_col].value_counts(dropna=False).to_string()}")
+    logger.info(f"Value counts Std Right:\n{expert_df[expert_std_right_col].value_counts(dropna=False).to_string()}")
 
-    expert_cols_to_merge = ['Patient ID', 'Target_Left_Ocular_Oral', 'Target_Right_Ocular_Oral']
-    try:
-        merged_df = pd.merge(results_df, expert_df[expert_cols_to_merge], on='Patient ID', how='inner', validate="many_to_one")
-    except Exception as e: logger.error(f"Merge failed: {e}"); raise
-    logger.info(f"Merged data for Ocular-Oral: {len(merged_df)} patients")
-    if merged_df.empty: raise ValueError("Merge resulted in empty DataFrame.")
+    # Prepare subset for merge
+    expert_cols_to_merge = ['Patient ID', expert_std_left_col, expert_std_right_col]
+    expert_df_subset = expert_df[expert_cols_to_merge].copy()
+    if expert_df_subset['Patient ID'].duplicated().any():
+        logger.warning(f"[{name}] Duplicate Patient IDs found in expert key subset. Keeping first.")
+        expert_df_subset.drop_duplicates(subset=['Patient ID'], keep='first', inplace=True)
 
-    logger.info(f"Counts in merged_df['Target_Left_Ocular_Oral'] AFTER merge: \n{merged_df['Target_Left_Ocular_Oral'].value_counts(dropna=False)}")
-    logger.info(f"Counts in merged_df['Target_Right_Ocular_Oral'] AFTER merge: \n{merged_df['Target_Right_Ocular_Oral'].value_counts(dropna=False)}")
+    # Merge
+    results_df['Patient ID'] = results_df['Patient ID'].astype(str).str.strip(); expert_df_subset['Patient ID'] = expert_df_subset['Patient ID'].astype(str).str.strip()
+    try: merged_df = pd.merge(results_df, expert_df_subset, on='Patient ID', how='inner', validate="many_to_one")
+    except Exception as e: logger.error(f"[{name}] Merge failed: {e}", exc_info=True); return None, None, None
+    logger.info(f"[{name}] Merged data: {len(merged_df)} patients")
+    if merged_df.empty or expert_std_left_col not in merged_df.columns or expert_std_right_col not in merged_df.columns:
+         logger.error(f"[{name}] Merge empty or standardized expert columns missing. Abort."); return None, None, None
 
-    # Feature Extraction
-    logger.info("Extracting Ocular-Oral features for Left side...")
+    # --- Identify Valid Rows based on Standardized Labels ---
+    valid_left_mask = merged_df[expert_std_left_col] != 'NA'
+    valid_right_mask = merged_df[expert_std_right_col] != 'NA'
+    logger.info(f"[{name}] Filtering based on Standardized 'NA': Left: {valid_left_mask.sum()} valid, Right: {valid_right_mask.sum()} valid.")
+
+    # --- Feature Extraction (using the specific function from the file) ---
+    logger.info(f"[{name}] Extracting features for Left side (all rows)...")
+    if 'extract_features' not in globals(): raise NameError(f"extract_features function not found in {__name__}")
     left_features_df = extract_features(merged_df, 'Left')
-    logger.info("Extracting Ocular-Oral features for Right side...")
+    logger.info(f"[{name}] Extracting features for Right side (all rows)...")
     right_features_df = extract_features(merged_df, 'Right')
+    if left_features_df is None or right_features_df is None:
+        logger.error(f"[{name}] Feature extraction returned None. Aborting."); return None, None, None
 
-    # Combine features and targets
-    if 'Target_Left_Ocular_Oral' not in merged_df.columns or 'Target_Right_Ocular_Oral' not in merged_df.columns:
-         logger.error("Target columns missing in merged_df before creating targets array. Aborting.")
-         return None, None
-    left_targets = merged_df['Target_Left_Ocular_Oral'].values
-    right_targets = merged_df['Target_Right_Ocular_Oral'].values
+    # --- Filter Features based on VALID masks ---
+    filtered_left_features = left_features_df[valid_left_mask].copy()
+    filtered_right_features = right_features_df[valid_right_mask].copy()
+    logger.info(f"[{name}] Filtered features shapes: Left {filtered_left_features.shape}, Right {filtered_right_features.shape}.")
+
+    # --- Filter Metadata ---
+    if 'Patient ID' not in merged_df.columns: logger.error(f"[{name}] 'Patient ID' missing post-merge."); return None,None,None
+    metadata_left = merged_df.loc[valid_left_mask, ['Patient ID']].copy(); metadata_right = merged_df.loc[valid_right_mask, ['Patient ID']].copy()
+    metadata_left['Side'] = 'Left'; metadata_right['Side'] = 'Right'
+
+    # --- Filter and Process Targets based on VALID masks ---
+    valid_left_expert_labels_std = merged_df.loc[valid_left_mask, expert_std_left_col]
+    valid_right_expert_labels_std = merged_df.loc[valid_right_mask, expert_std_right_col]
+
+    # --- Map standardized labels directly to 0/1 for binary ---
+    positive_class_name = CLASS_NAMES.get(1, 'Synkinesis')
+    left_targets = valid_left_expert_labels_std.apply(lambda x: 1 if x == positive_class_name else 0).values
+    right_targets = valid_right_expert_labels_std.apply(lambda x: 1 if x == positive_class_name else 0).values
+
+    unique_left, counts_left = np.unique(left_targets, return_counts=True); left_dist = dict(zip([CLASS_NAMES.get(i, i) for i in unique_left], counts_left))
+    unique_right, counts_right = np.unique(right_targets, return_counts=True); right_dist = dict(zip([CLASS_NAMES.get(i, i) for i in unique_right], counts_right))
+    logger.info(f"[{name}] Mapped Left Target distribution (post-filter): {left_dist}")
+    logger.info(f"[{name}] Mapped Right Target distribution (post-filter): {right_dist}")
+
+    # --- Combine Filtered Data ---
+    if filtered_left_features.empty and filtered_right_features.empty: logger.error(f"[{name}] No valid data left after filtering 'NA'."); return None, None, None
+
+    # --- Side Indicator Handling (Conditional) ---
+    feature_list_path_check = filenames.get('feature_list')
+    add_side_indicator = False
+    if feature_list_path_check and os.path.exists(feature_list_path_check):
+        try:
+            final_feature_names_loaded = joblib.load(feature_list_path_check)
+            if 'side_indicator' in final_feature_names_loaded:
+                add_side_indicator = True
+        except Exception as e: logger.warning(f"[{name}] Could not load feature list for side indicator check: {e}")
+
+    if add_side_indicator:
+         logger.info(f"[{name}] Adding 'side_indicator' based on loaded feature list.")
+         filtered_left_features['side_indicator'] = 0
+         filtered_right_features['side_indicator'] = 1
+    else: logger.info(f"[{name}] 'side_indicator' not added (or feature list check failed/skipped).")
+
+    features = pd.concat([filtered_left_features, filtered_right_features], ignore_index=True)
     targets = np.concatenate([left_targets, right_targets])
+    metadata = pd.concat([metadata_left, metadata_right], ignore_index=True)
+    if not (len(features) == len(targets) == len(metadata)):
+        logger.error(f"[{name}] Mismatch lengths after concat! Feat:{len(features)}, Tgt:{len(targets)}, Meta:{len(metadata)}."); return None, None, None
+    unique_final, counts_final = np.unique(targets, return_counts=True); final_class_dist = dict(zip([CLASS_NAMES.get(i, i) for i in unique_final], counts_final))
+    logger.info(f"[{name}] FINAL Combined Class distribution for training/split: {final_class_dist} (Total: {len(targets)})")
 
-    # Log FINAL distribution
-    unique_final, counts_final = np.unique(targets, return_counts=True)
-    final_class_dist = dict(zip([CLASS_NAMES.get(i, f"Class_{i}") for i in unique_final], counts_final))
-    logger.info(f"FINAL Ocular-Oral Class distribution input: {final_class_dist}")
-
-    left_features_df['side_indicator'] = 0
-    right_features_df['side_indicator'] = 1
-    features = pd.concat([left_features_df, right_features_df], ignore_index=True)
-
-    # Post-processing & Feature Selection (Identical logic to oral_ocular)
-    features.replace([np.inf, -np.inf], np.nan, inplace=True)
-    features = features.fillna(0)
-    initial_cols = features.columns.tolist()
-    cols_to_drop = []
+    # --- Post-processing & Feature Selection ---
+    features.replace([np.inf, -np.inf], np.nan, inplace=True); features = features.fillna(0)
+    initial_cols = features.columns.tolist(); cols_to_drop = []
     for col in initial_cols:
         try: features[col] = pd.to_numeric(features[col], errors='coerce')
-        except Exception as e: logger.warning(f"Could not convert column {col} to numeric: {e}. Marking for drop."); cols_to_drop.append(col)
-    if cols_to_drop: logger.warning(f"Dropping non-numeric columns: {cols_to_drop}"); features = features.drop(columns=cols_to_drop)
-    features = features.fillna(0)
+        except Exception as e: logger.warning(f"[{name}] Num convert fail {col}. Drop."); cols_to_drop.append(col)
+    if cols_to_drop: features = features.drop(columns=cols_to_drop)
+    features = features.fillna(0); logger.info(f"[{name}] Initial features processed: {features.shape[1]}.")
 
-    logger.info(f"Generated initial {features.shape[1]} Ocular-Oral features.")
-
-    # Apply Feature Selection (Checks config flag)
-    fs_enabled = isinstance(FEATURE_SELECTION, dict) and FEATURE_SELECTION.get('enabled', False)
+    # Feature Selection
+    fs_enabled = feature_sel_cfg.get('enabled', False)
     if fs_enabled:
-        logger.info("Applying Ocular-Oral feature selection...")
-        n_top_features = FEATURE_SELECTION.get('top_n_features', 40) # Use config value
-        importance_file = FEATURE_SELECTION.get('importance_file')
-        if not importance_file or not os.path.exists(importance_file): logger.warning(f"FS enabled, but importance file not found: '{importance_file}'. Skipping.")
+        logger.info(f"[{name}] Applying feature selection...")
+        n_top = feature_sel_cfg.get('top_n_features'); imp_file = feature_sel_cfg.get('importance_file')
+        if not imp_file or not os.path.exists(imp_file) or n_top is None: logger.warning(f"[{name}] FS config invalid. Skip.");
         else:
             try:
-                importance_df = pd.read_csv(importance_file)
-                if 'feature' not in importance_df.columns or importance_df.empty: logger.error("Importance file lacks 'feature' column or is empty. Skipping selection.")
-                else:
-                    top_feature_names = importance_df['feature'].head(n_top_features).tolist()
-                    # Ensure side_indicator is always kept if it exists
-                    if 'side_indicator' in features.columns and 'side_indicator' not in top_feature_names:
-                        top_feature_names.append('side_indicator')
+                imp_df = pd.read_csv(imp_file); top_names = imp_df['feature'].head(n_top).tolist()
+                side_indicator_exists = 'side_indicator' in features.columns
+                if side_indicator_exists and 'side_indicator' not in top_names: top_names.append('side_indicator')
+                cols_to_keep = [col for col in top_names if col in features.columns]; missing = set(top_names)-set(cols_to_keep)
+                if side_indicator_exists: missing -= {'side_indicator'}
+                if missing: logger.warning(f"[{name}] FS missing important: {missing}")
+                if not cols_to_keep: logger.error(f"[{name}] No features left after FS. Skip.")
+                else: logger.info(f"[{name}] Selecting top {len(cols_to_keep)} features."); features = features[cols_to_keep]
+            except Exception as e: logger.error(f"[{name}] FS error: {e}. Skip.", exc_info=True)
+    else: logger.info(f"[{name}] Feature selection disabled.")
 
-                    original_cols = features.columns.tolist()
-                    cols_to_keep = [col for col in top_feature_names if col in original_cols]
-                    missing_features = set(top_feature_names) - set(cols_to_keep)
-                    if missing_features: logger.warning(f"Some important Ocular-Oral features missing from generated data: {missing_features}")
-                    if not cols_to_keep: logger.error("No features left after filtering. Skipping selection.")
-                    else:
-                        logger.info(f"Selecting top {len(cols_to_keep)} Ocular-Oral features.")
-                        features = features[cols_to_keep] # Select columns
+    logger.info(f"[{name}] Final dataset shape for training: {features.shape}. Targets: {len(targets)}")
+    if features.isnull().values.any(): logger.warning(f"NaNs in FINAL feats. Fill 0."); features = features.fillna(0)
 
-            except Exception as e: logger.error(f"Error during Ocular-Oral feature selection: {e}. Skipping.", exc_info=True)
-    else:
-        logger.info("Ocular-Oral feature selection is disabled.") # Will be disabled on first run
-
-    logger.info(f"Final Ocular-Oral dataset: {len(features)} samples with {features.shape[1]} features.")
-    if features.isnull().values.any(): logger.warning(f"NaNs found in FINAL Ocular-Oral features BEFORE saving list. Columns: {features.columns[features.isna().any()].tolist()}"); features = features.fillna(0)
-
-    # Save final feature list
+    # --- Save final feature list ---
     final_feature_names = features.columns.tolist()
-    try:
-        feature_list_path = MODEL_FILENAMES.get('feature_list')
-        if feature_list_path:
-             os.makedirs(os.path.dirname(feature_list_path), exist_ok=True)
-             joblib.dump(final_feature_names, feature_list_path)
-             logger.info(f"Saved final {len(final_feature_names)} Ocular-Oral feature names list to {feature_list_path}")
-        else: logger.error("Ocular-Oral feature list path not defined in config. Cannot save feature list.")
-    except Exception as e: logger.error(f"Failed to save Ocular-Oral feature names list: {e}", exc_info=True)
+    feature_list_path = filenames.get('feature_list')
+    if feature_list_path:
+        try:
+            os.makedirs(os.path.dirname(feature_list_path), exist_ok=True)
+            joblib.dump(final_feature_names, feature_list_path)
+            logger.info(f"Saved {len(final_feature_names)} feature names to {feature_list_path}")
+        except Exception as e: logger.error(f"[{name}] Failed save feature list: {e}", exc_info=True)
+    else: logger.error(f"[{name}] Feature list path not defined.")
 
-    if 'targets' not in locals(): logger.error("Targets array was not created."); return None, None
-    return features, targets
+    # Return features, targets, and metadata
+    return features, targets, metadata
 
-
-# --- Helper Functions (Copied from lower_face_features.py) ---
-# --- CORRECTED calculate_ratio ---
-def calculate_ratio(val1_series, val2_series):
-    """
-    Calculates the ratio min(val1, val2) / max(val1, val2) safely using Pandas/Numpy.
-    Handles NaN and zero values, returning 1.0 if max value is near zero
-    and 0.0 if min is zero but max is positive.
-    """
-    local_logger = logging.getLogger(__name__)
-    try:
-        min_val_config = FEATURE_CONFIG.get('min_value', 0.0001) if isinstance(FEATURE_CONFIG, dict) else 0.0001
-    except NameError:
-        min_val_config = 0.0001
-        local_logger.warning("calculate_ratio: FEATURE_CONFIG not found, using default min_value.")
-
-    v1 = pd.to_numeric(val1_series, errors='coerce').fillna(0.0).to_numpy()
-    v2 = pd.to_numeric(val2_series, errors='coerce').fillna(0.0).to_numpy()
-
-    min_vals_np = np.minimum(v1, v2)
-    max_vals_np = np.maximum(v1, v2)
-
-    ratio = np.ones_like(v1, dtype=float)
-    mask_max_pos = max_vals_np > min_val_config
-    mask_min_zero = min_vals_np <= min_val_config
-
-    ratio[mask_max_pos & mask_min_zero] = 0.0
-    valid_division_mask = mask_max_pos & ~mask_min_zero
-    if np.any(valid_division_mask):
-        ratio[valid_division_mask] = min_vals_np[valid_division_mask] / max_vals_np[valid_division_mask]
-
-    if np.isnan(ratio).any() or np.isinf(ratio).any():
-        local_logger.warning("NaN or Inf detected in calculate_ratio output. Handling.")
-        ratio = np.nan_to_num(ratio, nan=1.0, posinf=1.0, neginf=1.0)
-
-    return pd.Series(ratio, index=val1_series.index)
-# --- END calculate_ratio ---
-
-# --- CORRECTED calculate_percent_diff ---
-def calculate_percent_diff(val1_series, val2_series):
-    """
-    Calculates the percentage difference: (abs(v1-v2) / avg(v1,v2)) * 100 using Pandas/Numpy.
-    Handles zero average and caps the result.
-    """
-    local_logger = logging.getLogger(__name__)
-    try:
-        min_val_config = FEATURE_CONFIG.get('min_value', 0.0001) if isinstance(FEATURE_CONFIG, dict) else 0.0001
-        percent_diff_cap = FEATURE_CONFIG.get('percent_diff_cap', 200.0) if isinstance(FEATURE_CONFIG, dict) else 200.0
-    except NameError:
-        min_val_config = 0.0001
-        percent_diff_cap = 200.0
-        local_logger.warning("calculate_percent_diff: FEATURE_CONFIG not found, using default values.")
-
-    v1 = pd.to_numeric(val1_series, errors='coerce').fillna(0.0).to_numpy()
-    v2 = pd.to_numeric(val2_series, errors='coerce').fillna(0.0).to_numpy()
-
-    abs_diff = np.abs(v1 - v2)
-    avg = (v1 + v2) / 2.0
-
-    percent_diff = np.zeros_like(avg, dtype=float)
-
-    mask_avg_pos = avg > min_val_config
-    if np.any(mask_avg_pos):
-        with np.errstate(divide='ignore', invalid='ignore'):
-            division_result = abs_diff[mask_avg_pos] / avg[mask_avg_pos]
-        percent_diff[mask_avg_pos] = division_result * 100.0
-
-    mask_avg_zero_diff_pos = (avg <= min_val_config) & (abs_diff > min_val_config)
-    percent_diff[mask_avg_zero_diff_pos] = percent_diff_cap
-
-    percent_diff = np.clip(percent_diff, 0, percent_diff_cap)
-    percent_diff = np.nan_to_num(percent_diff, nan=0.0, posinf=percent_diff_cap, neginf=0.0)
-
-    return pd.Series(percent_diff, index=val1_series.index)
-# --- END CORRECTED calculate_percent_diff ---
-
-
-# --- extract_features function (Training) ---
+# --- extract_features function (Ocular-Oral - Training V2 - Includes Asymmetry) ---
 def extract_features(df, side):
-    """ Extracts Ocular-Oral features for TRAINING using the dictionary method. """
-    logger.debug(f"Extracting Ocular-Oral features for {side} side (Training)...")
+    """ Extracts Ocular-Oral features for TRAINING including asymmetry of coupled activation. """
+    if not CONFIG_LOADED: return None
+    name = config.get('name', 'Ocular-Oral')
+    logger.debug(f"[{name}] Extracting V2 features for {side} side (Training)...")
     feature_data = {}
-    # --- Capitalization Fix ---
-    side_label = side.capitalize()
-    opposite_side_label = 'Right' if side_label == 'Left' else 'Left'
-    # --- End Capitalization Fix ---
+    side_label = side.capitalize(); opposite_side_label = 'Right' if side_label == 'Left' else 'Left'
 
-    local_feature_config = FEATURE_CONFIG if isinstance(FEATURE_CONFIG, dict) else {}
-    local_actions = OCULAR_ORAL_ACTIONS
-    local_trigger_aus = TRIGGER_AUS
-    local_coupled_aus = COUPLED_AUS
-    use_normalized = local_feature_config.get('use_normalized', True)
-    norm_suffix = " (Normalized)" if use_normalized else ""
+    use_normalized = feature_cfg.get('use_normalized', True) # Should be True for this type
+    min_val = feature_cfg.get('min_value', 0.0001)
+    perc_diff_cap = feature_cfg.get('percent_diff_cap', 200.0)
+    norm_suffix = " (Normalized)" if use_normalized else "" # Keep suffix logic if needed elsewhere
 
-    # 1. Basic AU & Interaction Features per Action
-    all_action_features = {}
-    et_coupled_vals_norm = [] # To store Series for ET coupled AUs
-    et_trigger_vals_norm = [] # To store Series for ET trigger AUs
+    # Helper to get numeric series
+    def get_numeric_series(col_name, default_val=0.0):
+        """Helper to safely get numeric series from DataFrame."""
+        series = df.get(col_name)
+        if series is None:
+             logger.warning(f"Column '{col_name}' not found in DataFrame. Using default {default_val}.")
+             return pd.Series(default_val, index=df.index, dtype=float)
+        return pd.to_numeric(series, errors='coerce').fillna(default_val).astype(float)
 
-    for action in local_actions:
-        action_features = {}
-        current_action_coupled_vals = []
-        current_action_trigger_vals = []
+    # --- Calculate intermediate values for BOTH sides ---
+    # We need baseline values to calculate normalized action values
+    bl_vals_L, bl_vals_R = {}, {}
+    all_involved_aus = list(set(trigger_aus + coupled_aus))
+    for au in all_involved_aus:
+        bl_vals_L[au] = get_numeric_series(f"BL_Left {au}")
+        bl_vals_R[au] = get_numeric_series(f"BL_Right {au}")
 
-        # Get Trigger AU values
-        for trig_au in local_trigger_aus:
-            # --- Use Capitalized Labels ---
-            col_raw = f"{action}_{side_label} {trig_au}"
-            col_norm = f"{col_raw}{norm_suffix}"
-            # --- End Use Capitalized Labels ---
+    action_norm_vals_L = {}; action_norm_vals_R = {} # Store {action: {au: series}}
+    action_data_cache = {} # Cache for ratio calculation later
 
-            raw_val_series = df.get(col_raw, pd.Series(0.0, index=df.index))
-            raw_val_side = pd.to_numeric(raw_val_series, errors='coerce').fillna(0.0)
+    for action in actions:
+        action_features = {} # Features specific to this action/side combo
+        norm_vals_L_current_action = {}; norm_vals_R_current_action = {}
+        trigger_vals_side = [] # Trigger values for the target side in this action
+        coupled_vals_side = [] # Coupled values for the target side in this action
 
-            if use_normalized:
-                norm_val_series = df.get(col_norm, raw_val_side) # Default to raw if norm missing
-                norm_val_side = pd.to_numeric(norm_val_series, errors='coerce').fillna(raw_val_side)
-            else: norm_val_side = raw_val_side
+        # Calculate normalized trigger values for BOTH sides
+        for trig_au in trigger_aus:
+            # Left side
+            raw_L = get_numeric_series(f"{action}_Left {trig_au}")
+            bl_L = bl_vals_L.get(trig_au, 0.0)
+            norm_L = (raw_L - bl_L).clip(lower=0) if use_normalized else raw_L
+            norm_vals_L_current_action[trig_au] = norm_L
+            # Right side
+            raw_R = get_numeric_series(f"{action}_Right {trig_au}")
+            bl_R = bl_vals_R.get(trig_au, 0.0)
+            norm_R = (raw_R - bl_R).clip(lower=0) if use_normalized else raw_R
+            norm_vals_R_current_action[trig_au] = norm_R
 
-            action_features[f"{action}_{trig_au}_trig_norm"] = norm_val_side # Store the value used for calcs
-            current_action_trigger_vals.append(norm_val_side) # Add to list for this action
-            if action == 'ET': et_trigger_vals_norm.append(norm_val_side) # Add to ET specific list
+            # Store the trigger value for the target side
+            if side_label == 'Left':
+                action_features[f"{action}_{trig_au}_trig_norm"] = norm_L
+                trigger_vals_side.append(norm_L)
+            else:
+                action_features[f"{action}_{trig_au}_trig_norm"] = norm_R
+                trigger_vals_side.append(norm_R)
 
-        # Get Coupled AU values and calculate ratios
-        for coup_au in local_coupled_aus:
-             # --- Use Capitalized Labels ---
-            col_raw = f"{action}_{side_label} {coup_au}"
-            col_norm = f"{col_raw}{norm_suffix}"
-            # --- End Use Capitalized Labels ---
+        # Calculate normalized coupled values for BOTH sides
+        for coup_au in coupled_aus:
+             # Left side
+            raw_L = get_numeric_series(f"{action}_Left {coup_au}")
+            bl_L = bl_vals_L.get(coup_au, 0.0)
+            norm_L = (raw_L - bl_L).clip(lower=0) if use_normalized else raw_L
+            norm_vals_L_current_action[coup_au] = norm_L
+             # Right side
+            raw_R = get_numeric_series(f"{action}_Right {coup_au}")
+            bl_R = bl_vals_R.get(coup_au, 0.0)
+            norm_R = (raw_R - bl_R).clip(lower=0) if use_normalized else raw_R
+            norm_vals_R_current_action[coup_au] = norm_R
 
-            raw_val_series = df.get(col_raw, pd.Series(0.0, index=df.index))
-            raw_val_side = pd.to_numeric(raw_val_series, errors='coerce').fillna(0.0)
+             # Store the coupled value for the target side and calculate ratios
+            if side_label == 'Left':
+                coupled_series_target = norm_L
+                action_features[f"{action}_{coup_au}_coup_norm"] = coupled_series_target
+                coupled_vals_side.append(coupled_series_target)
+            else:
+                coupled_series_target = norm_R
+                action_features[f"{action}_{coup_au}_coup_norm"] = coupled_series_target
+                coupled_vals_side.append(coupled_series_target)
 
-            if use_normalized:
-                 norm_val_series = df.get(col_norm, raw_val_side) # Default to raw if norm missing
-                 norm_val_side = pd.to_numeric(norm_val_series, errors='coerce').fillna(raw_val_side)
-            else: norm_val_side = raw_val_side
+            # Calculate ratios (Coupled vs Trigger) for the target side
+            for trig_au in trigger_aus:
+                trigger_series_target = action_features.get(f"{action}_{trig_au}_trig_norm", pd.Series(0.0, index=df.index))
+                action_features[f"{action}_Ratio_{coup_au}_vs_{trig_au}"] = calculate_ratio(coupled_series_target, trigger_series_target, min_value=min_val)
 
-            coup_series = norm_val_side # Use the appropriate value
-            action_features[f"{action}_{coup_au}_coup_norm"] = coup_series
-            current_action_coupled_vals.append(coup_series) # Add to list for this action
-            if action == 'ET': et_coupled_vals_norm.append(coup_series) # Add to ET specific list
+        # --- NEW: Calculate Asymmetry of Coupled AUs for this action ---
+        for coup_au in coupled_aus:
+            norm_L = norm_vals_L_current_action.get(coup_au, pd.Series(0.0, index=df.index))
+            norm_R = norm_vals_R_current_action.get(coup_au, pd.Series(0.0, index=df.index))
+            action_features[f"{action}_Asym_Ratio_{coup_au}_coup_norm"] = calculate_ratio(norm_L, norm_R, min_value=min_val)
+            action_features[f"{action}_Asym_PercDiff_{coup_au}_coup_norm"] = calculate_percent_diff(norm_L, norm_R, min_value=min_val, cap=perc_diff_cap)
 
-            # Calculate ratios against trigger AUs for THIS action
-            for trig_au in local_trigger_aus:
-                # Retrieve the already calculated/stored trigger series for this action
-                trig_series = action_features.get(f"{action}_{trig_au}_trig_norm", pd.Series(0.0, index=df.index))
-                action_features[f"{action}_Ratio_{coup_au}_vs_{trig_au}"] = calculate_ratio(coup_series, trig_series)
+        # Store normalized values for potential summary features later
+        action_norm_vals_L[action] = norm_vals_L_current_action
+        action_norm_vals_R[action] = norm_vals_R_current_action
 
-        all_action_features.update(action_features)
+        # Add all features calculated for this action to the main dictionary
+        feature_data.update(action_features)
 
-    feature_data.update(all_action_features)
+    # --- Summary Features (Calculated AFTER processing all actions) ---
+    # Summary features based on target side's coupled/trigger activations
+    # (Example: ET summary - modify if needed for average across all actions)
+    et_coupled_vals_norm = []; et_trigger_vals_norm = []
+    if 'ET' in actions:
+        et_features_target = {k: v for k, v in feature_data.items() if k.startswith('ET_') and ('_coup_norm' in k or '_trig_norm' in k) and 'Asym' not in k}
+        for feat_name, series in et_features_target.items():
+            if '_coup_norm' in feat_name: et_coupled_vals_norm.append(series)
+            if '_trig_norm' in feat_name: et_trigger_vals_norm.append(series)
 
-    # --- START: Add New ET-Specific Features (Training) ---
+    # Calculate ET summary features (Avg, Max, Ratio)
+    et_coupled_vals_norm = [s for s in et_coupled_vals_norm if isinstance(s, pd.Series)]
+    et_trigger_vals_norm = [s for s in et_trigger_vals_norm if isinstance(s, pd.Series)]
+
     if et_coupled_vals_norm:
-        et_coupled_df = pd.concat(et_coupled_vals_norm, axis=1)
+        et_coupled_df = pd.concat(et_coupled_vals_norm, axis=1).fillna(0.0)
         feature_data['ET_Avg_Coupled_Norm'] = et_coupled_df.mean(axis=1)
         feature_data['ET_Max_Coupled_Norm'] = et_coupled_df.max(axis=1)
-    else: # Default if no ET coupled AUs found
-        feature_data['ET_Avg_Coupled_Norm'] = pd.Series(0.0, index=df.index)
-        feature_data['ET_Max_Coupled_Norm'] = pd.Series(0.0, index=df.index)
+    else: feature_data['ET_Avg_Coupled_Norm'] = pd.Series(0.0, index=df.index); feature_data['ET_Max_Coupled_Norm'] = pd.Series(0.0, index=df.index)
 
     if et_trigger_vals_norm:
-        et_trigger_df = pd.concat(et_trigger_vals_norm, axis=1)
+        et_trigger_df = pd.concat(et_trigger_vals_norm, axis=1).fillna(0.0)
         feature_data['ET_Avg_Trigger_Norm'] = et_trigger_df.mean(axis=1)
-    else: # Default if no ET trigger AUs found
-        feature_data['ET_Avg_Trigger_Norm'] = pd.Series(0.0, index=df.index)
+    else: feature_data['ET_Avg_Trigger_Norm'] = pd.Series(0.0, index=df.index)
 
-    # Calculate ET-specific ratio using the newly calculated averages
-    # Retrieve the average series we just computed
-    et_avg_coup_series = feature_data.get('ET_Avg_Coupled_Norm', pd.Series(0.0, index=df.index))
-    et_avg_trig_series = feature_data.get('ET_Avg_Trigger_Norm', pd.Series(0.0, index=df.index))
-    feature_data['ET_Ratio_AvgCoup_vs_AvgTrig'] = calculate_ratio(et_avg_coup_series, et_avg_trig_series)
-    # --- END: Add New ET-Specific Features (Training) ---
+    et_avg_coup = feature_data.get('ET_Avg_Coupled_Norm'); et_avg_trig = feature_data.get('ET_Avg_Trigger_Norm')
+    if isinstance(et_avg_coup, pd.Series) and isinstance(et_avg_trig, pd.Series): feature_data['ET_Ratio_AvgCoup_vs_AvgTrig'] = calculate_ratio(et_avg_coup, et_avg_trig, min_value=min_val)
+    else: feature_data['ET_Ratio_AvgCoup_vs_AvgTrig'] = pd.Series(1.0, index=df.index)
 
-    # 2. Summary Features Across Actions (Identical logic, just uses the feature_data dict)
+    # Summary features across ALL actions (Average/Max/Std activation for each AU type)
+    # This part remains complex and might need careful review based on importance results later
     summary_features = {}
-    for coup_au in local_coupled_aus:
-        coup_cols = [f"{action}_{coup_au}_coup_norm" for action in local_actions if f"{action}_{coup_au}_coup_norm" in feature_data]
+    for coup_au in coupled_aus:
+        coup_cols = [f"{action}_{coup_au}_coup_norm" for action in actions if f"{action}_{coup_au}_coup_norm" in feature_data]
         if coup_cols:
-            coup_df = pd.concat([feature_data[col] for col in coup_cols], axis=1)
-            summary_features[f"Avg_{coup_au}_AcrossActions"] = coup_df.mean(axis=1)
-            summary_features[f"Max_{coup_au}_AcrossActions"] = coup_df.max(axis=1)
-            summary_features[f"Std_{coup_au}_AcrossActions"] = coup_df.std(axis=1).fillna(0)
+            coup_series_list = [feature_data[col] for col in coup_cols if isinstance(feature_data[col], pd.Series)]
+            if coup_series_list:
+                coup_df = pd.concat(coup_series_list, axis=1).fillna(0.0)
+                summary_features[f"Avg_{coup_au}_AcrossActions"] = coup_df.mean(axis=1)
+                summary_features[f"Max_{coup_au}_AcrossActions"] = coup_df.max(axis=1)
+                summary_features[f"Std_{coup_au}_AcrossActions"] = coup_df.std(axis=1).fillna(0)
+            else: # Fallback
+                summary_features[f"Avg_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Max_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Std_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index)
+        else: # Fallback
+            summary_features[f"Avg_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Max_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Std_{coup_au}_AcrossActions"] = pd.Series(0.0, index=df.index)
 
-    for trig_au in local_trigger_aus:
-         trig_cols = [f"{action}_{trig_au}_trig_norm" for action in local_actions if f"{action}_{trig_au}_trig_norm" in feature_data]
-         if trig_cols:
-             trig_df = pd.concat([feature_data[col] for col in trig_cols], axis=1)
-             summary_features[f"Avg_{trig_au}_AcrossActions"] = trig_df.mean(axis=1)
-             summary_features[f"Max_{trig_au}_AcrossActions"] = trig_df.max(axis=1)
+    for trig_au in trigger_aus:
+        trig_cols = [f"{action}_{trig_au}_trig_norm" for action in actions if f"{action}_{trig_au}_trig_norm" in feature_data]
+        if trig_cols:
+            trig_series_list = [feature_data[col] for col in trig_cols if isinstance(feature_data[col], pd.Series)]
+            if trig_series_list:
+                trig_df = pd.concat(trig_series_list, axis=1).fillna(0.0)
+                summary_features[f"Avg_{trig_au}_AcrossActions"] = trig_df.mean(axis=1)
+                summary_features[f"Max_{trig_au}_AcrossActions"] = trig_df.max(axis=1)
+            else: # Fallback
+                 summary_features[f"Avg_{trig_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Max_{trig_au}_AcrossActions"] = pd.Series(0.0, index=df.index)
+        else: # Fallback
+             summary_features[f"Avg_{trig_au}_AcrossActions"] = pd.Series(0.0, index=df.index); summary_features[f"Max_{trig_au}_AcrossActions"] = pd.Series(0.0, index=df.index)
 
-    avg_coup_vals = []
-    avg_trig_vals = []
-    for coup_au in local_coupled_aus: avg_coup_vals.append(summary_features.get(f"Avg_{coup_au}_AcrossActions", pd.Series(0.0, index=df.index)))
-    for trig_au in local_trigger_aus: avg_trig_vals.append(summary_features.get(f"Avg_{trig_au}_AcrossActions", pd.Series(0.0, index=df.index)))
-
-    if avg_coup_vals and avg_trig_vals:
-         overall_avg_coup = pd.concat(avg_coup_vals, axis=1).mean(axis=1)
-         overall_avg_trig = pd.concat(avg_trig_vals, axis=1).mean(axis=1)
-         summary_features["Ratio_AvgCoup_vs_AvgTrig"] = calculate_ratio(overall_avg_coup, overall_avg_trig)
+    # Overall ratio of average coupled vs average trigger
+    avg_coup_series = [summary_features.get(f"Avg_{c}_AcrossActions") for c in coupled_aus]; avg_trig_series = [summary_features.get(f"Avg_{t}_AcrossActions") for t in trigger_aus]
+    avg_coup_series = [s for s in avg_coup_series if isinstance(s, pd.Series)]; avg_trig_series = [s for s in avg_trig_series if isinstance(s, pd.Series)]
+    if avg_coup_series and avg_trig_series:
+         overall_avg_coup = pd.concat(avg_coup_series, axis=1).mean(axis=1); overall_avg_trig = pd.concat(avg_trig_series, axis=1).mean(axis=1)
+         summary_features["Ratio_AvgCoup_vs_AvgTrig"] = calculate_ratio(overall_avg_coup, overall_avg_trig, min_value=min_val)
+    else: summary_features["Ratio_AvgCoup_vs_AvgTrig"] = pd.Series(1.0, index=df.index)
 
     feature_data.update(summary_features)
 
-    # Create DataFrame
+    # --- Final Cleanup ---
     features_df = pd.DataFrame(feature_data, index=df.index)
-
-    # Final check for non-numeric types
-    non_numeric_cols = features_df.select_dtypes(exclude=np.number).columns
-    if len(non_numeric_cols) > 0:
-        logger.warning(f"Non-numeric cols in Ocular-Oral extract_features: {non_numeric_cols.tolist()}. Coercing.")
-        for col in non_numeric_cols: features_df[col] = pd.to_numeric(features_df[col], errors='coerce').fillna(0.0)
-
-    logger.debug(f"Generated {features_df.shape[1]} Ocular-Oral features for {side} (Training).")
+    features_df = features_df.apply(pd.to_numeric, errors='coerce').fillna(0.0).replace([np.inf, -np.inf], 0.0)
+    logger.debug(f"[{name}] Generated {features_df.shape[1]} V2 features for {side} (Training).")
     return features_df
 
 
-# --- extract_features_for_detection (Detection) ---
+# --- extract_features_for_detection (Ocular-Oral - Detection V2 - Includes Asymmetry) ---
 def extract_features_for_detection(row_data, side):
-    """
-    Extract Ocular-Oral features for detection from a row of data (pd.Series or dict).
-    Relies on the saved feature list for final ordering and selection.
+    """ Extracts Ocular-Oral V2 features for detection including asymmetry. """
+    if not CONFIG_LOADED: return None
+    name = config.get('name', 'Ocular-Oral'); logger.debug(f"[{name}] Extracting V2 detection features for {side}...")
 
-    Args:
-        row_data (pd.Series or dict): A row from the merged dataframe containing all AU columns.
-        side (str): Side ('Left' or 'Right').
-
-    Returns:
-        list: Feature vector for model input or None on error.
-    """
+    filenames = config.get('filenames', {})
+    feature_list_path = filenames.get('feature_list');
+    if not feature_list_path or not os.path.exists(feature_list_path): logger.error(f"[{name}] Feature list missing. Abort."); return None
     try:
-        # Load necessary items from config dynamically inside the function
-        from ocular_oral_config import FEATURE_CONFIG, OCULAR_ORAL_ACTIONS, TRIGGER_AUS, COUPLED_AUS, MODEL_FILENAMES
-        local_logger = logging.getLogger(__name__)
-    except ImportError:
-        logging.error("Failed to import config within ocular_oral extract_features_for_detection.")
-        # Provide minimal fallbacks if config is missing during detection
-        FEATURE_CONFIG = {'use_normalized': True, 'min_value': 0.0001}
-        OCULAR_ORAL_ACTIONS = ['ET', 'ES', 'RE', 'BL']
-        TRIGGER_AUS = ['AU01_r', 'AU02_r', 'AU45_r']
-        COUPLED_AUS = ['AU12_r', 'AU25_r', 'AU14_r']
-        MODEL_FILENAMES = {'feature_list': 'models/synkinesis/ocular_oral/features.list'} # Essential fallback
-        local_logger = logging # Use root logger if specific one fails
+        ordered_feature_names = joblib.load(feature_list_path);
+        if not isinstance(ordered_feature_names, list): raise TypeError("Features list is not a list.")
+    except Exception as e: logger.error(f"[{name}] Load feature list failed: {e}"); return None
 
-    if not isinstance(row_data, (pd.Series, dict)):
-        local_logger.error(f"row_data must be a pd.Series or dict, got {type(row_data)}")
-        return None
-
-    # Convert dict to Series if necessary
+    if not isinstance(row_data, (pd.Series, dict)): logger.error(f"Invalid row_data type: {type(row_data)}"); return None
     row_series = pd.Series(row_data) if isinstance(row_data, dict) else row_data
+    if side not in ['Left', 'Right']: logger.error(f"Invalid side: {side}"); return None
+    else: side_label = side
 
-    # --- Capitalization Fix ---
-    side_label = side.capitalize()
-    # opposite_side_label = 'Right' if side_label == 'Left' else 'Left' # Not needed for scalar calcs here
-    # --- End Capitalization Fix ---
-
-    local_feature_config = FEATURE_CONFIG if isinstance(FEATURE_CONFIG, dict) else {}
-    local_actions = OCULAR_ORAL_ACTIONS
-    local_trigger_aus = TRIGGER_AUS
-    local_coupled_aus = COUPLED_AUS
-    use_normalized = local_feature_config.get('use_normalized', True)
+    feature_cfg = config.get('feature_extraction', {})
+    actions = config.get('relevant_actions', [])
+    trigger_aus = config.get('trigger_aus', [])
+    coupled_aus = config.get('coupled_aus', [])
+    use_normalized = feature_cfg.get('use_normalized', True)
+    min_val = feature_cfg.get('min_value', 0.0001)
+    perc_diff_cap = feature_cfg.get('percent_diff_cap', 200.0)
     norm_suffix = " (Normalized)" if use_normalized else ""
-    min_val_ratio = local_feature_config.get('min_value', 0.0001) # Use same min_value for consistency
+    epsilon = 1e-9
+    feature_dict_generated = {} # Store calculated features
 
-    local_logger.debug(f"Extracting Ocular-Oral detection features for {side_label}...")
-    feature_dict_final = {}
+    def get_float_value(key, default=0.0):
+        """Safely get a float value from the row series."""
+        val = row_series.get(key, default);
+        try:
+            f_val = float(val);
+            return default if np.isnan(f_val) or np.isinf(f_val) else f_val
+        except (ValueError, TypeError): return default
 
-    # 1. Basic AU & Interaction Features per Action (Scalar version)
-    all_action_features = {}
-    et_coupled_vals_norm_scalar = [] # List to hold scalar values for ET
-    et_trigger_vals_norm_scalar = [] # List to hold scalar values for ET
+    def scalar_ratio(v1, v2, min_v=0.0001):
+        """Scalar ratio calculation."""
+        v1_f, v2_f = float(v1), float(v2)
+        min_val_local, max_val_local = min(v1_f, v2_f), max(v1_f, v2_f)
+        if max_val_local <= min_v: return 1.0
+        if min_val_local <= min_v: return 0.0
+        return np.clip(np.nan_to_num(min_val_local / (max_val_local + epsilon), nan=1.0), 0.0, 1.0)
 
-    for action in local_actions:
-        action_features = {}
-        current_action_coupled_vals_scalar = []
-        current_action_trigger_vals_scalar = []
+    def scalar_perc_diff(v1, v2, min_v=0.0001, cap=200.0):
+        """Scalar percent difference calculation."""
+        v1_f, v2_f = float(v1), float(v2)
+        diff = abs(v1_f - v2_f); avg = (v1_f + v2_f) / 2.0; pdiff = 0.0
+        if avg > min_v: pdiff = (diff / (avg + epsilon)) * 100.0
+        elif diff > min_v: pdiff = cap
+        return np.clip(np.nan_to_num(pdiff, nan=0.0, posinf=cap, neginf=0.0), 0, cap)
 
-        # Get Trigger AU values
-        for trig_au in local_trigger_aus:
-            # --- Use Capitalized Labels ---
-            col_raw = f"{action}_{side_label} {trig_au}"
-            col_norm = f"{col_raw}{norm_suffix}"
-            # --- End Use Capitalized Labels ---
+    # --- Calculate intermediate values for BOTH sides ---
+    bl_vals_L, bl_vals_R = {}, {}
+    all_involved_aus = list(set(trigger_aus + coupled_aus))
+    for au in all_involved_aus:
+        bl_vals_L[au] = get_float_value(f"BL_Left {au}")
+        bl_vals_R[au] = get_float_value(f"BL_Right {au}")
 
-            raw_val = 0.0 # Default
-            try: raw_val = float(row_series.get(col_raw, 0.0)) # Get raw, default 0.0
-            except (ValueError, TypeError): pass # Keep default 0.0 on conversion error
+    action_norm_vals_L = {}; action_norm_vals_R = {}
+    all_action_features_scalar = {} # Store features calculated per action
 
-            norm_val = raw_val # Default to raw
-            if use_normalized:
-                 try: norm_val = float(row_series.get(col_norm, raw_val)) # Try getting norm, default to raw_val
-                 except (ValueError, TypeError): pass # Keep raw_val if norm conversion fails
+    for action in actions:
+        action_features_scalar = {}
+        norm_vals_L_current = {}; norm_vals_R_current = {}
 
-            trig_val_used = norm_val # This is the value used for features
-            action_features[f"{action}_{trig_au}_trig_norm"] = trig_val_used
-            current_action_trigger_vals_scalar.append(trig_val_used) # Add to list for this action
-            if action == 'ET': et_trigger_vals_norm_scalar.append(trig_val_used) # Add to ET specific list
+        # Trigger AUs Norm Vals (Both Sides) & Target Side Feature
+        for trig_au in trigger_aus:
+            raw_L = get_float_value(f"{action}_Left {trig_au}")
+            norm_L = max(0.0, raw_L - bl_vals_L.get(trig_au, 0.0)) if use_normalized else raw_L
+            norm_vals_L_current[trig_au] = norm_L
+            raw_R = get_float_value(f"{action}_Right {trig_au}")
+            norm_R = max(0.0, raw_R - bl_vals_R.get(trig_au, 0.0)) if use_normalized else raw_R
+            norm_vals_R_current[trig_au] = norm_R
+            action_features_scalar[f"{action}_{trig_au}_trig_norm"] = norm_L if side_label == 'Left' else norm_R
 
-        # Get Coupled AU values and calculate ratios
-        for coup_au in local_coupled_aus:
-            # --- Use Capitalized Labels ---
-            col_raw = f"{action}_{side_label} {coup_au}"
-            col_norm = f"{col_raw}{norm_suffix}"
-            # --- End Use Capitalized Labels ---
+        # Coupled AUs Norm Vals (Both Sides), Target Side Feature, Ratios, Asymmetry
+        for coup_au in coupled_aus:
+            raw_L = get_float_value(f"{action}_Left {coup_au}")
+            norm_L = max(0.0, raw_L - bl_vals_L.get(coup_au, 0.0)) if use_normalized else raw_L
+            norm_vals_L_current[coup_au] = norm_L
+            raw_R = get_float_value(f"{action}_Right {coup_au}")
+            norm_R = max(0.0, raw_R - bl_vals_R.get(coup_au, 0.0)) if use_normalized else raw_R
+            norm_vals_R_current[coup_au] = norm_R
 
-            raw_val = 0.0 # Default
-            try: raw_val = float(row_series.get(col_raw, 0.0))
-            except (ValueError, TypeError): pass
+            coupled_val_target = norm_L if side_label == 'Left' else norm_R
+            action_features_scalar[f"{action}_{coup_au}_coup_norm"] = coupled_val_target
 
-            norm_val = raw_val # Default to raw
-            if use_normalized:
-                 try: norm_val = float(row_series.get(col_norm, raw_val))
-                 except (ValueError, TypeError): pass
+            # Ratios (Target side)
+            for trig_au in trigger_aus:
+                trigger_val_target = action_features_scalar.get(f"{action}_{trig_au}_trig_norm", 0.0)
+                action_features_scalar[f"{action}_Ratio_{coup_au}_vs_{trig_au}"] = scalar_ratio(coupled_val_target, trigger_val_target, min_v=min_val)
 
-            coup_val = norm_val # This is the value used for features
-            action_features[f"{action}_{coup_au}_coup_norm"] = coup_val
-            current_action_coupled_vals_scalar.append(coup_val) # Add to list for this action
-            if action == 'ET': et_coupled_vals_norm_scalar.append(coup_val) # Add to ET specific list
+            # Asymmetry of Coupled Norm Activation
+            action_features_scalar[f"{action}_Asym_Ratio_{coup_au}_coup_norm"] = scalar_ratio(norm_L, norm_R, min_v=min_val)
+            action_features_scalar[f"{action}_Asym_PercDiff_{coup_au}_coup_norm"] = scalar_perc_diff(norm_L, norm_R, min_v=min_val, cap=perc_diff_cap)
 
-            # Calculate ratios against trigger AUs for THIS action
-            for trig_au in local_trigger_aus:
-                trig_val = action_features.get(f"{action}_{trig_au}_trig_norm", 0.0) # Get stored trig value
+        action_norm_vals_L[action] = norm_vals_L_current
+        action_norm_vals_R[action] = norm_vals_R_current
+        all_action_features_scalar.update(action_features_scalar)
 
-                # --- Use Corrected Ratio Logic (Scalar) ---
-                min_v = min(coup_val, trig_val)
-                max_v = max(coup_val, trig_val)
-                ratio = 1.0 # Default
-                if max_v > min_val_ratio: # Check denominator
-                    if min_v <= min_val_ratio: ratio = 0.0 # Min is zero, max is positive
-                    else: ratio = min_v / max_v # Both positive
-                # else: max_v is near zero, keep ratio = 1.0 (includes 0/0 case)
-                # --- End Corrected Ratio Logic ---
-                action_features[f"{action}_Ratio_{coup_au}_vs_{trig_au}"] = ratio
+    feature_dict_generated.update(all_action_features_scalar) # Add all action-specific features
 
-        all_action_features.update(action_features)
+    # --- Summary Features ---
+    # ET Specific Summaries (if ET is relevant)
+    et_coupled_vals_scalar = []; et_trigger_vals_scalar = []
+    if 'ET' in actions:
+        for coup_au in coupled_aus: et_coupled_vals_scalar.append(feature_dict_generated.get(f"ET_{coup_au}_coup_norm", 0.0))
+        for trig_au in trigger_aus: et_trigger_vals_scalar.append(feature_dict_generated.get(f"ET_{trig_au}_trig_norm", 0.0))
 
-    feature_dict_final.update(all_action_features)
+    feature_dict_generated['ET_Avg_Coupled_Norm'] = np.mean(et_coupled_vals_scalar) if et_coupled_vals_scalar else 0.0
+    feature_dict_generated['ET_Max_Coupled_Norm'] = np.max(et_coupled_vals_scalar) if et_coupled_vals_scalar else 0.0
+    feature_dict_generated['ET_Avg_Trigger_Norm'] = np.mean(et_trigger_vals_scalar) if et_trigger_vals_scalar else 0.0
+    feature_dict_generated['ET_Ratio_AvgCoup_vs_AvgTrig'] = scalar_ratio(feature_dict_generated['ET_Avg_Coupled_Norm'], feature_dict_generated['ET_Avg_Trigger_Norm'], min_v=min_val)
 
-    # --- START: Add New ET-Specific Features (Detection - Scalar) ---
-    et_avg_coup = np.mean(et_coupled_vals_norm_scalar) if et_coupled_vals_norm_scalar else 0.0
-    et_max_coup = np.max(et_coupled_vals_norm_scalar) if et_coupled_vals_norm_scalar else 0.0
-    et_avg_trig = np.mean(et_trigger_vals_norm_scalar) if et_trigger_vals_norm_scalar else 0.0
+    # Summaries Across ALL actions
+    summary_features_scalar = {}
+    for coup_au in coupled_aus:
+        vals = [feature_dict_generated.get(f"{action}_{coup_au}_coup_norm", 0.0) for action in actions]
+        summary_features_scalar[f"Avg_{coup_au}_AcrossActions"] = np.mean(vals) if vals else 0.0
+        summary_features_scalar[f"Max_{coup_au}_AcrossActions"] = np.max(vals) if vals else 0.0
+        summary_features_scalar[f"Std_{coup_au}_AcrossActions"] = np.std(vals) if len(vals)>1 else 0.0
+    for trig_au in trigger_aus:
+        vals = [feature_dict_generated.get(f"{action}_{trig_au}_trig_norm", 0.0) for action in actions]
+        summary_features_scalar[f"Avg_{trig_au}_AcrossActions"] = np.mean(vals) if vals else 0.0
+        summary_features_scalar[f"Max_{trig_au}_AcrossActions"] = np.max(vals) if vals else 0.0
 
-    feature_dict_final['ET_Avg_Coupled_Norm'] = et_avg_coup
-    feature_dict_final['ET_Max_Coupled_Norm'] = et_max_coup
-    feature_dict_final['ET_Avg_Trigger_Norm'] = et_avg_trig
+    avg_coup_overall = np.mean([summary_features_scalar.get(f"Avg_{c}_AcrossActions", 0.0) for c in coupled_aus])
+    avg_trig_overall = np.mean([summary_features_scalar.get(f"Avg_{t}_AcrossActions", 0.0) for t in trigger_aus])
+    summary_features_scalar["Ratio_AvgCoup_vs_AvgTrig"] = scalar_ratio(avg_coup_overall, avg_trig_overall, min_v=min_val)
+    feature_dict_generated.update(summary_features_scalar)
 
-    # Calculate ET-specific ratio using the averages
-    et_min_v = min(et_avg_coup, et_avg_trig)
-    et_max_v = max(et_avg_coup, et_avg_trig)
-    et_ratio_avg = 1.0
-    if et_max_v > min_val_ratio:
-        if et_min_v <= min_val_ratio: et_ratio_avg = 0.0
-        else: et_ratio_avg = et_min_v / et_max_v
-    feature_dict_final['ET_Ratio_AvgCoup_vs_AvgTrig'] = et_ratio_avg
-    # --- END: Add New ET-Specific Features (Detection - Scalar) ---
+    # Side indicator (Conditional)
+    if "side_indicator" in ordered_feature_names:
+        feature_dict_generated["side_indicator"] = 0 if side.lower() == 'left' else 1
 
-
-    # 2. Summary Features Across Actions (Scalar version)
-    summary_features = {}
-    for coup_au in local_coupled_aus:
-        coup_vals = [feature_dict_final.get(f"{action}_{coup_au}_coup_norm", 0.0) for action in local_actions]
-        summary_features[f"Avg_{coup_au}_AcrossActions"] = np.mean(coup_vals) if coup_vals else 0.0
-        summary_features[f"Max_{coup_au}_AcrossActions"] = np.max(coup_vals) if coup_vals else 0.0
-        summary_features[f"Std_{coup_au}_AcrossActions"] = np.std(coup_vals) if coup_vals else 0.0
-
-    for trig_au in local_trigger_aus:
-        trig_vals = [feature_dict_final.get(f"{action}_{trig_au}_trig_norm", 0.0) for action in local_actions]
-        summary_features[f"Avg_{trig_au}_AcrossActions"] = np.mean(trig_vals) if trig_vals else 0.0
-        summary_features[f"Max_{trig_au}_AcrossActions"] = np.max(trig_vals) if trig_vals else 0.0
-
-    avg_coup_vals_list = [summary_features.get(f"Avg_{coup_au}_AcrossActions", 0.0) for coup_au in local_coupled_aus]
-    avg_trig_vals_list = [summary_features.get(f"Avg_{trig_au}_AcrossActions", 0.0) for trig_au in local_trigger_aus]
-    overall_avg_coup_val = np.mean(avg_coup_vals_list) if avg_coup_vals_list else 0.0
-    overall_avg_trig_val = np.mean(avg_trig_vals_list) if avg_trig_vals_list else 0.0
-
-    # Calculate ratio for overall averages
-    overall_min_v = min(overall_avg_coup_val, overall_avg_trig_val)
-    overall_max_v = max(overall_avg_coup_val, overall_avg_trig_val)
-    summary_ratio = 1.0
-    if overall_max_v > min_val_ratio:
-        if overall_min_v <= min_val_ratio: summary_ratio = 0.0
-        else: summary_ratio = overall_min_v / overall_max_v
-    summary_features["Ratio_AvgCoup_vs_AvgTrig"] = summary_ratio
-    feature_dict_final.update(summary_features)
-
-    # Add side indicator
-    feature_dict_final["side_indicator"] = 0 if side.lower() == 'left' else 1
-
-    # --- Load the EXPECTED feature list ---
-    feature_names_path = MODEL_FILENAMES.get('feature_list')
-    if not feature_names_path or not os.path.exists(feature_names_path):
-        local_logger.error(f"Ocular-Oral feature list not found: {feature_names_path}.")
-        return None
-    try:
-        ordered_feature_names = joblib.load(feature_names_path)
-        if not isinstance(ordered_feature_names, list):
-             local_logger.error(f"Loaded Ocular-Oral feature names is not a list: {type(ordered_feature_names)}")
-             return None
-    except Exception as e:
-        local_logger.error(f"Failed to load Ocular-Oral feature list: {e}", exc_info=True); return None
-
-    # --- Build final feature list IN ORDER ---
+    # --- Build final ordered list ---
     feature_list = []
-    missing_in_dict = []
-    for name in ordered_feature_names:
-        value = feature_dict_final.get(name) # Get raw value or None
-        final_val = 0.0 # Default
-
+    missing = []
+    type_err = []
+    for feat_name in ordered_feature_names:
+        value = feature_dict_generated.get(feat_name)
+        final_val = 0.0
         if value is None:
-            missing_in_dict.append(name)
+            missing.append(feat_name)
         else:
             try:
-                final_val = float(value)
-                if np.isnan(final_val): final_val = 0.0 # Handle NaN after conversion
-            except (ValueError, TypeError):
-                # Log error if conversion fails for existing value
-                local_logger.warning(f"Could not convert feature '{name}' value '{value}' to float. Defaulting to 0.0.")
-                final_val = 0.0
-
+                temp_val = float(value)
+                if not (np.isnan(temp_val) or np.isinf(temp_val)): final_val = temp_val
+            except (ValueError, TypeError): type_err.append(feat_name)
         feature_list.append(final_val)
 
-    if missing_in_dict: local_logger.warning(f"Ocular-Oral Detection: {len(missing_in_dict)} expected features missing from generated dict: {missing_in_dict[:5]}... Defaulting to 0.")
+    if missing: logger.error(f"[{name}] Detect V2 ({side}): CRITICAL - Missing features required by list: {missing}."); return None
+    if type_err: logger.warning(f"[{name}] Detect V2 ({side}): Type errors {type_err}. Using 0.")
     if len(feature_list) != len(ordered_feature_names):
-        local_logger.error(f"CRITICAL MISMATCH: Ocular-Oral detection list length ({len(feature_list)}) != expected ({len(ordered_feature_names)}).")
-        return None
+        logger.error(f"[{name}] Detect V2 ({side}): FINAL Feature list length mismatch ({len(feature_list)} vs {len(ordered_feature_names)})."); return None
 
-    local_logger.debug(f"Generated {len(feature_list)} Ocular-Oral detection features for {side_label}.")
+    logger.debug(f"[{name}] Generated {len(feature_list)} V2 detection features for {side}.")
     return feature_list
 
-
-# --- process_targets function (Identical binary mapping) ---
-def process_targets(target_series):
-    """ Converts expert labels (Yes/No etc.) to binary 0/1 """
-    if target_series is None: return np.array([], dtype=int)
-    mapping = { 'yes': 1, 'no': 0, 'true': 1, 'false': 0, '1': 1, '0': 0, 1:1, 0:0 }
-    s_filled = target_series.fillna('no')
-    s_clean = s_filled.astype(str).str.lower().str.strip().replace({'none': 'no', 'n/a': 'no', '': 'no', 'nan': 'no'})
-    mapped = s_clean.map(mapping)
-    unexpected = s_clean[mapped.isna() & (s_clean != 'no')]
-    if not unexpected.empty: logger.warning(f"Unexpected expert labels found (treated as 'No'): {unexpected.unique().tolist()}")
-    final_mapped = mapped.fillna(0)
-    return final_mapped.astype(int).values
+# --- END OF FILE ocular_oral_features.py ---

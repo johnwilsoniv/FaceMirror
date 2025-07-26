@@ -1,5 +1,6 @@
 # facial_au_batch_processor.py
 # V1.18 Update: Added keep_default_na=False when loading expert key.
+# V1.19 Disable dashboard and symmetry plots.
 
 import os
 import numpy as np
@@ -10,7 +11,7 @@ import re
 from facial_au_analyzer import FacialAUAnalyzer
 from facial_au_visualizer import FacialAUVisualizer
 from facial_au_constants import (
-    INCLUDED_ACTIONS, ALL_AU_COLUMNS, SYNKINESIS_TYPES,
+    ALL_AU_COLUMNS, SYNKINESIS_TYPES,
     ACTION_DESCRIPTIONS, ACTION_TO_AUS, ZONE_SPECIFIC_ACTIONS,
     EXPERT_KEY_MAPPING, PARALYSIS_FINDINGS_KEYS, BOOL_FINDINGS_KEYS,
     standardize_paralysis_label, standardize_binary_label
@@ -177,6 +178,7 @@ class FacialAUBatchProcessor:
             # Frame Extraction
             if extract_frames and video_path:
                  logger.info(f"({patient_id}) Extracting relevant frames...")
+                 # Use the patient_output_dir which is correctly defined at the start of this method
                  frames_extracted_successfully, _ = analyzer.extract_frames(video_path=video_path, output_dir=patient_output_dir, generate_visuals=True)
                  if not frames_extracted_successfully: logger.warning(f"({patient_id}) Frame extraction failed/skipped.")
             elif extract_frames and not video_path: logger.warning(f"({patient_id}) Frame extraction requested but no video path provided.")
@@ -223,20 +225,26 @@ class FacialAUBatchProcessor:
                             )
                         if plot_path: generated_plot_paths[action] = plot_path
                     except Exception as e_viz_action: logger.error(f"({patient_id}) Viz error {action}: {e_viz_action}", exc_info=True)
-                # Generate Symmetry and Dashboard Plots (Pass contradictions)
-                try:
-                     sym_path = visualizer.create_symmetry_visualization(
-                         analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
-                         results=results, action_descriptions=ACTION_DESCRIPTIONS)
-                     generated_plot_paths['symmetry'] = sym_path if sym_path else None
-                except Exception as e_viz_sym: logger.error(f"({patient_id}) Symmetry viz error: {e_viz_sym}", exc_info=True)
-                try:
-                     dash_path = visualizer.create_patient_dashboard(
-                         analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
-                         results=results, action_descriptions=ACTION_DESCRIPTIONS,
-                         frame_paths=analyzer.frame_paths, contradictions=patient_contradictions)
-                     generated_plot_paths['dashboard'] = dash_path if dash_path else None
-                except Exception as e_viz_dash: logger.error(f"({patient_id}) Dashboard viz error: {e_viz_dash}", exc_info=True)
+
+                # --- DISABLE SYMMETRY AND DASHBOARD PLOTS ---
+                # try:
+                #      sym_path = visualizer.create_symmetry_visualization(
+                #          analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
+                #          results=results, action_descriptions=ACTION_DESCRIPTIONS)
+                #      generated_plot_paths['symmetry'] = sym_path if sym_path else None
+                # except Exception as e_viz_sym: logger.error(f"({patient_id}) Symmetry viz error: {e_viz_sym}", exc_info=True)
+                logger.info(f"({patient_id}) Skipping Symmetry visualization generation.") # Add log message
+
+                # try:
+                #      dash_path = visualizer.create_patient_dashboard(
+                #          analyzer=analyzer, patient_output_dir=patient_output_dir, patient_id=patient_id,
+                #          results=results, action_descriptions=ACTION_DESCRIPTIONS,
+                #          frame_paths=analyzer.frame_paths, contradictions=patient_contradictions)
+                #      generated_plot_paths['dashboard'] = dash_path if dash_path else None
+                # except Exception as e_viz_dash: logger.error(f"({patient_id}) Dashboard viz error: {e_viz_dash}", exc_info=True)
+                logger.info(f"({patient_id}) Skipping Dashboard visualization generation.") # Add log message
+                # --- END DISABLE ---
+
                 if frames_extracted_successfully and hasattr(analyzer, 'cleanup_extracted_frames'): logger.info(f"({patient_id}) Cleaning up frames..."); analyzer.cleanup_extracted_frames()
             else: logger.info(f"({patient_id}) Skipping visual output generation.")
 

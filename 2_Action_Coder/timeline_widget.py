@@ -10,12 +10,12 @@ import copy
 
 class TimelineWidget(QWidget):
     ranges_edited = pyqtSignal(list, int, str) # list: new ranges, int: dragged_index (-1 if create), str: drag_type
-    # create_range_requested = pyqtSignal(int, int) # Obsolete
     delete_range_requested = pyqtSignal(object) # object: range_data dict to delete
     seek_requested = pyqtSignal(int) # int: frame_number
     range_selected = pyqtSignal(bool, object) # bool: is_selected, object: range_data dict or None
 
     def __init__(self, parent=None):
+        # (Initialization unchanged)
         super().__init__(parent); self.setMinimumHeight(120); self.setFocusPolicy(Qt.StrongFocus); self.setMouseTracking(True)
         self._action_ranges = []; self._total_frames = 1; self._fps = 30.0; self._current_frame = 0
         self._zoom_factor = 1.0; self._scroll_offset_frames = 0; self._padding = 10; self._track_height = 50
@@ -33,8 +33,8 @@ class TimelineWidget(QWidget):
         self._temp_ranges_for_visual_feedback = None
         self._editing_enabled = False
 
-    def _generate_action_colors(self):
-        # (Unchanged)
+    # (_generate_action_colors - unchanged)
+    def _generate_action_colors(self): # (Unchanged)
         colors = {}; predefined_colors = [QColor("#1f77b4"), QColor("#ff7f0e"), QColor("#2ca02c"), QColor("#d62728"), QColor("#9467bd"), QColor("#8c564b"), QColor("#e377c2"), QColor("#7f7f7f"), QColor("#bcbd22"), QColor("#17becf"), QColor("#aec7e8"), QColor("#ffbb78"), QColor("#98df8a"), QColor("#ff9896"), QColor("#c5b0d5"), QColor("#c49c94")]; i = 0
         colors['BL'] = QColor(config.UI_COLORS.get('timeline_bl_color', '#dddddd'))
         colors['TBC'] = QColor(config.UI_COLORS.get('timeline_tbc_color', '#fff3cd'))
@@ -43,22 +43,42 @@ class TimelineWidget(QWidget):
             if code not in colors and code != 'SO_SE': colors[code] = predefined_colors[i % len(predefined_colors)]; i += 1
         return colors
 
+    # --- MODIFIED update_ranges - Removed premature return ---
     @pyqtSlot(list)
     def update_ranges(self, action_ranges):
-         # (Unchanged - Simplified version)
-        if self._dragging_mode: return
-        current_copy = copy.deepcopy(self._action_ranges); new_copy = copy.deepcopy(action_ranges)
-        needs_update = (current_copy != new_copy)
-        if not needs_update: return
-        # print("Timeline DEBUG: update_ranges executing (simplified)...") # Less verbose
-        self._action_ranges = sorted(copy.deepcopy(action_ranges), key=lambda x: x.get('start', 0)) if action_ranges else []
-        if not (0 <= self._selected_range_index < len(self._action_ranges)):
-             if self._selected_range_index != -1:
-                 # print(f"Timeline DEBUG: Clearing invalid selection index ({self._selected_range_index}) during update_ranges.") # Less verbose
-                 original_index = self._selected_range_index; self._selected_range_index = -1
-                 if original_index != -1: self.range_selected.emit(False, None)
-        self.update()
+         print(f"DEBUG: TimelineWidget update_ranges called with {len(action_ranges)} ranges.") # DEBUG
+         if self._dragging_mode:
+             print("DEBUG: TimelineWidget update_ranges ignored (dragging).") # DEBUG
+             return
 
+         # --- REMOVED CHECK: Always update internal state and repaint ---
+         # current_copy = copy.deepcopy(self._action_ranges)
+         # new_copy = copy.deepcopy(action_ranges)
+         # needs_update = (current_copy != new_copy)
+         # if not needs_update:
+         #     print("DEBUG: TimelineWidget update_ranges ignored (no change detected).") # DEBUG
+         #     return
+         # --- END REMOVED CHECK ---
+
+         # Set internal ranges
+         self._action_ranges = sorted(copy.deepcopy(action_ranges), key=lambda x: x.get('start', 0)) if action_ranges else []
+         print(f"DEBUG: TimelineWidget internal _action_ranges set to {len(self._action_ranges)} ranges.") # DEBUG
+
+         # Clear selection if the current index becomes invalid
+         if not (0 <= self._selected_range_index < len(self._action_ranges)):
+             if self._selected_range_index != -1:
+                 print(f"DEBUG: Clearing invalid selection index ({self._selected_range_index}) during update_ranges.") # DEBUG
+                 original_index = self._selected_range_index
+                 self._selected_range_index = -1
+                 # Don't re-emit range_selected(False) here if it was already cleared by controller
+                 # self.range_selected.emit(False, None)
+
+         # Request repaint
+         print("DEBUG: TimelineWidget calling self.update() for repaint.") # DEBUG
+         self.update()
+
+
+    # (set_video_properties, set_current_frame, set_editing_enabled, _get_view_width, _get_visible_frames, _get_pixels_per_frame, frame_to_x, x_to_frame, _get_range_rect, _draw_single_range, paintEvent, mousePressEvent, mouseMoveEvent, mouseReleaseEvent, wheelEvent, keyPressEvent, _ensure_frame_visible, contextMenuEvent, set_selected_range_by_index - unchanged)
     @pyqtSlot(int, int, float)
     def set_video_properties(self, total_frames, width, fps): # (Unchanged)
          self._total_frames = max(1, total_frames); self._fps = fps if fps > 0 else 30.0
@@ -66,12 +86,10 @@ class TimelineWidget(QWidget):
          if visible_frames > 0: self._scroll_offset_frames = max(0, min(self._scroll_offset_frames, self._total_frames - visible_frames))
          else: self._scroll_offset_frames = 0
          self.update()
-
     @pyqtSlot(int)
     def set_current_frame(self, frame_number): # (Unchanged)
         new_frame = max(0, min(frame_number, self._total_frames - 1))
         if new_frame != self._current_frame: self._current_frame = new_frame; self._ensure_frame_visible(self._current_frame); self.update()
-
     @pyqtSlot(bool)
     def set_editing_enabled(self, enabled): # (Unchanged)
         self._editing_enabled = enabled; print(f"TimelineWidget: Editing {'enabled' if enabled else 'disabled'}.")
@@ -79,7 +97,6 @@ class TimelineWidget(QWidget):
         current_data = None
         if self._selected_range_index != -1 and 0 <= self._selected_range_index < len(self._action_ranges): current_data = self._action_ranges[self._selected_range_index]
         self.range_selected.emit(self._selected_range_index != -1, current_data)
-
     def _get_view_width(self): return self.width() - 2 * self._padding # (Unchanged)
     def _get_visible_frames(self): # (Unchanged)
         view_width = self._get_view_width();
@@ -183,14 +200,14 @@ class TimelineWidget(QWidget):
         if can_edit and event.button() == Qt.LeftButton and self._selected_range_index != -1 and self._selected_range_index < len(self._action_ranges):
             selected_range_rect = self._get_range_rect(self._selected_range_index)
             if selected_range_rect.isValid() and selected_range_rect.contains(pos):
-                r = self._action_ranges[self._selected_range_index]; # print(f"Timeline DEBUG: Press on selected range index {self._selected_range_index}: {r}") # Less verbose
-                self._original_ranges_during_drag = copy.deepcopy(self._action_ranges); # print(f"Timeline DEBUG: Stored original ranges for drag.") # Less verbose
+                r = self._action_ranges[self._selected_range_index];
+                self._original_ranges_during_drag = copy.deepcopy(self._action_ranges);
                 self._temp_ranges_for_visual_feedback = copy.deepcopy(self._action_ranges)
                 start_edge_rect = QRect(selected_range_rect.left(), selected_range_rect.top(), self._edge_grab_margin, selected_range_rect.height())
                 end_edge_rect = QRect(selected_range_rect.right() - self._edge_grab_margin, selected_range_rect.top(), self._edge_grab_margin, selected_range_rect.height())
-                if start_edge_rect.contains(pos): self._dragging_mode = "start_edge"; self.setCursor(Qt.SizeHorCursor); drag_initiated = True; # print("Timeline DEBUG: Start drag mode: start_edge") # Less verbose
-                elif end_edge_rect.contains(pos): self._dragging_mode = "end_edge"; self.setCursor(Qt.SizeHorCursor); drag_initiated = True; # print("Timeline DEBUG: Start drag mode: end_edge") # Less verbose
-                else: self._dragging_mode = "move"; self._drag_start_frame_offset = self._drag_start_frame - r['start']; self.setCursor(Qt.SizeAllCursor); drag_initiated = True; # print("Timeline DEBUG: Start drag mode: move") # Less verbose
+                if start_edge_rect.contains(pos): self._dragging_mode = "start_edge"; self.setCursor(Qt.SizeHorCursor); drag_initiated = True;
+                elif end_edge_rect.contains(pos): self._dragging_mode = "end_edge"; self.setCursor(Qt.SizeHorCursor); drag_initiated = True;
+                else: self._dragging_mode = "move"; self._drag_start_frame_offset = self._drag_start_frame - r['start']; self.setCursor(Qt.SizeAllCursor); drag_initiated = True;
         if not drag_initiated and event.button() == Qt.LeftButton:
             clicked_range_index = -1
             for i, r in enumerate(self._action_ranges):
@@ -200,7 +217,7 @@ class TimelineWidget(QWidget):
         if not drag_initiated and not selection_changed and event.button() == Qt.LeftButton:
              track_y_start = self._padding + self._axis_height; track_y_end = track_y_start + self._track_height
              if can_edit and self._selected_range_index == -1 and self._padding <= pos.x() <= self.width() - self._padding and track_y_start <= pos.y() <= track_y_end:
-                 self._dragging_mode = "create"; self._temp_drag_rect = QRect(pos, QSize(0, 0)); drag_initiated = True; # print("Timeline DEBUG: Start drag mode: create") # Less verbose
+                 self._dragging_mode = "create"; self._temp_drag_rect = QRect(pos, QSize(0, 0)); drag_initiated = True;
                  self._original_ranges_during_drag = copy.deepcopy(self._action_ranges); self._temp_ranges_for_visual_feedback = copy.deepcopy(self._action_ranges)
              elif can_seek and self._padding <= pos.x() <= self.width() - self._padding and pos.y() < track_y_start:
                  print(f"Timeline DEBUG: Seek requested to frame {frame}"); self.seek_requested.emit(frame)
@@ -249,27 +266,19 @@ class TimelineWidget(QWidget):
                         elif self._dragging_mode == "move": new_start = range_to_edit['start']; new_end = range_to_edit['end']
                     if range_to_edit['start'] != new_start or range_to_edit['end'] != new_end: modified_visuals = True; range_to_edit['start'] = new_start; range_to_edit['end'] = new_end
                     if modified_visuals: self.update()
-                # else: print(f"Timeline DEBUG: Move Event Ignored - Invalid state...") # Less verbose
             elif self._dragging_mode == "create":
                  start_x = self.frame_to_x(self._drag_start_frame); current_x = max(self._padding, min(pos.x(), self.width() - self._padding))
                  track_y = self._padding + self._axis_height; self._temp_drag_rect = QRect(QPoint(min(start_x, current_x), track_y), QPoint(max(start_x, current_x), track_y + self._track_height)).normalized()
                  self.update()
-
-    # --- MODIFIED: Add logging ---
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event): # (Unchanged)
         if event.button() == Qt.LeftButton and self._dragging_mode:
-            # --- ADDED LOGGING ---
             print(f"Timeline STUCK_GUI_DEBUG: mouseReleaseEvent - START - Drag mode: {self._dragging_mode}, Selected index: {self._selected_range_index}")
-            # --- END LOGGING ---
-
             can_edit = self._editing_enabled; pos = event.pos(); end_frame_at_cursor = self.x_to_frame(pos.x())
             local_drag_mode = self._dragging_mode; local_selected_index = self._selected_range_index
             original_ranges = self._original_ranges_during_drag; temp_ranges = self._temp_ranges_for_visual_feedback
             drag_start_frame_local = self._drag_start_frame
-
             final_ranges_state = None; newly_created_range = None; newly_created_index = -1
             drag_occurred = (self._drag_start_pos != pos)
-
             if can_edit and local_drag_mode == "create" and drag_occurred:
                 frame1 = min(drag_start_frame_local, end_frame_at_cursor); frame2 = max(drag_start_frame_local, end_frame_at_cursor)
                 if frame2 > frame1:
@@ -286,37 +295,22 @@ class TimelineWidget(QWidget):
                  if local_selected_index != -1 and temp_ranges is not None:
                      final_ranges_state = temp_ranges
                      print(f"Timeline DEBUG: Edit drag ({local_drag_mode}) released for index {local_selected_index}")
-                 # else: print(f"Timeline WARN: Edit drag release ignored, invalid state...") # Less verbose
-
-            # --- ADDED LOGGING ---
             print(f"Timeline STUCK_GUI_DEBUG: mouseReleaseEvent - BEFORE CLEANUP - Drag mode: {local_drag_mode}, Final Index: {local_selected_index}, Changed State: {final_ranges_state is not None}")
-            # --- END LOGGING ---
-
             self._dragging_mode = None; self._original_ranges_during_drag = None; self._temp_ranges_for_visual_feedback = None; self._temp_drag_rect = None
             self._selected_range_index = local_selected_index
             self.setCursor(Qt.ArrowCursor); self.update()
-
             if final_ranges_state is not None:
                 changed = False
                 try:
                     if copy.deepcopy(final_ranges_state) != copy.deepcopy(original_ranges): changed = True
-                    # if changed: print(f"Timeline DEBUG: Change detected on release ({local_drag_mode}).") # Less verbose
-                    # else: print(f"Timeline DEBUG: No change detected on release ({local_drag_mode}).") # Less verbose
                 except Exception as e: changed = True; print(f"Error comparing ranges on release: {e}")
-
                 if changed:
                     print(f"Timeline DEBUG: Emitting ranges_edited ({local_drag_mode}, Index={local_selected_index})")
                     self.ranges_edited.emit(copy.deepcopy(final_ranges_state), local_selected_index, local_drag_mode)
-
                 if local_drag_mode == "create" and newly_created_range is not None:
                     print(f"Timeline DEBUG: Emitting range_selected for newly created TBC range at index {local_selected_index}")
                     self.range_selected.emit(True, newly_created_range) # Signal that the new range is selected
-
-            # --- ADDED LOGGING ---
             print(f"Timeline STUCK_GUI_DEBUG: mouseReleaseEvent - END - Drag mode was: {local_drag_mode}")
-            # --- END LOGGING ---
-    # --- END MODIFIED ---
-
     def wheelEvent(self, event): # (Unchanged)
         steps = event.angleDelta().y() / 120;
         if steps == 0: return
@@ -394,4 +388,4 @@ class TimelineWidget(QWidget):
             self._selected_range_index = new_index
             self.update()
 
-# --- END OF FILE timeline_widget.py ---
+# --- END OF timeline_widget.py ---

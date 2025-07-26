@@ -37,12 +37,11 @@ def find_ffmpeg_path():
 
 class ApplicationController(QObject):
     def __init__(self, app_instance):
-        # --- REMOVED trailing semicolon ---
+        # (Initialization unchanged)
         super().__init__()
         self.app = app_instance
         self.window = None
         self.video_player = QTMediaPlayer()
-        # --- REMOVED trailing semicolon ---
         self.action_tracker = ActionTracker()
         self.csv_handler = CSVHandler()
         self.batch_processor = BatchProcessor()
@@ -62,6 +61,7 @@ class ApplicationController(QObject):
         self.waiting_for_near_miss_assignment = False
         self.current_near_miss_info = None
         self.active_prompt_audio_snippet_path = None # Path to temporary snippet file
+        self.pending_action_for_creation = None
         # --- End Prompt State ---
         self.next_timeline_event_index = 0
         self.selected_timeline_range_data = None
@@ -76,6 +76,7 @@ class ApplicationController(QObject):
         self.window.show()
         self.window.activateWindow()
 
+    # (_run_startup_sequence, _initialize_managers, _connect_signals - unchanged)
     def _run_startup_sequence(self): # (Unchanged)
         file_dialog=QFileDialog(None,"Select Video Files or a Directory"); file_dialog.setFileMode(QFileDialog.ExistingFiles); file_dialog.setOption(QFileDialog.DontUseNativeDialog,False); file_dialog.setNameFilter("Video Files (*.mp4 *.avi *.mov *.mkv)")
         processed_suffixes = ["_annotated", "_coded"];
@@ -100,7 +101,6 @@ class ApplicationController(QObject):
         reply=QMessageBox.question(None,"Confirm Files",confirm_msg,QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
         if reply==QMessageBox.No: return False
         self.window=MainWindow(); return True
-
     def _initialize_managers(self): # (Unchanged)
         if not self.window: raise RuntimeError("Cannot initialize managers without a MainWindow.")
         print("Controller: Initializing UIManager...")
@@ -114,7 +114,6 @@ class ApplicationController(QObject):
         except Exception as e: print(f"ERROR Initializing ProcessingManager: {e}"); self.processing_manager = None
         if not all([self.ui_manager, self.playback_manager, self.processing_manager]): print("ERROR: One or more managers failed to initialize properly!")
         else: print("Controller: All Managers initialized successfully.")
-
     def _connect_signals(self): # (Unchanged)
         if not all([self.ui_manager, self.playback_manager, self.processing_manager]): raise RuntimeError("Managers must be initialized before connecting signals.")
         print("Controller: Connecting signals...")
@@ -147,7 +146,6 @@ class ApplicationController(QObject):
         if self.window.timeline_widget:
             self.window.timeline_widget.ranges_edited.connect(self._handle_timeline_ranges_edited)
             self.window.timeline_widget.delete_range_requested.connect(self._handle_timeline_delete_request)
-            # --- FIX: Correct connection syntax ---
             self.window.timeline_widget.seek_requested.connect(self.playback_manager.seek)
             self.window.timeline_widget.range_selected.connect(self._handle_timeline_range_selected)
         self.history_manager.state_restored.connect(self._apply_restored_state)
@@ -165,14 +163,20 @@ class ApplicationController(QObject):
         print("Controller: Signals connected.")
         self._update_undo_redo_buttons()
 
+    # (load_batch_file_set, load_first_file, load_next_file, load_previous_file, _toggle_playback, _handle_frame_update, _get_action_for_display - unchanged from previous updates)
     def load_batch_file_set(self, file_set): # (Unchanged)
-        if not file_set or not self.window: return False; print(f"Controller: Loading file set: {file_set.get('base_id', 'N/A')}"); self.current_file_set = file_set; self.processing_manager.stop_whisper_processing(); self.processing_manager.cleanup_previous_whisper_files()
+        if not file_set or not self.window: return False;
+        print(f"Controller: Loading file set: {file_set.get('base_id', 'N/A')}");
+        self.current_file_set = file_set;
+        self.processing_manager.stop_whisper_processing(); self.processing_manager.cleanup_previous_whisper_files()
         if self.playback_manager.is_playing: self.playback_manager.pause()
         self.action_tracker.clear_actions(); self.history_manager.clear();
         self.whisper_processed = False; self.final_timeline_events = []; self.generated_action_ranges = [];
         self.waiting_for_confirmation = False; self.current_confirmation_info = None
         self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None
-        self._cleanup_active_snippet() # Remove any old temp snippet file
+        self._cleanup_active_snippet()
+        self.pending_action_for_creation = None
+        if self.ui_manager: self.ui_manager.clear_pending_action_button()
         self.next_timeline_event_index = 0;
         self.selected_timeline_range_data = None; self.current_selected_index = -1;
         self.ui_manager.update_action_display("Status: Initializing..."); self.ui_manager.update_file_display( file_set.get('video',''), file_set.get('csv1',''), file_set.get('csv2','')); self.ui_manager.set_batch_navigation( True, self.batch_processor.get_current_index(), self.batch_processor.get_total_files() ); self.ui_manager.set_play_button_state(False); self.ui_manager.enable_play_pause_button(False)
@@ -204,19 +208,15 @@ class ApplicationController(QObject):
              self.ui_manager.enable_play_pause_button(False); print(f"Controller: Video load failed, starting Whisper processing."); self.processing_manager.start_whisper_processing(video_path); return True
         else:
              self.ui_manager.update_frame_info(0, props.get('total_frames', 0)); print(f"Controller: File set loaded. Starting Whisper processing."); self.processing_manager.start_whisper_processing(video_path); return True
-
     def load_first_file(self): # (Unchanged)
         file_set=self.batch_processor.load_first_file(); self.load_batch_file_set(file_set) if file_set else self.ui_manager.show_message_box("warning", "No Files", "No files in batch.")
     def load_next_file(self): # (Unchanged)
         file_set=self.batch_processor.load_next_file(); self.load_batch_file_set(file_set) if file_set else None
     def load_previous_file(self): # (Unchanged)
         file_set=self.batch_processor.load_previous_file(); self.load_batch_file_set(file_set) if file_set else None
-
-    # --- MODIFIED: Add logging ---
     @pyqtSlot(bool)
-    def _toggle_playback(self, should_play):
+    def _toggle_playback(self, should_play): # (Unchanged)
         if should_play:
-            # --- ADDED LOGGING ---
             blocked = False
             if not self.whisper_processed:
                  print(f"Controller STUCK_GUI_DEBUG: Play ignored - Whisper Processed={self.whisper_processed}")
@@ -234,12 +234,9 @@ class ApplicationController(QObject):
                 self.ui_manager.show_message_box("info", "Playback Blocked", "Cannot play now. Check console logs (STUCK_GUI_DEBUG) for reason.")
                 self.ui_manager.set_play_button_state(False) # Ensure button shows "Play"
                 return
-            # --- END LOGGING ---
             self.playback_manager.play()
         else:
             self.playback_manager.pause()
-    # --- END MODIFIED ---
-
     @pyqtSlot(int, QImage)
     def _handle_frame_update(self, frame_number, qimage): # (Unchanged)
         if not self.window or not self.ui_manager: return
@@ -249,13 +246,8 @@ class ApplicationController(QObject):
         self.ui_manager.update_action_display(display_value)
         if qimage and not qimage.isNull():
             pixmap = QPixmap.fromImage(qimage)
-            # Player integration now handles the display widget directly
-            # if self.window.video_display_widget:
-            #      if isinstance(self.window.video_display_widget, QLabel): # Still check for placeholder just in case
-            #           self.window.update_video_frame(frame_number, pixmap, action_or_none if isinstance(action_or_none, str) else "")
         if self.playback_manager.is_playing:
             self._check_timeline_triggers(frame_number)
-
     def _get_action_for_display(self, frame_number, current_action_code=None): # (Unchanged)
         display_value = None
         if self.waiting_for_confirmation and self.current_confirmation_info:
@@ -265,12 +257,15 @@ class ApplicationController(QObject):
             event_data = self.current_near_miss_info.get('event', {})
             text = event_data.get('transcribed_text','?')
             display_value = f"Possible: '{text}' ?"
+        elif self.pending_action_for_creation:
+             action_text = config.ACTION_MAPPINGS.get(self.pending_action_for_creation, self.pending_action_for_creation)
+             display_value = f"Pending: {action_text} [{self.pending_action_for_creation}]. Drag on timeline."
         elif self.current_selected_index != -1 and self.selected_timeline_range_data:
             selected_range = self.selected_timeline_range_data
             sel_code = selected_range.get('action', 'Unknown')
             sel_status = selected_range.get('status')
             if sel_code == "TBC" or sel_code == "NM":
-                display_value = f"Status: ??" # Display TBC/NM as ??
+                display_value = "Status: ??" # Display TBC/NM as ??
             elif sel_status == 'confirm_needed':
                 display_value = f"Confirm: {sel_code} ?" # Indicate confirmation needed for selection
             else:
@@ -287,6 +282,7 @@ class ApplicationController(QObject):
             display_value = None # Will default to "Uncoded" in UIManager
         return display_value
 
+    # (_check_timeline_triggers, _reset_timeline_iterator, _handle_video_finished, _trigger_next_confirmation, _show_confirmation_ui_internal, _trigger_near_miss_prompt, _show_near_miss_ui_internal, _play_audio_segment, _cleanup_active_snippet, _handle_discard_confirmation_prompt, _handle_discard_near_miss_prompt, _clear_prompt_state_and_resume, _calculate_action_end_frame, _force_ui_update, _apply_action - unchanged)
     def _check_timeline_triggers(self, frame_number): # (Unchanged)
         if not self.whisper_processed or not self.playback_manager.is_playing or self.waiting_for_confirmation or self.waiting_for_near_miss_assignment or not self.final_timeline_events: return
         while self.next_timeline_event_index < len(self.final_timeline_events):
@@ -315,7 +311,6 @@ class ApplicationController(QObject):
                     else: print(f"Controller WARN: Could not find NM range placeholder for near miss event at F{trigger_start_frame}")
                 if prompt_shown: break
             else: break
-
     def _reset_timeline_iterator(self, frame): # (Unchanged)
          self.next_timeline_event_index = 0
          if self.whisper_processed and self.final_timeline_events:
@@ -323,7 +318,6 @@ class ApplicationController(QObject):
                  event_end_frame = event.get('end_frame')
                  if event_end_frame is not None and event_end_frame >= frame: self.next_timeline_event_index = i; break
              else: self.next_timeline_event_index = len(self.final_timeline_events)
-
     @pyqtSlot()
     def _handle_video_finished(self): # (Unchanged)
         print("Controller: Video finished.");
@@ -336,7 +330,6 @@ class ApplicationController(QObject):
             self.ui_manager.enable_action_buttons(True, context='idle') # Reset buttons
         self.next_timeline_event_index = 0;
         self._force_ui_update(self.playback_manager.current_frame)
-
     def _trigger_next_confirmation(self, action_range_info): # (Unchanged)
         if not self.ui_manager or not self.playback_manager: return False;
         trigger_seek_frame = action_range_info.get('start')
@@ -346,7 +339,6 @@ class ApplicationController(QObject):
         self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None # Ensure NM state is off
         print(f"Controller: Triggering confirmation for {action_range_info.get('action')}?");
         QTimer.singleShot(config.PAUSE_SETTLE_DELAY_MS + 50, lambda: self._show_confirmation_ui_internal(action_range_info)); return True
-
     def _show_confirmation_ui_internal(self, range_info): # (Unchanged)
          if not self.waiting_for_confirmation: return;
          phrase = range_info.get('trigger_phrase', '?');
@@ -362,7 +354,6 @@ class ApplicationController(QObject):
               self._play_audio_segment(start_time, end_time)
          else:
              print("Controller WARN: Missing time data for confirmation audio snippet.")
-
     def _trigger_near_miss_prompt(self, near_miss_event, near_miss_range): # (Unchanged)
         if not self.ui_manager or not self.playback_manager: return False;
         start_frame = near_miss_event.get('start_frame');
@@ -373,7 +364,6 @@ class ApplicationController(QObject):
         self.waiting_for_confirmation = False; self.current_confirmation_info = None # Ensure confirm state is off
         print(f"Controller: Triggering near miss prompt for '{near_miss_event.get('transcribed_text','?')}' corresponding to NM range at F{start_frame}");
         QTimer.singleShot(config.PAUSE_SETTLE_DELAY_MS + 50, lambda: self._show_near_miss_ui_internal(near_miss_event)); return True
-
     def _show_near_miss_ui_internal(self, event_info): # (Unchanged)
         if not self.waiting_for_near_miss_assignment: return;
         text = event_info.get('transcribed_text', '?');
@@ -388,7 +378,6 @@ class ApplicationController(QObject):
             self._play_audio_segment(start_time, end_time)
         else:
             print("Controller WARN: Missing time data for near miss audio snippet.")
-
     def _play_audio_segment(self, start_time, end_time): # (Unchanged)
         self._cleanup_active_snippet() # Clean up any previous snippet
         if not self.ffmpeg_path: print("Controller ERROR: Cannot play audio segment - ffmpeg path not found."); return
@@ -403,10 +392,8 @@ class ApplicationController(QObject):
         try:
             fd, snippet_path = tempfile.mkstemp(suffix=".wav", prefix="snippet_", dir=temp_dir); os.close(fd)
             self.active_prompt_audio_snippet_path = snippet_path # Store for cleanup
-            # print(f"Controller: Temporary snippet path: {snippet_path}") # Less verbose
         except Exception as e: print(f"Controller ERROR: Failed to create temporary snippet file in {temp_dir}: {e}"); self.active_prompt_audio_snippet_path = None; return
         command = [ self.ffmpeg_path, '-y', '-i', full_audio_path, '-ss', str(start_time), '-to', str(end_time), '-c', 'copy', snippet_path ]
-        # print(f"Controller: Executing ffmpeg command: {' '.join(command)}") # Less verbose
         try:
             startupinfo = None; creationflags = 0
             if sys.platform == 'win32': startupinfo = subprocess.STARTUPINFO(); startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW; startupinfo.wShowWindow = subprocess.SW_HIDE; creationflags=subprocess.CREATE_NO_WINDOW
@@ -415,13 +402,11 @@ class ApplicationController(QObject):
             else: print(f"Controller ERROR: ffmpeg failed to extract snippet (Code {result.returncode})."); print(f"  Stderr: {result.stderr}"); self._cleanup_active_snippet() # Clean up failed snippet
         except subprocess.TimeoutExpired: print("Controller ERROR: ffmpeg command timed out."); self._cleanup_active_snippet()
         except Exception as e: print(f"Controller ERROR: Exception running ffmpeg: {e}"); self._cleanup_active_snippet()
-
     def _cleanup_active_snippet(self): # (Unchanged)
         if self.active_prompt_audio_snippet_path and os.path.exists(self.active_prompt_audio_snippet_path):
-            try: os.remove(self.active_prompt_audio_snippet_path); # print(f"Controller: Cleaned up audio snippet: {self.active_prompt_audio_snippet_path}") # Less verbose
+            try: os.remove(self.active_prompt_audio_snippet_path);
             except Exception as e: print(f"Controller WARN: Failed to clean up snippet {self.active_prompt_audio_snippet_path}: {e}")
         self.active_prompt_audio_snippet_path = None
-
     @pyqtSlot()
     def _handle_discard_confirmation_prompt(self): # (Unchanged)
         if not self.waiting_for_confirmation or not self.current_confirmation_info: print("Controller WARN: Discard Confirmation clicked but no confirmation pending."); return
@@ -435,9 +420,8 @@ class ApplicationController(QObject):
             self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index); self.action_tracker.action_ranges.pop(range_index_to_remove)
             if self.current_selected_index == range_index_to_remove: self.current_selected_index = -1; self.selected_timeline_range_data = None
             elif self.current_selected_index > range_index_to_remove: self.current_selected_index -= 1
-            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); self._update_timeline_widget_ranges()
+            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); # self._update_timeline_widget_ranges() # Let signal handle
         self._clear_prompt_state_and_resume()
-
     @pyqtSlot()
     def _handle_discard_near_miss_prompt(self): # (Unchanged)
         if not self.waiting_for_near_miss_assignment or not self.current_near_miss_info: print("Controller WARN: Discard Near Miss clicked but no near miss pending."); return
@@ -454,25 +438,17 @@ class ApplicationController(QObject):
             self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index); self.action_tracker.action_ranges.pop(range_index_to_remove)
             if self.current_selected_index == range_index_to_remove: self.current_selected_index = -1; self.selected_timeline_range_data = None
             elif self.current_selected_index > range_index_to_remove: self.current_selected_index -= 1
-            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); self._update_timeline_widget_ranges()
+            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); # self._update_timeline_widget_ranges() # Let signal handle
         self._clear_prompt_state_and_resume()
-
-    # --- MODIFIED: Add logging ---
-    def _clear_prompt_state_and_resume(self):
-        """Clears prompt flags, hides buttons, updates UI, and resumes playback if needed."""
+    def _clear_prompt_state_and_resume(self): # (Unchanged)
         was_paused_for_prompt = self.playback_manager._is_paused_for_prompt
-        # --- ADDED LOGGING ---
         print(f"Controller STUCK_GUI_DEBUG: Clearing prompt state. Flags before clear: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}, PlayerPausedForPrompt={was_paused_for_prompt}")
-        # --- END LOGGING ---
-
         self.waiting_for_confirmation = False; self.current_confirmation_info = None
         self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None
         self._cleanup_active_snippet()
-
-        # --- ADDED LOGGING ---
+        self.pending_action_for_creation = None
+        if self.ui_manager: self.ui_manager.clear_pending_action_button()
         print(f"Controller STUCK_GUI_DEBUG: Prompt state cleared. Flags after clear: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}")
-        # --- END LOGGING ---
-
         if self.ui_manager:
             self.ui_manager.show_discard_confirmation_button(False)
             self.ui_manager.show_discard_near_miss_button(False)
@@ -480,17 +456,12 @@ class ApplicationController(QObject):
                                                  current_action=self.selected_timeline_range_data.get('action') if self.selected_timeline_range_data else None,
                                                  context='idle') # Revert context
         self._force_ui_update(self.playback_manager.current_frame);
-
         if was_paused_for_prompt:
             self.playback_manager.set_paused_for_prompt(False); # Ensure player knows prompt is over
-            # --- ADDED LOGGING ---
             print(f"Controller STUCK_GUI_DEBUG: Resuming playback. PlayerPausedForPrompt is now: {self.playback_manager._is_paused_for_prompt}")
-            # --- END LOGGING ---
             self.playback_manager.play()
         else:
             print("Controller: Prompt resolved, but playback was not paused by prompt. Staying paused/stopped.")
-    # --- END MODIFIED ---
-
     def _calculate_action_end_frame(self, current_event, total_video_frames): # (Unchanged)
         start_frame = current_event.get('start_frame'); min_end_frame = current_event.get('end_frame', start_frame); end_frame_for_action = total_video_frames - 1
         if start_frame is None: return 0
@@ -510,17 +481,12 @@ class ApplicationController(QObject):
              if (next_event_type == 'command' and next_event_code != 'STOP') or next_event_type == 'near_miss': next_event_start_frame = next_event_start; break
              elif next_event_type == 'command' and next_event_code == 'STOP': next_event_start_frame = next_event_start; break
         potential_end_frame = next_event_start_frame - 1; end_frame_for_action = max(min_end_frame, potential_end_frame); end_frame_for_action = min(end_frame_for_action, total_video_frames - 1); end_frame_for_action = max(start_frame, end_frame_for_action); return end_frame_for_action
-
-    def _get_snippet_path(self, start_time, end_time): # (OBSOLETE)
-        pass
-
     def _force_ui_update(self, frame_number): # (Unchanged)
         if self.ui_manager:
             action_at_frame = self.action_tracker.get_action_for_frame(frame_number)
             display_value = self._get_action_for_display(frame_number, action_at_frame)
             self.ui_manager.update_action_display(display_value);
             self.ui_manager.update_frame_info(frame_number, self.playback_manager.total_frames)
-
     def _apply_action(self, code, start_frame, end_frame): # (Unchanged)
         if not all(isinstance(f, int) for f in [start_frame, end_frame]): print(f"Ctrl ERROR: Invalid frame type for action '{code}'. Start={start_frame}, End={end_frame}"); return
         if start_frame < 0 or end_frame < start_frame: print(f"Ctrl ERROR: Invalid frame range F{start_frame}-F{end_frame} for action '{code}'."); return
@@ -528,108 +494,140 @@ class ApplicationController(QObject):
         print(f"Controller (Internal _apply_action): Adding range {new_range}.");
         self.action_tracker.action_ranges.append(new_range);
         self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None)
-        self._update_timeline_widget_ranges()
 
+    # --- _handle_clear_manual_annotations (Unchanged from previous update) ---
     @pyqtSlot()
     def _handle_clear_manual_annotations(self): # (Unchanged)
+         print("DEBUG: _handle_clear_manual_annotations called.") # DEBUG
          reply = QMessageBox.question(self.window, "Confirm Clear", "Are you sure you want to remove ALL annotations for this file?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
          if reply == QMessageBox.Yes:
-             if not self.action_tracker.action_ranges: print("Controller: Clear All requested, but no annotations to clear."); return
-             print("Controller: Clearing all annotations.");
+             if not self.action_tracker.action_ranges:
+                 print("Controller: Clear All requested, but no annotations to clear.")
+                 return
+             print("Controller: Clearing all annotations.")
              self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index)
              self.action_tracker.clear_actions();
+             print(f"DEBUG: ActionTracker ranges after clear call: {self.action_tracker.action_ranges}") # DEBUG
              self.current_selected_index = -1; self.selected_timeline_range_data = None
-             if self.window.timeline_widget: self.window.timeline_widget.set_selected_range_by_index(-1)
+             if self.window and self.window.timeline_widget:
+                 print("DEBUG: Telling TimelineWidget to deselect.") # DEBUG
+                 self.window.timeline_widget.set_selected_range_by_index(-1)
              self._force_ui_update(self.playback_manager.current_frame);
-             if self.ui_manager: self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False)
-             self._update_timeline_widget_ranges()
+             if self.ui_manager:
+                 self.ui_manager.show_discard_confirmation_button(False);
+                 self.ui_manager.show_discard_near_miss_button(False)
+                 self.pending_action_for_creation = None
+                 self.ui_manager.clear_pending_action_button()
+             print("DEBUG: _handle_clear_manual_annotations finished (expecting signal handler).") # DEBUG
 
+
+    # (_handle_timeline_ranges_edited, _handle_timeline_delete_request, _handle_timeline_range_selected, _handle_main_action_button_clicked - unchanged from previous updates)
     @pyqtSlot(list, int, str)
     def _handle_timeline_ranges_edited(self, edited_ranges_list, dragged_index, drag_type): # (Unchanged)
         print(f"Controller: Received ranges_edited signal (Dragged Index: {dragged_index}, Type: '{drag_type}')...")
         current_tracker_ranges_copy = copy.deepcopy(self.action_tracker.action_ranges); edited_ranges_copy = copy.deepcopy(edited_ranges_list)
+        applied_pending = False
+        if drag_type == "create" and self.pending_action_for_creation is not None and dragged_index != -1:
+            if 0 <= dragged_index < len(edited_ranges_copy):
+                new_range = edited_ranges_copy[dragged_index]
+                if new_range.get('action') == 'TBC':
+                    original_action = new_range['action']
+                    new_range['action'] = self.pending_action_for_creation
+                    print(f"  -> Applied pending action '{self.pending_action_for_creation}' to created range at index {dragged_index} (was {original_action}).")
+                    applied_pending = True
+                else:
+                     print(f"  -> WARN: Expected created range at index {dragged_index} to be 'TBC', but found '{new_range.get('action')}'. Pending action not applied.")
+            else:
+                print(f"  -> WARN: Invalid index {dragged_index} for created range. Pending action not applied.")
+            self.pending_action_for_creation = None
+            if self.ui_manager: self.ui_manager.clear_pending_action_button()
         if edited_ranges_copy != current_tracker_ranges_copy:
             print("  -> Change detected, saving current state before applying.")
             self.history_manager.save_state(current_tracker_ranges_copy, self.current_selected_index)
             self.action_tracker.action_ranges = edited_ranges_copy
             drag_info = (dragged_index, drag_type) if dragged_index != -1 else None
             self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=current_tracker_ranges_copy, drag_info=drag_info)
-            if drag_type == "create":
-                self.current_selected_index = dragged_index
-                if 0 <= dragged_index < len(self.action_tracker.action_ranges):
-                     self.selected_timeline_range_data = self.action_tracker.action_ranges[dragged_index]
-                     if self.selected_timeline_range_data.get('action') == 'TBC': self._handle_timeline_range_selected(True, self.selected_timeline_range_data)
-                else: self.selected_timeline_range_data = None; self.current_selected_index = -1
-                print(f"  -> Controller selection updated to newly created index {dragged_index}")
-            elif drag_type in ["start_edge", "end_edge", "move"] and dragged_index != -1:
-                self.current_selected_index = dragged_index
-                if 0 <= dragged_index < len(self.action_tracker.action_ranges): self.selected_timeline_range_data = self.action_tracker.action_ranges[dragged_index]
-                else: print(f"  -> Controller WARN: Dragged index {dragged_index} invalid after validation."); self.selected_timeline_range_data = None; self.current_selected_index = -1
-                print(f"  -> Controller selection updated to dragged index {dragged_index}")
-            self._update_timeline_widget_ranges(); self._force_ui_update(self.playback_manager.current_frame)
+            final_selected_index = -1
+            final_selected_data = None
+            if drag_type == "create" and applied_pending and 0 <= dragged_index < len(self.action_tracker.action_ranges):
+                 final_selected_index = dragged_index
+                 final_selected_data = self.action_tracker.action_ranges[final_selected_index]
+                 print(f"  -> Controller selection updated to newly created (and coded) index {final_selected_index}")
+            elif drag_type in ["start_edge", "end_edge", "move"] and 0 <= dragged_index < len(self.action_tracker.action_ranges):
+                 final_selected_index = dragged_index
+                 final_selected_data = self.action_tracker.action_ranges[final_selected_index]
+                 print(f"  -> Controller selection updated to dragged index {final_selected_index}")
+            elif dragged_index != -1:
+                 print(f"  -> Controller WARN: Dragged index {dragged_index} seems invalid after validation. Deselecting.")
+                 final_selected_index = -1
+                 final_selected_data = None
+            self.current_selected_index = final_selected_index
+            self.selected_timeline_range_data = final_selected_data
+            self._force_ui_update(self.playback_manager.current_frame)
+            if self.window and self.window.timeline_widget:
+                self.window.timeline_widget.set_selected_range_by_index(self.current_selected_index)
         else: print("  -> No change detected compared to current tracker state. Ignoring.")
-
     @pyqtSlot(object)
     def _handle_timeline_delete_request(self, range_to_delete): # (Unchanged)
         if not isinstance(range_to_delete, dict): return;
         start_frame = range_to_delete.get('start'); end_frame = range_to_delete.get('end'); action_code = range_to_delete.get('action');
         print(f"Controller: Received delete request for '{action_code}' F{start_frame}-{end_frame}");
-        range_index_to_remove = -1; range_object_to_remove = None
-        for i, r in enumerate(self.action_tracker.action_ranges):
-             if r == range_to_delete: range_index_to_remove = i; range_object_to_remove = r; break
-        if range_object_to_remove is not None:
-            self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index)
-            try:
-                self.action_tracker.action_ranges.pop(range_index_to_remove); print("Controller: Removed range by index from tracker.")
-                if self.current_selected_index == range_index_to_remove: self.current_selected_index = -1; self.selected_timeline_range_data = None; self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False)
-                elif self.current_selected_index > range_index_to_remove: self.current_selected_index -= 1; print(f"Controller: Adjusted selected index after delete to {self.current_selected_index}")
-                self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None)
-                self._update_timeline_widget_ranges(); self._handle_timeline_range_selected(self.current_selected_index != -1, self.selected_timeline_range_data) # Update UI
-            except IndexError: print(f"Controller ERROR: Index {range_index_to_remove} out of bounds during delete.")
-            except Exception as e: print(f"Controller ERROR during range removal by index: {e}")
-        else: print(f"Controller WARN: Could not find exact range object to delete: {range_to_delete}")
-
-    # --- MODIFIED: Add logging ---
+        range_index_to_remove = -1;
+        current_ranges_before_delete = copy.deepcopy(self.action_tracker.action_ranges)
+        try: range_index_to_remove = self.action_tracker.action_ranges.index(range_to_delete)
+        except ValueError: print(f"Controller WARN: Could not find exact range object to delete: {range_to_delete}"); return
+        self.history_manager.save_state(current_ranges_before_delete, self.current_selected_index)
+        try:
+            removed_range = self.action_tracker.action_ranges.pop(range_index_to_remove)
+            print(f"Controller: Removed range {removed_range} at index {range_index_to_remove} from tracker.")
+            original_selection = self.current_selected_index
+            if self.current_selected_index == range_index_to_remove:
+                self.current_selected_index = -1
+                self.selected_timeline_range_data = None
+                self.waiting_for_confirmation = False; self.current_confirmation_info = None
+                self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None
+                if self.ui_manager:
+                     self.ui_manager.show_discard_confirmation_button(False)
+                     self.ui_manager.show_discard_near_miss_button(False)
+            elif self.current_selected_index > range_index_to_remove:
+                self.current_selected_index -= 1
+                print(f"Controller: Adjusted selected index after delete to {self.current_selected_index}")
+            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=current_ranges_before_delete, drag_info=None)
+            self._handle_timeline_range_selected(self.current_selected_index != -1, self.selected_timeline_range_data)
+            self._force_ui_update(self.playback_manager.current_frame)
+        except IndexError: print(f"Controller ERROR: Index {range_index_to_remove} out of bounds during delete.")
+        except Exception as e: print(f"Controller ERROR during range removal by index: {e}")
     @pyqtSlot(bool, object)
-    def _handle_timeline_range_selected(self, is_selected, range_data):
-        # --- ADDED LOGGING ---
+    def _handle_timeline_range_selected(self, is_selected, range_data): # (Unchanged)
         player_paused_flag = self.playback_manager._is_paused_for_prompt if self.playback_manager else 'N/A'
         print(f"Controller STUCK_GUI_DEBUG: _handle_timeline_range_selected - START - is_selected={is_selected}, range_action={range_data.get('action') if range_data else 'None'}, current_idx={self.current_selected_index}")
-        print(f"  -> State BEFORE logic: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}, PlayerPaused={player_paused_flag}")
-        # --- END LOGGING ---
-
+        print(f"  -> State BEFORE logic: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}, Pending={self.pending_action_for_creation}, PlayerPaused={player_paused_flag}")
         new_index = -1; found_range_object = None
         self._cleanup_active_snippet()
         if self.window and self.window.snippet_player and self.window.snippet_player.state() == QMediaPlayer.PlayingState: self.window.snippet_player.stop()
-
         if is_selected and range_data:
             try: found_range_object = next(r for r in self.action_tracker.action_ranges if r == range_data); new_index = self.action_tracker.action_ranges.index(found_range_object); print(f"Controller: Range selected, index set to {new_index} by data match.")
             except (StopIteration, ValueError): print(f"Controller WARN: Selected range data not found in action_tracker.action_ranges: {range_data}"); found_range_object = None; new_index = -1
         else: print("Controller: Range deselected, index set to -1"); found_range_object = None; new_index = -1
-
         selection_changed = (self.current_selected_index != new_index)
         self.current_selected_index = new_index; self.selected_timeline_range_data = found_range_object
-
-        # --- Clear prompt state *unless* the newly selected range *is* the prompt ---
+        if selection_changed and self.pending_action_for_creation:
+             print("  -> Clearing pending action due to selection change.")
+             self.pending_action_for_creation = None
+             if self.ui_manager: self.ui_manager.clear_pending_action_button()
         is_new_selection_a_prompt = False
         if is_selected and self.selected_timeline_range_data:
             if self.selected_timeline_range_data.get('status') == 'confirm_needed' or self.selected_timeline_range_data.get('action') == 'NM':
                 is_new_selection_a_prompt = True
-
         if not is_new_selection_a_prompt:
-             # --- ADDED LOGGING ---
              if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment:
                  print("Controller STUCK_GUI_DEBUG: Clearing prompt flags because a non-prompt range was selected/deselected.")
-             # --- END LOGGING ---
              self.waiting_for_confirmation = False; self.waiting_for_near_miss_assignment = False
              self.current_confirmation_info = None; self.current_near_miss_info = None
-             # We should probably also clear the player's prompt pause flag here if we are deselecting
              if not is_selected and self.playback_manager and self.playback_manager._is_paused_for_prompt:
                   print("Controller STUCK_GUI_DEBUG: Clearing player pause flag due to range deselection.")
                   self.playback_manager.set_paused_for_prompt(False)
-
         show_discard_confirm = False; show_discard_nm = False; ui_context = 'idle'; enable_actions = True
-
         if is_selected and self.selected_timeline_range_data:
             action_code = self.selected_timeline_range_data.get('action', 'Unknown'); status = self.selected_timeline_range_data.get('status')
             can_edit = self.window.timeline_widget._editing_enabled if self.window and self.window.timeline_widget else False
@@ -645,18 +643,17 @@ class ApplicationController(QObject):
             self.ui_manager.enable_delete_button(can_edit)
         else: # Deselected
             self.ui_manager.enable_action_buttons(True, context='idle'); self.ui_manager.enable_delete_button(False)
-
         self.ui_manager.show_discard_confirmation_button(show_discard_confirm); self.ui_manager.show_discard_near_miss_button(show_discard_nm)
         self._force_ui_update(self.playback_manager.current_frame)
-        # --- ADDED LOGGING ---
         player_paused_flag_after = self.playback_manager._is_paused_for_prompt if self.playback_manager else 'N/A'
-        print(f"Controller STUCK_GUI_DEBUG: _handle_timeline_range_selected - END - State AFTER logic: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}, PlayerPaused={player_paused_flag_after}")
-        # --- END LOGGING ---
-    # --- END MODIFIED ---
-
+        print(f"Controller STUCK_GUI_DEBUG: _handle_timeline_range_selected - END - State AFTER logic: Confirm={self.waiting_for_confirmation}, NM={self.waiting_for_near_miss_assignment}, Pending={self.pending_action_for_creation}, PlayerPaused={player_paused_flag_after}")
     @pyqtSlot(str)
     def _handle_main_action_button_clicked(self, action_code): # (Unchanged)
         print(f"Controller: Main action button '{action_code}' clicked.")
+        if self.pending_action_for_creation and self.pending_action_for_creation != action_code:
+             print(f"  -> Clearing previous pending action '{self.pending_action_for_creation}'.")
+             self.pending_action_for_creation = None
+             if self.ui_manager: self.ui_manager.clear_pending_action_button()
         if self.waiting_for_confirmation and self.current_confirmation_info:
             confirmed_range_info = self.current_confirmation_info; original_code = confirmed_range_info.get('action'); start_frame = confirmed_range_info.get('start'); end_frame = confirmed_range_info.get('end')
             if start_frame is None or end_frame is None: print("Controller ERROR: Invalid range info on confirm via button click."); self._clear_prompt_state_and_resume(); return
@@ -668,7 +665,7 @@ class ApplicationController(QObject):
             if not found_range_to_update: print(f"Controller WARN: Could not find exact match in ActionTracker needing confirmation to update: {confirmed_range_info}")
             else:
                  if self.current_selected_index == range_index_updated: self.selected_timeline_range_data = found_range_to_update
-                 self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); self._update_timeline_widget_ranges()
+                 self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); # self._update_timeline_widget_ranges() # Let signal handle
             self._clear_prompt_state_and_resume(); return
         elif self.waiting_for_near_miss_assignment and self.current_near_miss_info:
             near_miss_range_to_update_data = self.current_near_miss_info.get('range'); near_miss_event = self.current_near_miss_info.get('event')
@@ -683,7 +680,7 @@ class ApplicationController(QObject):
                 self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index)
                 found_range_object['action'] = action_code; found_range_object['trigger_phrase'] = near_miss_event.get('transcribed_text'); found_range_object['confidence_score'] = near_miss_event.get('score'); found_range_object['status'] = None
                 if self.current_selected_index == found_range_index: self.selected_timeline_range_data = found_range_object
-                self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); self._update_timeline_widget_ranges()
+                self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); # self._update_timeline_widget_ranges() # Let signal handle
             self._clear_prompt_state_and_resume(); return
         elif self.selected_timeline_range_data and self.current_selected_index != -1:
             range_to_update_index = self.current_selected_index
@@ -694,51 +691,137 @@ class ApplicationController(QObject):
             elif original_code == 'TBC': needs_update = True
             if needs_update:
                  self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index); print(f"Controller: Changing selected range F{start_frame}-{end_frame} (Index {range_to_update_index}) from '{original_code}'/'{range_to_update.get('status')}' to '{action_code}'/None")
-                 range_to_update['action'] = action_code; range_to_update['status'] = None; self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); self._update_timeline_widget_ranges(); self._force_ui_update(self.playback_manager.current_frame); self.ui_manager.enable_action_buttons(True, current_action=action_code, context='selected')
+                 range_to_update['action'] = action_code; range_to_update['status'] = None; self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); # self._update_timeline_widget_ranges(); # Let signal handle
+                 self._force_ui_update(self.playback_manager.current_frame); self.ui_manager.enable_action_buttons(True, current_action=action_code, context='selected')
             else: print(f"Controller: Action '{action_code}' already assigned to selected range. No change.")
-        else: print(f"Controller: Action button '{action_code}' clicked, but no range selected and no prompt active.")
+        else:
+            print(f"Controller: No range selected and no prompt active. Setting pending action for creation: '{action_code}'")
+            self.pending_action_for_creation = action_code
+            if self.ui_manager:
+                self.ui_manager.set_pending_action_button(action_code)
+                self._force_ui_update(self.playback_manager.current_frame) # Update status display
 
+    # --- MODIFIED _update_timeline_widget_ranges - Unchanged from previous update ---
     @pyqtSlot()
     def _update_timeline_widget_ranges(self): # (Unchanged)
-        if not self.window or not self.window.timeline_widget: return
-        current_ranges_from_tracker = copy.deepcopy(self.action_tracker.action_ranges); self.window.timeline_widget.update_ranges(current_ranges_from_tracker)
-        has_ranges = bool(current_ranges_from_tracker); can_edit = self.window.timeline_widget._editing_enabled if self.window and self.window.timeline_widget else False
+        print("DEBUG: _update_timeline_widget_ranges called.") # DEBUG
+        if not self.window or not self.window.timeline_widget:
+            print("DEBUG: _update_timeline_widget_ranges - No window/timeline widget.") # DEBUG
+            return
+        current_ranges_from_tracker = copy.deepcopy(self.action_tracker.action_ranges)
+        print(f"DEBUG: Calling timeline_widget.update_ranges with {len(current_ranges_from_tracker)} ranges.") # DEBUG
+        self.window.timeline_widget.update_ranges(current_ranges_from_tracker)
+        has_ranges = bool(current_ranges_from_tracker);
+        can_edit = self.window.timeline_widget._editing_enabled if self.window and self.window.timeline_widget else False
         if self.ui_manager:
             self.ui_manager.enable_clear_button(has_ranges and can_edit)
             self.ui_manager.enable_delete_button(self.current_selected_index != -1 and can_edit)
-        if self.playback_manager and not self.playback_manager.is_playing: self._force_ui_update(self.playback_manager.current_frame)
+        if self.playback_manager and not self.playback_manager.is_playing:
+             self._force_ui_update(self.playback_manager.current_frame)
+        print("DEBUG: _update_timeline_widget_ranges finished.") # DEBUG
 
+
+    # --- MODIFIED _handle_whisper_results - Moved set_editing_enabled ---
     @pyqtSlot(list)
-    def _handle_whisper_results(self, segments): # (Unchanged)
-        print(f"Controller: Received Whisper results via ProcessingManager ({len(segments)} segments)."); self.whisper_processed = True; self.final_timeline_events = []; self.generated_action_ranges = []
-        props = self.playback_manager.get_video_properties(); fps = props.get('fps'); total_frames = props.get('total_frames')
+    def _handle_whisper_results(self, segments):
+        print(f"Controller: Received Whisper results via ProcessingManager ({len(segments)} segments).")
+        self.whisper_processed = True
+        self.final_timeline_events = []
+        self.generated_action_ranges = []
+
+        props = self.playback_manager.get_video_properties()
+        fps = props.get('fps')
+        total_frames = props.get('total_frames')
+
         if not fps or fps <= 0 or not total_frames or total_frames <= 0:
-             error_msg = f"Cannot process Whisper results: Invalid video properties (FPS: {fps}, Frames: {total_frames})."; self.ui_manager.update_action_display(f"Status: Error - Invalid Video Props");
-             if self.ui_manager: self.ui_manager.show_message_box("critical", "Processing Error", error_msg); self.ui_manager.enable_play_pause_button(False)
-             if self.window.timeline_widget: self.window.timeline_widget.set_video_properties(total_frames or 0, props.get('width', 0), fps or 0); self.window.timeline_widget.set_editing_enabled(True); print("Controller: Timeline editing ENABLED (Whisper error, invalid props).")
-             if self.ui_manager: self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False)
-             self._update_timeline_widget_ranges(); return
-        if self.window.timeline_widget: self.window.timeline_widget.set_video_properties(total_frames, props.get('width', 0), fps)
-        print(f"Controller: Calling TimelineProcessor..."); self.final_timeline_events, self.generated_action_ranges = self.timeline_processor.process_segments( segments, fps, total_frames ); print(f"Controller: TimelineProcessor finished. Events: {len(self.final_timeline_events)}, Ranges: {len(self.generated_action_ranges)}")
-        print("Controller: Applying initial generated ranges to ActionTracker..."); initial_ranges_to_add = []
+             error_msg = f"Cannot process Whisper results: Invalid video properties (FPS: {fps}, Frames: {total_frames})."
+             self.ui_manager.update_action_display(f"Status: Error - Invalid Video Props")
+             if self.ui_manager:
+                 self.ui_manager.show_message_box("critical", "Processing Error", error_msg)
+                 self.ui_manager.enable_play_pause_button(False)
+             # Enable editing even on error, but don't proceed with range generation
+             if self.window.timeline_widget:
+                 self.window.timeline_widget.set_video_properties(total_frames or 0, props.get('width', 0), fps or 0)
+                 self.window.timeline_widget.set_editing_enabled(True)
+                 print("Controller: Timeline editing ENABLED (Whisper error, invalid props).")
+             if self.ui_manager:
+                 self.ui_manager.show_discard_confirmation_button(False)
+                 self.ui_manager.show_discard_near_miss_button(False)
+             self._update_timeline_widget_ranges() # Ensure timeline redraws if empty
+             return
+
+        if self.window.timeline_widget:
+             self.window.timeline_widget.set_video_properties(total_frames, props.get('width', 0), fps)
+
+        print(f"Controller: Calling TimelineProcessor...")
+        self.final_timeline_events, self.generated_action_ranges = self.timeline_processor.process_segments( segments, fps, total_frames )
+        print(f"Controller: TimelineProcessor finished. Events: {len(self.final_timeline_events)}, Ranges: {len(self.generated_action_ranges)}")
+
+        # --- MOVED: Enable timeline editing EARLIER ---
+        if self.window.timeline_widget:
+            self.window.timeline_widget.set_editing_enabled(True)
+            print("Controller: Timeline editing ENABLED (before validation).")
+        # --- END MOVED ---
+
+        print("Controller: Applying initial generated ranges to ActionTracker...")
+        initial_ranges_to_add = []
         if self.generated_action_ranges:
             for r in sorted(self.generated_action_ranges, key=lambda x: x.get('start_frame', 0)):
                 if r.get('start_frame') is not None and r.get('end_frame') is not None:
-                    range_data = { k: v for k, v in r.items() if k in ['action_code', 'start_frame', 'end_frame', 'start_time', 'end_time', 'trigger_phrase', 'trigger_start', 'trigger_end', 'trigger_start_frame', 'trigger_end_frame', 'confidence_score', 'status', 'matched_words', 'original_event_start_time', 'original_event_end_time', 'transcribed_text'] }
-                    range_data['action'] = range_data.pop('action_code'); range_data['start'] = range_data.pop('start_frame'); range_data['end'] = range_data.pop('end_frame'); initial_ranges_to_add.append(range_data)
-        if initial_ranges_to_add:
-            if self.action_tracker.action_ranges: self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index)
-            self.action_tracker.action_ranges.extend(initial_ranges_to_add); print(f"Controller: Extended action_tracker.ranges. Length before validate: {len(self.action_tracker.action_ranges)}")
-            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None); print(f"Controller: Called validate_ranges with force_signal_check after extending."); self._update_timeline_widget_ranges()
-        elif not self.action_tracker.action_ranges: print("Controller: No ranges generated and tracker empty, calling _update_timeline_widget_ranges directly."); self._update_timeline_widget_ranges()
-        else: print("Controller: No command ranges generated, existing ranges remain. Calling validate just in case."); original_state = copy.deepcopy(self.action_tracker.action_ranges); self.action_tracker.validate_ranges(original_state_before_load=original_state, drag_info=None)
-        self.next_timeline_event_index = 0
-        if self.ui_manager: self.ui_manager.enable_play_pause_button(True)
-        if self.window.timeline_widget: self.window.timeline_widget.set_editing_enabled(True); print("Controller: Timeline editing ENABLED.")
-        self.ui_manager.enable_action_buttons(True)
-        if self.ui_manager: self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False)
-        self._force_ui_update(0); print(f"Controller: Whisper processing complete.")
+                    # Extract only relevant keys for ActionTracker ranges
+                    range_data = { k: v for k, v in r.items() if k in [
+                        'action_code', 'start_frame', 'end_frame',
+                        'start_time', 'end_time', 'trigger_phrase',
+                        'trigger_start', 'trigger_end', 'trigger_start_frame',
+                        'trigger_end_frame', 'confidence_score', 'status',
+                        'matched_words', 'original_event_start_time',
+                        'original_event_end_time', 'transcribed_text' # Include for NM
+                    ]}
+                    # Rename keys for ActionTracker standard
+                    range_data['action'] = range_data.pop('action_code')
+                    range_data['start'] = range_data.pop('start_frame')
+                    range_data['end'] = range_data.pop('end_frame')
+                    initial_ranges_to_add.append(range_data)
 
+        if initial_ranges_to_add:
+            # Save state BEFORE adding whisper ranges if existing ranges exist
+            if self.action_tracker.action_ranges:
+                 self.history_manager.save_state(self.action_tracker.action_ranges, self.current_selected_index)
+
+            # Add new ranges
+            self.action_tracker.action_ranges.extend(initial_ranges_to_add)
+            print(f"Controller: Extended action_tracker.ranges. Length before validate: {len(self.action_tracker.action_ranges)}")
+
+            # Validate ranges (this will emit action_ranges_changed if changes occur)
+            self.action_tracker.validate_ranges(force_signal_check=True, original_state_before_load=None, drag_info=None)
+            print(f"Controller: Called validate_ranges with force_signal_check after extending.")
+            # self._update_timeline_widget_ranges() # Let signal from validate_ranges handle this update
+
+        elif not self.action_tracker.action_ranges:
+             # No ranges generated and tracker was empty, ensure timeline is updated
+             print("Controller: No ranges generated and tracker empty, calling _update_timeline_widget_ranges directly.")
+             self._update_timeline_widget_ranges()
+        else:
+             # No ranges generated, but tracker had existing ranges. Validate just in case.
+             print("Controller: No command ranges generated, existing ranges remain. Calling validate just in case.")
+             original_state = copy.deepcopy(self.action_tracker.action_ranges)
+             self.action_tracker.validate_ranges(original_state_before_load=original_state, drag_info=None) # Let signal handle update if needed
+
+        self.next_timeline_event_index = 0
+
+        # Enable UI elements now that processing is done
+        if self.ui_manager:
+            self.ui_manager.enable_play_pause_button(True)
+            self.ui_manager.enable_action_buttons(True) # Enable action buttons
+            self.ui_manager.show_discard_confirmation_button(False) # Ensure prompts hidden
+            self.ui_manager.show_discard_near_miss_button(False)
+
+        # Force a final UI refresh for frame 0
+        self._force_ui_update(0)
+        print(f"Controller: Whisper processing complete.")
+
+
+    # (_handle_processing_error, _initiate_save, _handle_save_complete, cleanup_on_exit, _handle_processing_status_update, _handle_delete_selected_range_button, _do_undo, _do_redo, _apply_restored_state, _update_undo_redo_buttons - unchanged)
     @pyqtSlot(str, str)
     def _handle_processing_error(self, error_type, message): # (Unchanged)
         print(f"Controller ERROR ({error_type}): {message}"); title = "Whisper Error" if error_type == "whisper" else "Processing Error"; status_msg = f"Status: Error - {title}"
@@ -749,7 +832,6 @@ class ApplicationController(QObject):
              self.whisper_processed = False;
              if self.ui_manager: self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False)
              self._update_timeline_widget_ranges()
-
     @pyqtSlot()
     def _initiate_save(self): # (Unchanged)
         print(f"--- Initiate Save Triggered ---")
@@ -771,18 +853,18 @@ class ApplicationController(QObject):
              else: self.ui_manager.show_message_box("info", "Save Cancelled", "Save cancelled. Please resolve the prompt first."); return
         placeholders_exist = any(r.get('action') in ['TBC', 'NM'] or r.get('status') == 'confirm_needed' for r in self.action_tracker.action_ranges)
         if placeholders_exist:
-            reply = QMessageBox.question(self.window, "Unresolved Ranges", "There are unassigned ('??') or unconfirmed ('CODE?') ranges.\nThese will be saved as 'NC' (No Code).\n\nDo you want to continue saving?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            reply = QMessageBox.question(self.window, "Unresolved Ranges", "There are unassigned ('??') or unconfirmed ('CODE?') ranges.\nThese will be saved as '' (blank).\n\nDo you want to continue saving?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No: return
         self.playback_manager.pause(); last_frame = self.playback_manager.total_frames - 1 if self.playback_manager.total_frames > 0 else 0
         print(f"Controller: Validating tracker for save (up to F{last_frame})..."); self.action_tracker.set_frame(last_frame); self.action_tracker.validate_ranges(drag_info=None)
         actions_dict, num_frames_in_dict = self.action_tracker.get_all_actions_for_export()
         print(f"Controller: Exporting {len(actions_dict)} action entries for {num_frames_in_dict} frames (after filtering placeholders).")
-        actual_actions_count = sum(1 for action in actions_dict.values() if action not in ["NC"])
+        actual_actions_count = sum(1 for action in actions_dict.values() if action not in ["", "BL"]) # Check for non-blank, non-BL
         if actual_actions_count == 0 and num_frames_in_dict > 0:
-            reply = QMessageBox.question(self.window, "No Actions Coded", f"Only 'No Code' (NC) recorded for {num_frames_in_dict} frames (excluding placeholders).\nSave NC-only files?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            reply = QMessageBox.question(self.window, "No Actions Coded", f"Only blank or 'BL' recorded for {num_frames_in_dict} frames (excluding placeholders).\nSave blank/BL-only files?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply == QMessageBox.No: return
         elif num_frames_in_dict == 0:
-             reply = QMessageBox.question(self.window, "No Data", "No frames found in export data (after filtering placeholders).\nAttempt save empty/NC files anyway?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+             reply = QMessageBox.question(self.window, "No Data", "No frames found in export data (after filtering placeholders).\nAttempt save empty/blank files anyway?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
              if reply == QMessageBox.No: return
         try:
             video_path = active_file_set.get('video'); csv1_path = active_file_set.get('csv1'); csv2_path = active_file_set.get('csv2')
@@ -798,7 +880,6 @@ class ApplicationController(QObject):
             if self.ui_manager: self.ui_manager.show_message_box("critical", "Output Path Error", error_msg); return
         if self.ui_manager: self.ui_manager.show_progress_bar(True)
         self.processing_manager.start_save_processing( video_path, self.action_tracker, self.csv_handler, actions_dict, out_csv, out_vid, out_csv2 )
-
     @pyqtSlot(bool)
     def _handle_save_complete(self, success): # (Unchanged)
         if self.ui_manager: self.ui_manager.show_progress_bar(False)
@@ -808,7 +889,6 @@ class ApplicationController(QObject):
                 print("Controller: Batch stopped by user after save error."); self.ui_manager.show_message_box("info", "Batch Stopped", "Batch processing stopped by user."); self.ui_manager.set_batch_navigation(False, self.batch_processor.get_current_index(), self.batch_processor.get_total_files()); return
         if self.batch_processor.has_next_file(): print("Controller: Save complete (or user chose to continue), loading next file..."); QTimer.singleShot(100, self.load_next_file)
         else: print("Controller: Save complete. Batch finished."); self.ui_manager.show_batch_complete_message(); self.ui_manager.set_batch_navigation(False, self.batch_processor.get_current_index(), self.batch_processor.get_total_files())
-
     def cleanup_on_exit(self): # (Unchanged)
         print("Controller: Cleanup on exit..."); self._cleanup_active_snippet()
         if self.processing_manager: self.processing_manager.cleanup_on_exit()
@@ -817,11 +897,9 @@ class ApplicationController(QObject):
             try: self.playback_manager.player.__del__(); print("Controller: Explicit player cleanup attempted.")
             except Exception as e: print(f"Controller WARN: Error during explicit player cleanup: {type(e).__name__}: {e}")
         print("Controller: Cleanup finished.")
-
     @pyqtSlot(str)
     def _handle_processing_status_update(self, message): # (Unchanged)
         if self.ui_manager: self.ui_manager.update_action_display(f"Status: {message}")
-
     @pyqtSlot()
     def _handle_delete_selected_range_button(self): # (Unchanged)
         if not self.selected_timeline_range_data: print("Controller: Delete button clicked, but no range selected."); return
@@ -830,27 +908,28 @@ class ApplicationController(QObject):
         range_repr = f"'{self.selected_timeline_range_data.get('action')}' F{self.selected_timeline_range_data.get('start')}-{self.selected_timeline_range_data.get('end')}"
         print(f"Controller: Deleting range via button: {range_repr}"); range_to_delete_copy = copy.deepcopy(self.selected_timeline_range_data)
         self._handle_timeline_delete_request(range_to_delete_copy) # Calls separate handler
-
     @pyqtSlot()
     def _do_undo(self): # (Unchanged)
         print("Controller: Undo requested.");
         if not self.history_manager.can_undo(): print("Controller: Nothing to undo."); return
         current_ranges = self.action_tracker.action_ranges; current_selection = self.current_selected_index
         self.history_manager.undo(current_ranges, current_selection)
-
     @pyqtSlot()
     def _do_redo(self): # (Unchanged)
         print("Controller: Redo requested.");
         if not self.history_manager.can_redo(): print("Controller: Nothing to redo."); return
         current_ranges = self.action_tracker.action_ranges; current_selection = self.current_selected_index
         self.history_manager.redo(current_ranges, current_selection)
-
     @pyqtSlot(list, int)
     def _apply_restored_state(self, restored_ranges, restored_selection_index): # (Unchanged)
         print(f"Controller: Applying restored state (Ranges: {len(restored_ranges)}, Selected: {restored_selection_index})")
-        if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment:
-             print("  -> Clearing active prompt state due to history restore."); self.waiting_for_confirmation = False; self.current_confirmation_info = None; self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None; self._cleanup_active_snippet()
-             if self.ui_manager: self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False); self.ui_manager.enable_action_buttons(True, context='idle')
+        if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment or self.pending_action_for_creation:
+             print("  -> Clearing active prompt/pending state due to history restore."); self.waiting_for_confirmation = False; self.current_confirmation_info = None; self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None; self._cleanup_active_snippet()
+             self.pending_action_for_creation = None
+             if self.ui_manager:
+                 self.ui_manager.show_discard_confirmation_button(False); self.ui_manager.show_discard_near_miss_button(False);
+                 self.ui_manager.clear_pending_action_button()
+                 self.ui_manager.enable_action_buttons(True, context='idle')
         self.action_tracker.action_ranges = restored_ranges
         if 0 <= restored_selection_index < len(restored_ranges):
              self.current_selected_index = restored_selection_index; self.selected_timeline_range_data = restored_ranges[restored_selection_index]
@@ -860,12 +939,13 @@ class ApplicationController(QObject):
              else: self._handle_timeline_range_selected(True, restored_range) # Make sure UI updates for normal selection restore too
         else: self.current_selected_index = -1; self.selected_timeline_range_data = None; self._handle_timeline_range_selected(False, None) # Explicitly handle deselection
         if self.window and self.window.timeline_widget: QTimer.singleShot(0, lambda idx=self.current_selected_index: self.window.timeline_widget.set_selected_range_by_index(idx) if self.window and self.window.timeline_widget else None)
-        self._update_timeline_widget_ranges(); self._force_ui_update(self.playback_manager.current_frame); print("Controller: Finished applying restored state.")
-
+        # Let signal from validate_ranges handle this if needed
+        # self._update_timeline_widget_ranges();
+        self._force_ui_update(self.playback_manager.current_frame); print("Controller: Finished applying restored state.")
     @pyqtSlot()
     def _update_undo_redo_buttons(self): # (Unchanged)
         if self.ui_manager:
             can_undo = self.history_manager.can_undo(); can_redo = self.history_manager.can_redo()
             self.ui_manager.enable_undo_button(can_undo); self.ui_manager.enable_redo_button(can_redo)
 
-# --- END OF FILE app_controller.py ---
+# --- END OF app_controller.py ---

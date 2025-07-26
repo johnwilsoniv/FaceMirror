@@ -1,4 +1,4 @@
-# --- START OF config.py ---
+# --- START OF FILE config.py ---
 
 # config.py - Configuration values and constants
 from PyQt5.QtGui import QFont, QColor # Added QColor
@@ -22,12 +22,14 @@ UI_COLORS = {
 }
 STANDARD_BUTTON_STYLE = "QPushButton { background-color: #f0f0f0; color: #333333; border: 1px solid #cccccc; border-radius: 3px; padding: 4px 8px; min-height: 22px; } QPushButton:hover { background-color: #e0e0e0; } QPushButton:pressed { background-color: #d0d0d0; border: 1px solid #999999; }"
 PRIMARY_BUTTON_STYLE = "QPushButton { background-color: #4682B4; color: white; border: 1px solid #3a6a94; border-radius: 3px; padding: 4px 10px; min-height: 30px; font-weight: bold; } QPushButton:hover { background-color: #5692c4; } QPushButton:pressed { background-color: #3a6a94; }"
+# --- NEW PENDING STYLE ---
+PENDING_BUTTON_STYLE = "QPushButton { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; border-radius: 3px; padding: 4px 8px; min-height: 22px; font-weight: bold; } QPushButton:hover { background-color: #bce0e8; } QPushButton:pressed { background-color: #a6d5dd; border: 1px solid #9acdd7; }"
+# --- END NEW ---
 GROUP_BOX_STYLE = "QGroupBox { font-family: Arial; font-weight: bold; border: 1px solid #cccccc; border-radius: 3px; margin-top: 12px; padding-top: 8px; } QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 10px; padding: 0 3px; }"
 CONFIRMATION_BUTTON_STYLE = STANDARD_BUTTON_STYLE
 DISCARD_BUTTON_STYLE = "QPushButton { background-color: #d9534f; color: white; border: 1px solid #d43f3a; border-radius: 3px; padding: 4px 8px; min-height: 22px; font-weight: bold; } QPushButton:hover { background-color: #c9302c; } QPushButton:pressed { background-color: #ac2925; }"
 DELETE_BUTTON_STYLE = DISCARD_BUTTON_STYLE # Use same style for delete
 DISABLED_BUTTON_STYLE = "QPushButton { background-color: #f8f8f8; color: #bbbbbb; border: 1px solid #e0e0e0; border-radius: 3px; padding: 4px 8px; min-height: 22px; }"
-# --- NEW: Dimmed style for disabled utility buttons like Undo/Redo ---
 DIMMED_UTILITY_BUTTON_STYLE = "QPushButton { background-color: #e8e8e8; color: #aaaaaa; border: 1px solid #d8d8d8; border-radius: 3px; padding: 4px 8px; min-height: 22px; }"
 SLIDER_STYLE = "QSlider::groove:horizontal { border: 1px solid #bbb; background: white; height: 8px; border-radius: 4px; } QSlider::sub-page:horizontal { background: qlineargradient(x1:0, y1:0.2, x2:1, y2:1, stop:0 #4682B4, stop:1 #5692c4); border: 1px solid #444; height: 10px; border-radius: 4px; } QSlider::add-page:horizontal { background: #e0e0e0; border: 1px solid #777; height: 10px; border-radius: 4px; } QSlider::handle:horizontal { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #eee, stop:1 #ccc); border: 1px solid #777; width: 15px; margin-top: -4px; margin-bottom: -4px; border-radius: 5px; }"
 

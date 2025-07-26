@@ -96,7 +96,7 @@ else:
      print("Warning: File logging is disabled.", file=sys.stderr)
 
 # Set matplotlib logger level higher to suppress font messages
-logging.getLogger('matplotlib').setLevel(logging.WARNING)
+logging.getLogger('matplotlib').setLevel(logging.INFO)
 
 # Configure specific loggers
 logger = logging.getLogger(__name__) # Logger for this main module
