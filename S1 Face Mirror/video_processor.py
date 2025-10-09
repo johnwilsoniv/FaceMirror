@@ -79,8 +79,9 @@ class VideoProcessor:
             stop_event: Event to signal monitoring should stop
         """
         frames_completed = 0
+        frames_started = 0
         frames_written = 0
-        last_percent = -1
+        last_update_time = time.time()
         start_time = time.time()
 
         while not stop_event.is_set() or not progress_queue.empty():
@@ -88,29 +89,63 @@ class VideoProcessor:
                 # Non-blocking get with timeout
                 event_type, frame_index = progress_queue.get(timeout=0.1)
 
-                if event_type == 'completed':
+                if event_type == 'started':
+                    frames_started += 1
+                elif event_type == 'completed':
                     frames_completed += 1
-
-                    # Calculate percentage
-                    percent = int((frames_completed / total_frames) * 100)
-
-                    # Only print when percentage changes
-                    if percent != last_percent:
-                        elapsed = time.time() - start_time
-                        fps = frames_completed / elapsed if elapsed > 0 else 0
-                        eta = (total_frames - frames_completed) / fps if fps > 0 else 0
-
-                        # Print with newline for log compatibility
-                        print(f"Progress: {percent}% ({frames_completed}/{total_frames} frames) | "
-                              f"{fps:.1f} fps | ETA: {eta:.0f}s")
-                        sys.stdout.flush()
-                        last_percent = percent
-
                 elif event_type == 'written':
                     frames_written = frame_index
 
+                # Update every 10 seconds OR when all frames are completed
+                current_time = time.time()
+                time_since_last_update = current_time - last_update_time
+
+                if time_since_last_update >= 10.0 or frames_completed == total_frames:
+                    elapsed = current_time - start_time
+
+                    # Use completed frames for progress if available, otherwise use started frames
+                    active_frames = frames_completed if frames_completed > 0 else frames_started
+                    fps = active_frames / elapsed if elapsed > 0 else 0
+                    eta_seconds = (total_frames - active_frames) / fps if fps > 0 else 0
+
+                    # Format ETA as "45m 36s"
+                    eta_minutes = int(eta_seconds // 60)
+                    eta_secs = int(eta_seconds % 60)
+                    eta_formatted = f"{eta_minutes}m {eta_secs:02d}s"
+
+                    # Calculate percentage
+                    percent = (active_frames / total_frames) * 100
+
+                    # Print with newline for log compatibility
+                    status = "completed" if frames_completed > 0 else "processing"
+                    print(f"Progress: {percent:.1f}% ({active_frames}/{total_frames} frames {status}) | "
+                          f"{fps:.2f} fps | ETA: {eta_formatted}")
+                    sys.stdout.flush()
+                    last_update_time = current_time
+
             except Exception:
-                # Queue empty or timeout - continue monitoring
+                # Queue empty or timeout - check if we should update
+                current_time = time.time()
+                time_since_last_update = current_time - last_update_time
+
+                if time_since_last_update >= 10.0 and (frames_started > 0 or frames_completed > 0):
+                    elapsed = current_time - start_time
+                    active_frames = frames_completed if frames_completed > 0 else frames_started
+                    fps = active_frames / elapsed if elapsed > 0 else 0
+                    eta_seconds = (total_frames - active_frames) / fps if fps > 0 else 0
+
+                    eta_minutes = int(eta_seconds // 60)
+                    eta_secs = int(eta_seconds % 60)
+                    eta_formatted = f"{eta_minutes}m {eta_secs:02d}s"
+
+                    percent = (active_frames / total_frames) * 100
+                    status = "completed" if frames_completed > 0 else "processing"
+
+                    print(f"Progress: {percent:.1f}% ({active_frames}/{total_frames} frames {status}) | "
+                          f"{fps:.2f} fps | ETA: {eta_formatted}")
+                    sys.stdout.flush()
+                    last_update_time = current_time
+
                 if stop_event.is_set():
                     break
                 continue
