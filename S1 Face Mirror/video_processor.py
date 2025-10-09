@@ -47,8 +47,7 @@ class VideoProcessor:
             if progress_queue:
                 progress_queue.put(('started', frame_index))
 
-            # Process frame - note: landmark_detector might not be thread-safe
-            # We'll use a lock to serialize access to it
+            # Process frame
             landmarks, _ = self.landmark_detector.get_face_mesh(frame)
 
             if landmarks is not None:
@@ -110,7 +109,7 @@ class VideoProcessor:
                 elif event_type == 'written':
                     frames_written = frame_index
 
-            except:
+            except Exception:
                 # Queue empty or timeout - continue monitoring
                 if stop_event.is_set():
                     break
