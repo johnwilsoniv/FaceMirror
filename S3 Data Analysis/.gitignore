@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training and analysis logs
+*.log
+retrain_*.log
+training_output.log
+main_output.log
+
+# Temporary cleanup files
+CLEANUP_*.md
+cleanup_*.py
+
+# Keep important logs
+!logs/facial_au_analyzer.log
+!logs/predictive_au_analysis.log
+!logs/predictive_au_analysis_per_action.log
+
+# Data outputs (keep CSV and visualizations)
+# Videos if any
+*.mp4
+*.avi
+*.mov
+*.mkv
