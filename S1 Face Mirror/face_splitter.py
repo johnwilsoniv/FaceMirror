@@ -5,13 +5,14 @@ from video_processor import VideoProcessor
 class StableFaceSplitter:
     """Main class that encapsulates face detection, mirroring, and video processing"""
 
-    def __init__(self, debug_mode=False, device='cpu'):
+    def __init__(self, debug_mode=False, device='cpu', num_threads=6):
         """
         Initialize with OpenFace 3.0 detector
 
         Args:
             debug_mode: Enable debug output
             device: 'cpu' or 'cuda' for GPU acceleration
+            num_threads: Number of threads for parallel frame processing (default: 6)
         """
         # Create OpenFace 3.0 landmark detector
         self.landmark_detector = OpenFace3LandmarkDetector(
@@ -26,7 +27,8 @@ class StableFaceSplitter:
         self.video_processor = VideoProcessor(
             self.landmark_detector,
             self.face_mirror,
-            debug_mode=debug_mode
+            debug_mode=debug_mode,
+            num_threads=num_threads
         )
 
         self.debug_mode = debug_mode

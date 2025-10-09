@@ -89,12 +89,18 @@ For best results:
 
 ## Processing Speed
 
-Typical processing speed: **5-7 frames per second**
+Typical processing speed: **2-4 frames per second** on CPU
 
 Expected processing times:
-- 10 second video (300 frames) = ~1 minute
-- 30 second video (900 frames) = ~3 minutes
-- 60 second video (1800 frames) = ~6 minutes
+- 10 second video (300 frames) = ~1-2 minutes
+- 30 second video (900 frames) = ~4-7 minutes
+- 60 second video (1800 frames) = ~7-15 minutes
+
+The application displays real-time progress updates showing:
+- Percentage complete
+- Frames processed
+- Elapsed time and estimated time remaining
+- Current processing rate (frames/second)
 
 ## Troubleshooting
 
@@ -105,9 +111,10 @@ Run: `pip install openface-test && openface download`
 Run: `openface download` from the "S1 Face Mirror" directory
 
 ### Processing is very slow
-- Normal speed is 5-7 fps on CPU
+- Normal speed is 2-4 fps on CPU
 - For faster processing, you can enable GPU acceleration (requires CUDA-capable graphics card)
 - Close other applications to free up system resources
+- The application uses multi-threading (6 threads by default) for optimal performance
 
 ### No faces detected
 - Ensure adequate lighting
