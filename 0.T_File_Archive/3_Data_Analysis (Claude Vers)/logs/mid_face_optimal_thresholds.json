@@ -1,9 +1,0 @@
-{
-    "complete_confidence": 0.7,
-    "none_probability": 0.4,
-    "partial_probability": 0.4,
-    "upgrade_to_partial": 0.6,
-    "specialist_complete_lower": 0.7,
-    "specialist_complete_upper": 0.9,
-    "specialist_partial_threshold": 0.7
-}

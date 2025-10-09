@@ -1,0 +1,281 @@
+# --- START OF FILE facial_au_constants.py ---
+
+# facial_au_constants.py
+
+"""
+Constants and definitions for facial AU analysis.
+Contains definitions of Action Units (AUs) for different facial actions.
+Includes Mentalis Synkinesis pattern and Hypertonicity constants.
+V1.14 Update: Refined ACTION_TO_AUS for peak frame finding for all actions.
+              Added descriptions for new actions.
+              Removed INCLUDED_ACTIONS dependency (analyzer handles this).
+V1.15 Update: Changed key AU for 'PL' from AU23 to AU17 based on analysis.
+V1.16 Update: Add Brow Cocked constants.
+V1.17 Update: Formalized Brow Cocked within SYNKINESIS_PATTERNS.
+V1.18 Update: Verified EXPERT_KEY_MAPPING for Brow Cocked (User action needed).
+"""
+import logging
+import pandas as pd
+import re
+
+logger = logging.getLogger(__name__)
+
+# --- Standardization Functions (Unchanged) ---
+def standardize_paralysis_label(val):
+    """Standardizes paralysis labels to 'None', 'Partial', 'Complete'."""
+    if val is None or pd.isna(val): return 'None'
+    val_str = str(val).strip().lower()
+    if val_str in ['none', 'no', 'n/a', '0', '0.0', 'normal', '', 'nan']: return 'None'
+    if val_str in ['partial', 'mild', 'moderate', '1', '1.0', 'p', 'incomplete', 'i']: return 'Partial' # Added incomplete/i
+    if val_str in ['complete', 'severe', '2', '2.0', 'c']: return 'Complete'
+    logger.debug(f"Unexpected paralysis label: '{val}'. Defaulting to 'None'.")
+    return 'None'
+
+def standardize_binary_label(val):
+    """Standardizes binary labels (synkinesis, hypertonicity) to 'Yes', 'No'."""
+    if val is None or pd.isna(val): return 'No'
+    if isinstance(val, bool): return 'Yes' if val else 'No'
+    if isinstance(val, (int, float)):
+        if val == 1: return 'Yes'
+        if val == 0: return 'No'
+    val_str = str(val).strip().lower()
+    if val_str in ['yes', 'true', '1', '1.0', 'y']: return 'Yes'
+    if val_str in ['no', 'none', 'false', '0', '0.0', 'n', '', 'nan']: return 'No'
+    logger.debug(f"Unexpected binary label: '{val}'. Defaulting to 'No'.")
+    return 'No'
+# --- End Standardization Functions ---
+
+# --- UPDATED ACTION_TO_AUS for Peak Frame Identification ---
+ACTION_TO_AUS = {
+    'RE': ['AU01_r', 'AU02_r'],  # Raise Eyebrows
+    'ES': ['AU45_r'],            # Close Eyes Softly
+    'ET': ['AU07_r', 'AU45_r'],  # Close Eyes Tightly (Revised)
+    'SS': ['AU12_r'],            # Soft Smile
+    'BS': ['AU12_r', 'AU25_r', 'AU07_r'], # Big Smile (Kept as per instruction, despite alternative logic)
+    'SO': ['AU25_r', 'AU26_r'],  # Say 'O'
+    'SE': ['AU20_r', 'AU25_r'],  # Say 'E' (Revised)
+    'BL': [],                    # Baseline (Uses median frame logic)
+    'FR': ['AU04_r'],            # Frown (New)
+    'BK': ['AU45_r'],            # Blink (New)
+    'WN': ['AU09_r'],            # Wrinkle Nose
+    'PL': ['AU17_r'],            # Pucker Lips (Revised - Using Chin Raiser as better peak proxy)
+    'BC': ['AU23_r'],            # Blow Cheeks (New/Revised - using AU23 as best proxy for tightening)
+    'LT': ['AU16_r'],            # Lower Teeth (New - assumes AU16 available)
+    'Unknown': []                # Default for unknown actions
+}
+
+# --- UPDATED ACTION_DESCRIPTIONS (Added new actions) ---
+ACTION_DESCRIPTIONS = {
+    'RE': 'Raise Eyebrows',
+    'ES': 'Close Eyes Softly',
+    'ET': 'Close Eyes Tightly',
+    'SS': 'Soft Smile',
+    'BS': 'Big Smile',
+    'SO': 'Say O',
+    'SE': 'Say E',
+    'BL': 'Baseline',
+    'FR': 'Frown',             # New
+    'BK': 'Blink',             # New
+    'WN': 'Wrinkle Nose',
+    'PL': 'Pucker Lips',
+    'BC': 'Blow Cheeks',       # New
+    'LT': 'Lower Teeth',       # New
+    'Unknown': 'Unknown Action'
+}
+
+# Define Action Unit names for better readability (Unchanged)
+AU_NAMES = {
+    'AU01_r': 'Inner Brow Raiser', 'AU02_r': 'Outer Brow Raiser', 'AU04_r': 'Brow Lowerer',
+    'AU05_r': 'Upper Lid Raiser', 'AU06_r': 'Cheek Raiser', 'AU07_r': 'Lid Tightener',
+    'AU09_r': 'Nose Wrinkler', 'AU10_r': 'Upper Lip Raiser', 'AU12_r': 'Lip Corner Puller (Smile)',
+    'AU14_r': 'Dimpler', 'AU15_r': 'Lip Corner Depressor', 'AU16_r': 'Lower Lip Depressor', # Added AU16 name
+    'AU17_r': 'Chin Raiser',
+    'AU20_r': 'Lip Stretcher', 'AU23_r': 'Lip Tightener', 'AU25_r': 'Lips Part',
+    'AU26_r': 'Jaw Drop', 'AU45_r': 'Blink',
+    'AU01_c': 'Inner Brow Raiser (binary)', 'AU02_c': 'Outer Brow Raiser (binary)', 'AU04_c': 'Brow Lowerer (binary)',
+    'AU05_c': 'Upper Lid Raiser (binary)', 'AU06_c': 'Cheek Raiser (binary)', 'AU07_c': 'Lid Tightener (binary)',
+    'AU09_c': 'Nose Wrinkler (binary)', 'AU10_c': 'Upper Lip Raiser (binary)', 'AU12_c': 'Lip Corner Puller (binary)',
+    'AU14_c': 'Dimpler (binary)', 'AU15_c': 'Lip Corner Depressor (binary)', 'AU16_c': 'Lower Lip Depressor (binary)',
+    'AU17_c': 'Chin Raiser (binary)',
+    'AU20_c': 'Lip Stretcher (binary)', 'AU23_c': 'Lip Tightener (binary)', 'AU25_c': 'Lips Part (binary)',
+    'AU26_c': 'Jaw Drop (binary)', 'AU28_c': 'Lip Suck (binary)', 'AU45_c': 'Blink (binary)'
+}
+
+# All AU columns to extract for analysis - ensure all potentially relevant AUs are here
+ALL_AU_COLUMNS = [
+    'AU01_r', 'AU02_r', 'AU04_r', 'AU05_r', 'AU06_r', 'AU07_r', 'AU09_r',
+    'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU16_r', 'AU17_r', 'AU20_r', 'AU23_r',
+    'AU25_r', 'AU26_r', 'AU45_r'
+]
+
+# Synkinesis pattern definitions
+SYNKINESIS_PATTERNS = {
+    'Ocular-Oral': {
+        'trigger_aus': ['AU45_r', 'AU01_r', 'AU02_r'], 'coupled_aus': ['AU12_r', 'AU25_r', 'AU14_r'],
+        'description': 'Eye actions cause unwanted mouth movement', 'relevant_actions': ['ET', 'ES', 'RE', 'BK']
+    },
+    'Oral-Ocular': {
+        'trigger_aus': ['AU12_r', 'AU25_r'], 'coupled_aus': ['AU45_r', 'AU06_r'],
+        'description': 'Mouth movement causes unwanted eye narrowing/closure', 'relevant_actions': ['BS', 'SS', 'SO', 'SE', 'PL', 'LT']
+    },
+    'Snarl-Smile': {
+        'trigger_aus': ['AU12_r', 'AU25_r'], 'coupled_aus': ['AU09_r', 'AU10_r', 'AU14_r'],
+        'description': 'Smile causes unwanted nose wrinkling and upper lip raising (snarl)', 'relevant_actions': ['BS', 'SS']
+    },
+    'Mentalis': {
+        'trigger_actions': ['ET', 'ES', 'BS', 'SS', 'SO', 'SE', 'RE', 'PL', 'FR', 'BK', 'WN', 'BC', 'LT'],
+        'indicator_au': 'AU17_r', # This might be better named `coupled_aus`: ['AU17_r'] for consistency
+        'description': 'Other movements cause unwanted chin muscle activation (AU17)',
+        # Let's add trigger/coupled for consistency, even if logic differs slightly internally
+        'trigger_aus': [], # Triggered by actions, not specific AUs in the classic sense
+        'coupled_aus': ['AU17_r'],
+        'relevant_actions': ['ET', 'ES', 'BS', 'SS', 'SO', 'SE', 'RE', 'PL', 'FR', 'BK', 'WN', 'BC', 'LT'],
+    },
+    'Hypertonicity': {
+        'relevant_actions': ['BL'], 'indicator_aus': ['AU04_r','AU06_r', 'AU07_r', 'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r'],
+        'description': 'Excessive muscle tone at rest',
+        'trigger_aus': [], # Not applicable
+        'coupled_aus': [], # Not applicable in the same way
+    },
+    # --- FORMALIZED Brow Cocked Entry ---
+    'Brow Cocked': {
+        # Based on synkinesis_config.py entry
+        'trigger_aus': ['AU07_r'],  # Config lists this as trigger (context for ET)
+        'coupled_aus': ['AU01_r', 'AU02_r'], # Config lists these as coupled/interest AUs
+        'description': 'Asymmetric brow elevation or position',
+        'relevant_actions': ['ET'] # Config lists this as relevant for *check*
+        # Note: Actual features use BL/RE data as well. This definition aligns with config.
+    }
+    # --- END FORMALIZED Entry ---
+}
+
+# Derive synkinesis types from pattern keys
+SYNKINESIS_TYPES = list(SYNKINESIS_PATTERNS.keys())
+logger.debug(f"Derived SYNKINESIS_TYPES: {SYNKINESIS_TYPES}") # Add debug log
+
+# --- Synkinesis thresholds (Unchanged conceptually, but now includes Brow Cocked key) ---
+SYNKINESIS_THRESHOLDS = { st: {} for st in SYNKINESIS_TYPES }
+
+# --- Hypertonicity Constants (Unchanged) ---
+HYPERTONICITY_AUS = ['AU04_r','AU06_r', 'AU07_r', 'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r']
+HYPERTONICITY_THRESHOLDS = { 'baseline_activation_abs': 0.4, 'asymmetry_perc_diff': 70, 'min_aus_affected': 2 }
+
+# --- Severity options (Unchanged) ---
+PARALYSIS_SEVERITY_LEVELS = ['None', 'Partial', 'Complete', 'Error']
+SEVERITY_ABBREVIATIONS = { 'None': 'N', 'Partial': 'I', 'Complete': 'C', 'Error': 'E' }
+SEVERITY_ABBREVIATIONS_CONTRADICTION = { 'None': '(N)', 'Partial': '(I)', 'Complete': '(C)', 'Error': '(E)' }
+
+# --- ML Flags (Unchanged) ---
+USE_ML_FOR_UPPER_FACE = True
+USE_ML_FOR_MIDFACE = True
+USE_ML_FOR_LOWER_FACE = True
+
+# --- Expert Key Mapping (Ensure Brow Cocked is correct - VERIFY IN YOUR CSV) ---
+# !! IMPORTANT !! Verify the actual column names for 'Cocked Left' and 'Cocked Right' in your "FPRS FP Key.csv"
+EXPERT_KEY_MAPPING = {
+    'Left Upper Face Paralysis': 'Paralysis - Left Upper Face', 'Left Mid Face Paralysis': 'Paralysis - Left Mid Face', 'Left Lower Face Paralysis': 'Paralysis - Left Lower Face',
+    'Right Upper Face Paralysis': 'Paralysis - Right Upper Face', 'Right Mid Face Paralysis': 'Paralysis - Right Mid Face', 'Right Lower Face Paralysis': 'Paralysis - Right Lower Face',
+    'Oral-Ocular Left': 'Oral-Ocular Synkinesis Left', 'Oral-Ocular Right': 'Oral-Ocular Synkinesis Right',
+    'Ocular-Oral Left': 'Ocular-Oral Synkinesis Left', 'Ocular-Oral Right': 'Ocular-Oral Synkinesis Right',
+    'Snarl-Smile Left': 'Snarl Smile Left', 'Snarl-Smile Right': 'Snarl Smile Right',
+    'Mentalis Left': 'Mentalis Synkinesis Left', 'Mentalis Right': 'Mentalis Synkinesis Right',
+    'Hypertonicity Left': 'Hypertonicity Left', 'Hypertonicity Right': 'Hypertonicity Right',
+    # --- Brow Cocked Mapping (Check your FPRS FP Key.csv for these column names) ---
+    'Brow Cocked Left': 'Brow Cocked Left', # Based on synkinesis_config.py - VERIFY THIS NAME
+    'Brow Cocked Right': 'Brow Cocked Right', # Based on synkinesis_config.py - VERIFY THIS NAME
+    # --- END Brow Cocked ---
+}
+
+# --- Finding Key Lists (Will now automatically include Brow Cocked based on mapping) ---
+PARALYSIS_FINDINGS_KEYS = [k for k in EXPERT_KEY_MAPPING if 'Paralysis' in k]
+BOOL_FINDINGS_KEYS = [k for k in EXPERT_KEY_MAPPING if 'Paralysis' not in k]
+
+# --- Define facial zones (Unchanged) ---
+FACIAL_ZONES = {
+    'upper': ['AU01_r', 'AU02_r'],
+    'mid': ['AU45_r', 'AU07_r'],
+    'lower': ['AU12_r', 'AU25_r']
+}
+
+# --- Define weights (Unchanged) ---
+FACIAL_ZONE_WEIGHTS = {
+    'upper': {'AU01_r': 0.7, 'AU02_r': 0.3},
+    'mid': {'AU45_r': 0.7, 'AU07_r': 0.3},
+    'lower': {'AU12_r': 0.56, 'AU25_r': 0.44}
+}
+
+# --- Define modifiers (Unchanged) ---
+AU_ZONE_DETECTION_MODIFIERS = {
+    'upper': {
+        'AU01_r': {'asymmetry_weight': 1.2, 'use_normalized': True, 'critical_detection': True},
+        'AU02_r': {'asymmetry_weight': 1.0, 'use_normalized': True}
+    },
+    'mid': {
+        'AU45_r': {'asymmetry_weight': 1.2, 'ignore_above_threshold': 2.0, 'confidence_bonus': 0.1, 'use_normalized': True},
+        'AU07_r': {'asymmetry_weight': 1.0, 'use_normalized': True, 'confidence_bonus': 0.1}
+    },
+    'lower': {
+        'AU12_r': {'asymmetry_weight': 1.3, 'use_normalized': True, 'critical_detection': True},
+        'AU25_r': {'use_normalized': True}
+    }
+}
+
+# --- Define importance (Unchanged) ---
+PARALYSIS_DETECTION_AU_IMPORTANCE = {
+    'upper': {'AU01_r': 1.0, 'AU02_r': 0.8},
+    'mid': {'AU45_r': 1.0, 'AU07_r': 0.8},
+    'lower': {'AU12_r': 1.2, 'AU25_r': 0.9}
+}
+
+# --- Define ZONE_SPECIFIC_ACTIONS (Unchanged) ---
+ZONE_SPECIFIC_ACTIONS = {
+    'upper': ['RE'], #Remove FR
+    'mid': ['ES', 'ET', 'BK'], #Remove WN
+    'lower': ['BS', 'SS', 'SE'] #Remove SO, PL, BC, LT
+}
+
+# --- Define PARALYSIS_THRESHOLDS (Unchanged) ---
+PARALYSIS_THRESHOLDS = {
+    'upper': {'partial': {'asymmetry_ratio': 0.7, 'minimal_movement': 0.6}, 'complete': {'asymmetry_ratio': 0.5, 'minimal_movement': 0.35}},
+    'mid': {'partial': {'asymmetry_ratio': 0.65, 'minimal_movement': 0.8}, 'complete': {'asymmetry_ratio': 0.43, 'minimal_movement': 1.0}},
+    'lower': {'partial': {'asymmetry_ratio': 0.65, 'minimal_movement': 2.0}, 'complete': {'asymmetry_ratio': 0.4, 'minimal_movement': 0.8}}
+}
+
+# --- Define ASYMMETRY_THRESHOLDS (Unchanged) ---
+ASYMMETRY_THRESHOLDS = {
+    'upper': {'partial': {'percent_diff': 55}, 'complete': {'ratio': 0.40}},
+    'mid': {'partial': { 'percent_diff': 40 }, 'complete': { 'ratio': 0.43 }},
+    'lower': {'partial': { 'percent_diff': 55 }, 'complete': { 'ratio': 0.5 }}
+}
+
+# --- Define CONFIDENCE_THRESHOLDS (Unchanged) ---
+CONFIDENCE_THRESHOLDS = {
+    'upper': {'partial': 0.5, 'complete': 0.37},
+    'mid': {'partial': 0.45, 'complete': 0.35},
+    'lower': {'partial': 0.45, 'complete': 0.35}
+}
+
+# --- Define BASELINE_AU_ACTIVATIONS (Unchanged) ---
+BASELINE_AU_ACTIVATIONS = {
+    'AU01_r': 0.1, 'AU02_r': 0.1, 'AU04_r': 0.1, 'AU05_r': 0.2, 'AU06_r': 0.1,
+    'AU07_r': 0.2, 'AU09_r': 0.1, 'AU10_r': 0.15, 'AU12_r': 0.2, 'AU14_r': 0.15,
+    'AU15_r': 0.1, 'AU16_r': 0.1, 'AU17_r': 0.1, 'AU20_r': 0.1, 'AU23_r': 0.1, 'AU25_r': 0.2,
+    'AU26_r': 0.1, 'AU45_r': 0.1
+}
+
+# --- PATIENT_SUMMARY_COLUMNS (Ensure Brow Cocked is included) ---
+PATIENT_SUMMARY_COLUMNS = [
+    'Patient ID',
+    'Left Upper Face Paralysis', 'Left Mid Face Paralysis', 'Left Lower Face Paralysis',
+    'Right Upper Face Paralysis', 'Right Mid Face Paralysis', 'Right Lower Face Paralysis',
+    'Ocular-Oral Left', 'Ocular-Oral Right',
+    'Oral-Ocular Left', 'Oral-Ocular Right',
+    'Snarl-Smile Left', 'Snarl-Smile Right',
+    'Mentalis Left', 'Mentalis Right',
+    'Hypertonicity Left', 'Hypertonicity Right',
+    'Brow Cocked Left', 'Brow Cocked Right', # Already included
+    'Paralysis Detected', 'Synkinesis Detected', 'Hypertonicity Detected',
+]
+
+
+# --- END OF facial_au_constants.py ---
