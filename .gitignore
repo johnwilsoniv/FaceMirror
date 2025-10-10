@@ -18,6 +18,7 @@ output/
 *.csv
 *.txt
 *.log
+logs/
 
 # Output folders
 S1O Processed Files/
