@@ -2,15 +2,8 @@
 
 """
 Visualization module for facial AU analysis.
-Creates visualizations of AU values, paralysis, and synkinesis.
-V1.42 Fix: Resolve UnboundLocalError for min_val_config in helper functions.
-V1.43 Fix: Swap Left/Right color scheme.
-V1.44 Fix: Adjust clinical findings title position. Ensure synkinesis consolidation uses canonical keys.
-V1.45 Fix: Correct synkinesis consolidation logic. Ensure text uses transform=ax.transAxes.
-V1.46: Update panel title, change Hypertonicity label to Bucci, add Brow Cocked display.
-V1.47: Integrate Brow Cocked into main synkinesis table generation loop.
-V1.48: Use updated facial_au_constants (SYNKINESIS_TYPES includes Brow Cocked).
-V1.49: Update text_y_offset to 0.22. Disable paralysis-based bar color change.
+Creates visualizations of AU values and paralysis.
+V1.50: Removed all synkinesis and hypertonicity detection code - paralysis detection only.
 """
 
 import os
@@ -29,11 +22,10 @@ import re # Keep re import as it is used in get_au_region
 import json # For debug printing if needed
 
 try:
-    # Import constants, SYNKINESIS_TYPES should now include Brow Cocked
+    # Import constants for paralysis detection only
     from facial_au_constants import (
         ALL_AU_COLUMNS, AU_NAMES, FACIAL_ZONES,
-        SYNKINESIS_PATTERNS, SYNKINESIS_TYPES, # Now includes Brow Cocked
-        ASYMMETRY_THRESHOLDS, HYPERTONICITY_AUS, EXPERT_KEY_MAPPING,
+        ASYMMETRY_THRESHOLDS, EXPERT_KEY_MAPPING,
         standardize_paralysis_label, standardize_binary_label,
         SEVERITY_ABBREVIATIONS,
         PARALYSIS_FINDINGS_KEYS, BOOL_FINDINGS_KEYS,
@@ -49,13 +41,10 @@ except ImportError as e:
 class FacialAUVisualizer:
 
     def __init__(self):
-        """Initialize the visualizer."""
+        """Initialize the visualizer - paralysis detection only."""
         self.au_names = AU_NAMES
         self.facial_zones = FACIAL_ZONES
-        self.synkinesis_patterns = SYNKINESIS_PATTERNS
-        # Ensure self.synkinesis_types uses the canonical (capitalized) keys from constants
-        self.synkinesis_types = SYNKINESIS_TYPES if isinstance(SYNKINESIS_TYPES, list) else []
-        self.hypertonicity_aus = HYPERTONICITY_AUS
+        # Synkinesis detection removed - paralysis detection only
         self.color_scheme = {
             'left_raw': '#4682B4', 'left_norm': '#B0C4DE',
             'right_raw': '#B22222', 'right_norm': '#FA8072',
@@ -96,81 +85,13 @@ class FacialAUVisualizer:
                 'Left': {'Upper': 'Error', 'Mid': 'Error', 'Lower': 'Error'},
                 'Right': {'Upper': 'Error', 'Mid': 'Error', 'Lower': 'Error'}}
 
-        # Use canonical types from constants (includes Brow Cocked)
-        local_synk_types = self.synkinesis_types  # Already includes Brow Cocked from constants
-        if not local_synk_types:
-            logger.debug(f"SYNKINESIS_TYPES list is empty in visualizer for {patient_id}. Skipping synkinesis section.")
-            local_synk_types = []  # Continue with empty list
-
-        # Initialize consolidated dictionary with canonical keys
-        consolidated_synk = {st: {'Left': False, 'Right': False, 'Conf_L': 0.0, 'Conf_R': 0.0} for st in
-                             local_synk_types}
-
-        hyper_canonical_key = next((st for st in local_synk_types if st.lower() == 'hypertonicity'), None)
-        bc_canonical_key = next((st for st in local_synk_types if st.lower().replace(' ', '_') == 'brow_cocked'), None)
-        patient_level_canonical_keys = [k for k in [hyper_canonical_key, bc_canonical_key] if k]
-
-        # Consolidate Action-Specific Synkinesis Results
-        for action, info in results.items():
-            if action == 'patient_summary' or not isinstance(info, dict): continue
-            if 'synkinesis' in info:
-                synk_res = info.get('synkinesis', {})
-                side_spec = synk_res.get('side_specific', {})
-                conf_spec = synk_res.get('confidence', {})
-
-                if isinstance(side_spec, dict) and isinstance(conf_spec, dict):
-                    for canonical_synk_type, side_data in side_spec.items():
-                        # Only consolidate if it's a known type and NOT patient-level
-                        if canonical_synk_type in consolidated_synk and canonical_synk_type not in patient_level_canonical_keys:
-                            conf_data_for_type = conf_spec.get(canonical_synk_type, {})
-                            # Consolidate detection status
-                            consolidated_synk[canonical_synk_type]['Left'] = consolidated_synk[canonical_synk_type][
-                                                                                 'Left'] or side_data.get('left', False)
-                            consolidated_synk[canonical_synk_type]['Right'] = consolidated_synk[canonical_synk_type][
-                                                                                  'Right'] or side_data.get('right',
-                                                                                                            False)
-                            # Consolidate confidence (take max confidence seen for that side/type)
-                            if side_data.get('left', False):
-                                consolidated_synk[canonical_synk_type]['Conf_L'] = max(
-                                    consolidated_synk[canonical_synk_type]['Conf_L'],
-                                    conf_data_for_type.get('left', 0.0))
-                            if side_data.get('right', False):
-                                consolidated_synk[canonical_synk_type]['Conf_R'] = max(
-                                    consolidated_synk[canonical_synk_type]['Conf_R'],
-                                    conf_data_for_type.get('right', 0.0))
-
-        # Get patient-level results directly from patient_summary using canonical keys
-        patient_summary_dict = results.get('patient_summary', {}) if results else {}
-        if hyper_canonical_key:
-            hyper_info = patient_summary_dict.get(hyper_canonical_key, {})
-            consolidated_synk[hyper_canonical_key]['Left'] = hyper_info.get('left', False)
-            consolidated_synk[hyper_canonical_key]['Right'] = hyper_info.get('right', False)
-            consolidated_synk[hyper_canonical_key]['Conf_L'] = hyper_info.get('conf_left',
-                                                                              0.0)  # Use conf_left/conf_right
-            consolidated_synk[hyper_canonical_key]['Conf_R'] = hyper_info.get('conf_right', 0.0)
-        if bc_canonical_key:
-            bc_info = patient_summary_dict.get(bc_canonical_key, {})
-            consolidated_synk[bc_canonical_key]['Left'] = bc_info.get('left', False)
-            consolidated_synk[bc_canonical_key]['Right'] = bc_info.get('right', False)
-            consolidated_synk[bc_canonical_key]['Conf_L'] = bc_info.get('conf_left', 0.0)
-            consolidated_synk[bc_canonical_key]['Conf_R'] = bc_info.get('conf_right', 0.0)
+        # Synkinesis detection removed - paralysis detection only
 
         paralysis_text_lines = [];
-        synkinesis_text_lines = [];
         p_finding_width = 7;
         p_side_width = 7;
-        s_finding_width = 10;
-        s_side_width = 9;
-        # Abbreviations including Brow Cocked
-        synk_abbr = {
-            'Ocular-Oral': 'OcOr', 'Oral-Ocular': 'OrOc', 'Snarl-Smile': 'SnSm',
-            'Mentalis': 'Ment', 'Hypertonicity': 'Bucci', 'Brow Cocked': 'BrowCk'
-        }
-        if hyper_canonical_key and hyper_canonical_key not in synk_abbr: synk_abbr[
-            hyper_canonical_key] = 'Bucci'  # Ensure canonical maps if different
-        if bc_canonical_key and bc_canonical_key not in synk_abbr: synk_abbr[bc_canonical_key] = 'BrowCk'
 
-        # Paralysis Table (Unchanged logic)
+        # Paralysis Table
         paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'L':<{p_side_width}} {'R':<{p_side_width}}");
         paralysis_text_lines.append("-" * (p_finding_width + p_side_width * 2 + 1))
         for row_label, zone_cap_key in [('Upper', 'Upper'), ('Mid', 'Mid'), ('Lower', 'Lower')]:
@@ -190,43 +111,6 @@ class FacialAUVisualizer:
                 line_parts.append(f"{cell_text:<{p_side_width}}")
             paralysis_text_lines.append(" ".join(line_parts));
         paralysis_summary_text = "\n".join(paralysis_text_lines)
-
-        # Synkinesis/Hypertonicity/BrowCocked Table (Unified Loop)
-        synkinesis_text_lines.append(f"{'Type':<{s_finding_width}} {'L':<{s_side_width}} {'R':<{s_side_width}}")
-        synkinesis_text_lines.append("-" * (s_finding_width + s_side_width * 2 + 1))
-
-        # Iterate through ALL canonical types defined in constants
-        for canonical_synk_type in local_synk_types:
-            type_abbr = synk_abbr.get(canonical_synk_type, canonical_synk_type[:6])  # Get abbreviation or fallback
-            line_parts = [f"{type_abbr:<{s_finding_width}}"]
-
-            # Fetch the consolidated data for this type
-            algo_data = consolidated_synk.get(canonical_synk_type, {})  # Use the dict built earlier
-
-            for side in ['Left', 'Right']:
-                side_lower = side.lower()
-                algo_key = f"{canonical_synk_type} {side}"  # Use canonical type name for contradiction key
-                # Fetch consolidated boolean detection and confidence
-                algo_detected = algo_data.get(side, False)  # Default to False if side key missing
-                algo_conf = algo_data.get(f"Conf_{side[0]}", 0.0)  # Use Conf_L/Conf_R keys
-
-                std_algo = standardize_binary_label(algo_detected)
-                expert_val = contradictions.get(algo_key)
-                has_contradiction = False
-                if expert_val is not None and std_algo != expert_val:
-                    has_contradiction = True
-
-                if algo_detected:
-                    cell_text = f"Y [{algo_conf:.1f}!]" if has_contradiction else f"Y({algo_conf:.1f})"
-                else:
-                    cell_text = "N [!]" if has_contradiction else "N"
-
-                line_parts.append(f"{cell_text:<{s_side_width}}")
-
-            synkinesis_text_lines.append(" ".join(line_parts))
-
-        # Removed the separate Brow Cocked row addition logic
-        synkinesis_summary_text = "\n".join(synkinesis_text_lines)  # Use the generated text
 
         textbox_props = dict(boxstyle='round,pad=0.3', fc=self.color_scheme['textbox_bg'], alpha=0.95,
                              ec=self.color_scheme['textbox_border'])
@@ -250,7 +134,7 @@ class FacialAUVisualizer:
         fig = plt.figure(figsize=(18, 9)); gs = gridspec.GridSpec(2, 2, height_ratios=[6, 1], width_ratios=[1.2, 0.8], wspace=0.25, hspace=0.05)
         ax_raw = fig.add_subplot(gs[:, 0]); ax_img = fig.add_subplot(gs[0, 1]); ax_findings = fig.add_subplot(gs[1, 1])
         fig.patch.set_facecolor(self.color_scheme['background'])
-        all_aus = sorted([au for au in ALL_AU_COLUMNS if au.endswith('_r')]); significant_aus_raw = [au for au in all_aus if (au_values_left.get(au, 0) > 0.05 or au_values_right.get(au, 0) > 0.05 or au in self.hypertonicity_aus)]
+        all_aus = sorted([au for au in ALL_AU_COLUMNS if au.endswith('_r')]); significant_aus_raw = [au for au in all_aus if (au_values_left.get(au, 0) > 0.05 or au_values_right.get(au, 0) > 0.05)]
         significant_aus = sorted(list(set(significant_aus_raw)), key=lambda au: int(re.search(r'\d+', au).group()) if re.search(r'\d+', au) else 99)
         if not significant_aus: logger.warning(f"({patient_id} - BL) No significant baseline AUs. Skipping BL plot."); plt.close(fig); return None
         x = np.arange(len(significant_aus)); width_baseline = 0.38
@@ -263,10 +147,6 @@ class FacialAUVisualizer:
         ax_raw.set_title(f"Raw Baseline AU Values", fontsize=11, fontweight='bold', color=self.color_scheme['text'])
         ax_raw.set_ylabel("Raw Intensity", fontsize=9, color=self.color_scheme['text']); ax_raw.set_xlabel("Action Units", fontsize=9, color=self.color_scheme['text'])
         tick_labels = [f"{au}\n{self.au_names.get(au, '').split('(')[0].strip()}" for au in significant_aus]; ax_raw.set_xticks(x); ax_raw.set_xticklabels(tick_labels, rotation=45, fontsize=8, ha='right', color=self.color_scheme['text'])
-        hyper_indices = [i for i, au in enumerate(significant_aus) if au in self.hypertonicity_aus]
-        for idx in hyper_indices:
-             if 0 <= idx < len(ax_raw.get_xticklabels()): ax_raw.get_xticklabels()[idx].set_bbox(dict(facecolor=self.color_scheme['key_au_highlight'], alpha=0.8, boxstyle='round,pad=0.2'))
-             else: logger.warning(f"Index {idx} out of bounds for xticklabels in BL plot.")
         ax_raw.legend(fontsize=8, loc='upper right'); ax_raw.grid(axis='y', linestyle='--', alpha=0.3, color=self.color_scheme['grid']); ax_raw.set_ylim(bottom=0)
         ax_raw.spines['bottom'].set_color(self.color_scheme['text']); ax_raw.spines['left'].set_color(self.color_scheme['text']); ax_raw.tick_params(axis='x', colors=self.color_scheme['text'], labelsize=8); ax_raw.tick_params(axis='y', colors=self.color_scheme['text'], labelsize=8)
         plt.sca(ax_img)
@@ -429,65 +309,13 @@ class FacialAUVisualizer:
             if paralysis_title_info: title += f" - [Overall: {'; '.join(paralysis_title_info)}]";
             ax.set_title(title, fontsize=14, color=self.color_scheme['text']); ax.set_ylabel(metric_base, color=self.color_scheme['text']); ax.set_xticks(x_coords); ax.set_xticklabels(actions, rotation=45, ha='right', color=self.color_scheme['text']); ax.legend(fontsize=9); ax.grid(axis='y', linestyle='--', alpha=0.7, color=self.color_scheme['grid']); ax.spines['bottom'].set_color(self.color_scheme['text']); ax.spines['left'].set_color(self.color_scheme['text']); ax.tick_params(axis='x', colors=self.color_scheme['text']); ax.tick_params(axis='y', colors=self.color_scheme['text'])
 
-        local_synk_types = self.synkinesis_types; consolidated_synk = {st: {'left': False, 'right': False, 'left_conf': 0.0, 'right_conf': 0.0} for st in local_synk_types}; overall_synk_detected = False
-        # Action-specific consolidation
-        for action, info in results.items():
-             if action == 'patient_summary' or not isinstance(info, dict): continue
-             if 'synkinesis' in info:
-                 synk_res = info['synkinesis']; side_spec = synk_res.get('side_specific', {}); conf_spec = synk_res.get('confidence', {})
-                 if isinstance(side_spec, dict) and isinstance(conf_spec, dict):
-                     for synk_type in local_synk_types:
-                          if synk_type in ['Hypertonicity', 'Brow Cocked']: continue # Skip patient-level here
-                          consolidated_synk[synk_type]['left'] = consolidated_synk[synk_type]['left'] or side_spec.get(synk_type, {}).get('left', False)
-                          if side_spec.get(synk_type, {}).get('left', False): consolidated_synk[synk_type]['left_conf'] = max(consolidated_synk[synk_type]['left_conf'], conf_spec.get(synk_type, {}).get('left', 0.0))
-                          consolidated_synk[synk_type]['right'] = consolidated_synk[synk_type]['right'] or side_spec.get(synk_type, {}).get('right', False)
-                          if side_spec.get(synk_type, {}).get('right', False): consolidated_synk[synk_type]['right_conf'] = max(consolidated_synk[synk_type]['right_conf'], conf_spec.get(synk_type, {}).get('right', 0.0))
-                          if consolidated_synk[synk_type]['left'] or consolidated_synk[synk_type]['right']: overall_synk_detected = True
-        # Get patient-level from summary
-        patient_summary_data = results.get('patient_summary', {}) if results else {}
-        hyper_canonical_key = next((st for st in local_synk_types if st.lower() == 'hypertonicity'), 'hypertonicity')
-        bc_canonical_key = next((st for st in local_synk_types if st.lower().replace(' ','_') == 'brow_cocked'), 'brow_cocked')
-        hyper_info = patient_summary_data.get(hyper_canonical_key, {}) if isinstance(patient_summary_data, dict) else {}
-        bc_info = patient_summary_data.get(bc_canonical_key, {}) if isinstance(patient_summary_data, dict) else {}
-        # Add patient-level results to consolidated dict and update overall flag
-        if hyper_info:
-             consolidated_synk[hyper_canonical_key]['left'] = hyper_info.get('left', False)
-             consolidated_synk[hyper_canonical_key]['right'] = hyper_info.get('right', False)
-             consolidated_synk[hyper_canonical_key]['left_conf'] = hyper_info.get('conf_left', 0.0)
-             consolidated_synk[hyper_canonical_key]['right_conf'] = hyper_info.get('conf_right', 0.0)
-             if hyper_info.get('detected', hyper_info.get('left') or hyper_info.get('right')): overall_synk_detected = True # Use 'detected' flag if present
-        if bc_info:
-             consolidated_synk[bc_canonical_key]['left'] = bc_info.get('left', False)
-             consolidated_synk[bc_canonical_key]['right'] = bc_info.get('right', False)
-             consolidated_synk[bc_canonical_key]['left_conf'] = bc_info.get('conf_left', 0.0)
-             consolidated_synk[bc_canonical_key]['right_conf'] = bc_info.get('conf_right', 0.0)
-             if bc_info.get('left', False) or bc_info.get('right', False): overall_synk_detected = True
-
+        # Synkinesis detection removed - paralysis detection only
         ax_synk = fig.add_subplot(gs[3]); ax_synk.set_facecolor(self.color_scheme['background'])
-        if overall_synk_detected:
-            synk_types_to_plot = [st for st in local_synk_types if consolidated_synk[st]['left'] or consolidated_synk[st]['right']]
-            if synk_types_to_plot:
-                x_coords = np.arange(len(synk_types_to_plot)); width_synk = 0.35; left_conf = [consolidated_synk[s]['left_conf'] for s in synk_types_to_plot]; right_conf = [consolidated_synk[s]['right_conf'] for s in synk_types_to_plot]
-                cmap = self._create_confidence_colormap(); norm = plt.Normalize(vmin=0, vmax=1)
-                bars1 = ax_synk.bar(x_coords - width_synk/2, left_conf, width_synk, label='Left Conf', color=cmap(norm(left_conf)), edgecolor=self.color_scheme['text'], linewidth=0.5); bars2 = ax_synk.bar(x_coords + width_synk/2, right_conf, width_synk, label='Right Conf', color=cmap(norm(right_conf)), edgecolor=self.color_scheme['text'], linewidth=0.5)
-                self._add_bar_labels(ax_synk, bars1); self._add_bar_labels(ax_synk, bars2); ax_synk.set_title("Synkinesis Detection Confidence (Overall)", fontsize=14, color=self.color_scheme['text']); ax_synk.set_ylabel("Confidence", color=self.color_scheme['text']); ax_synk.set_xticks(x_coords); ax_synk.set_xticklabels(synk_types_to_plot, color=self.color_scheme['text'], rotation=15, ha='right'); ax_synk.legend(fontsize=9); ax_synk.set_ylim(0, 1.1); ax_synk.grid(axis='y', linestyle='--', alpha=0.7, color=self.color_scheme['grid']); self._add_confidence_scale(ax_synk); ax_synk.spines['bottom'].set_color(self.color_scheme['text']); ax_synk.spines['left'].set_color(self.color_scheme['text']); ax_synk.tick_params(axis='x', colors=self.color_scheme['text']); ax_synk.tick_params(axis='y', colors=self.color_scheme['text'])
-            else: ax_synk.text(0.5, 0.5, "Synkinesis detected (details unavailable)", ha='center', va='center', fontsize=14, color=self.color_scheme['text']); ax_synk.axis('off')
-        else: ax_synk.text(0.5, 0.5, "No synkinesis detected", ha='center', va='center', fontsize=14, color=self.color_scheme['text']); ax_synk.axis('off')
+        ax_synk.text(0.5, 0.5, "Paralysis Detection Only", ha='center', va='center', fontsize=14, color=self.color_scheme['text']); ax_synk.axis('off')
         summary_text = f"SUMMARY - {patient_id}\n" + "="*(12 + len(patient_id)) + "\nParalysis:\n"
         paralysis_found = any(p not in ['None', 'Error', 'NA'] for side_dict in paralyzed_zones.values() for p in side_dict.values())
         summary_text += "  None Detected\n" if not paralysis_found else ""
         for side in ['left', 'right']: findings = [f"{z.capitalize()}:{s}" for z,s in paralyzed_zones.get(side, {}).items() if s not in ['None', 'Error', 'NA']]; summary_text += f"  {side.capitalize()}: {', '.join(findings) if findings else 'None'}\n"
-        summary_text += "\nSynkinesis:\n"; summary_text += "  None Detected\n" if not overall_synk_detected else ""
-        if overall_synk_detected:
-            synk_lines = []
-            for synk_type in local_synk_types:
-                 info = consolidated_synk[synk_type]; detected_sides = [s.capitalize() for s, detected in info.items() if s in ['left', 'right'] and detected]
-                 if detected_sides: conf_str = ""; conf_l = info.get('left_conf', 0.0); conf_r = info.get('right_conf', 0.0);
-                 if 'Left' in detected_sides and 'Right' in detected_sides: conf_str=f"(L:{conf_l:.2f}, R:{conf_r:.2f})"
-                 elif 'Left' in detected_sides: conf_str=f"(L:{conf_l:.2f})"
-                 elif 'Right' in detected_sides: conf_str=f"(R:{conf_r:.2f})"; synk_lines.append(f"  - {synk_type}: {', '.join(detected_sides)} {conf_str}")
-            if synk_lines: summary_text += "\n".join(synk_lines) + "\n"
-            else: summary_text += "  None Detected (inconsistent?)\n"
         fig.text(0.5, 0.02, summary_text, ha='center', va='bottom', fontsize=9, bbox=dict(boxstyle='round,pad=0.5', fc=self.color_scheme['background'], alpha=0.9, ec=self.color_scheme['grid']), family='monospace', color=self.color_scheme['text'])
         fig.suptitle(f'Facial Symmetry Analysis - {patient_id}', fontsize=16, fontweight='bold', color=self.color_scheme['text'])
         plt.tight_layout(rect=[0, 0.08, 1, 0.96])
@@ -548,67 +376,13 @@ class FacialAUVisualizer:
                 'Left': {'Upper': 'Error', 'Mid': 'Error', 'Lower': 'Error'},
                 'Right': {'Upper': 'Error', 'Mid': 'Error', 'Lower': 'Error'}}
 
-        local_synk_types = self.synkinesis_types;
-        consolidated_synk = {st: {'Left': False, 'Right': False, 'Conf_L': 0.0, 'Conf_R': 0.0} for st in
-                             local_synk_types};
-        overall_synk_detected = False
-        # Find Canonical Keys for Patient-Level Types
-        hyper_canonical_key = next((st for st in local_synk_types if st.lower() == 'hypertonicity'), None)
-        bc_canonical_key = next((st for st in local_synk_types if st.lower().replace(' ', '_') == 'brow_cocked'), None)
-        patient_level_canonical_keys = [k for k in [hyper_canonical_key, bc_canonical_key] if k]
-
-        # Action-specific consolidation
-        for action, info in results.items():
-            if action == 'patient_summary' or not isinstance(info, dict): continue
-            if 'synkinesis' in info:
-                synk_res = info['synkinesis'];
-                side_spec = synk_res.get('side_specific', {});
-                conf_spec = synk_res.get('confidence', {})
-                if isinstance(side_spec, dict) and isinstance(conf_spec, dict):
-                    for canonical_synk_type, side_data in side_spec.items():
-                         # Only consolidate if it's a known type and NOT patient-level
-                        if canonical_synk_type in consolidated_synk and canonical_synk_type not in patient_level_canonical_keys:
-                            conf_data_for_type = conf_spec.get(canonical_synk_type, {})
-                            consolidated_synk[canonical_synk_type]['Left'] = consolidated_synk[canonical_synk_type]['Left'] or side_data.get('left', False)
-                            if side_data.get('left', False): consolidated_synk[canonical_synk_type]['Conf_L'] = max(consolidated_synk[canonical_synk_type]['Conf_L'], conf_data_for_type.get('left', 0.0))
-                            consolidated_synk[canonical_synk_type]['Right'] = consolidated_synk[canonical_synk_type]['Right'] or side_data.get('right', False)
-                            if side_data.get('right', False): consolidated_synk[canonical_synk_type]['Conf_R'] = max(consolidated_synk[canonical_synk_type]['Conf_R'], conf_data_for_type.get('right', 0.0))
-                            if consolidated_synk[canonical_synk_type]['Left'] or consolidated_synk[canonical_synk_type]['Right']: overall_synk_detected = True
-
-        # Get patient-level from summary
-        patient_summary_data = results.get('patient_summary', {}) if results else {}
-        # Add patient-level results to consolidated dict and update overall flag
-        if hyper_canonical_key and isinstance(patient_summary_data, dict):
-            hyper_info = patient_summary_data.get(hyper_canonical_key, {})
-            consolidated_synk[hyper_canonical_key]['Left'] = hyper_info.get('left', False)
-            consolidated_synk[hyper_canonical_key]['Right'] = hyper_info.get('right', False)
-            consolidated_synk[hyper_canonical_key]['Conf_L'] = hyper_info.get('conf_left', 0.0)
-            consolidated_synk[hyper_canonical_key]['Conf_R'] = hyper_info.get('conf_right', 0.0)
-            if hyper_info.get('detected', hyper_info.get('left') or hyper_info.get('right')): overall_synk_detected = True # Use 'detected' flag if present
-        if bc_canonical_key and isinstance(patient_summary_data, dict):
-            brow_cocked_summary = patient_summary_data.get(bc_canonical_key, {})
-            consolidated_synk[bc_canonical_key]['Left'] = brow_cocked_summary.get('left', False)
-            consolidated_synk[bc_canonical_key]['Right'] = brow_cocked_summary.get('right', False)
-            consolidated_synk[bc_canonical_key]['Conf_L'] = brow_cocked_summary.get('conf_left', 0.0)
-            consolidated_synk[bc_canonical_key]['Conf_R'] = brow_cocked_summary.get('conf_right', 0.0)
-            if brow_cocked_summary.get('left', False) or brow_cocked_summary.get('right', False): overall_synk_detected = True
+        # Synkinesis detection removed - paralysis detection only
 
         paralysis_text_lines = [];
-        synkinesis_text_lines = [];
         p_finding_width = 7;
         p_side_width = 7;
-        s_finding_width = 10;
-        s_side_width = 9;
-        # Abbreviations including Brow Cocked
-        synk_abbr = {
-            'Ocular-Oral': 'OcOr', 'Oral-Ocular': 'OrOc', 'Snarl-Smile': 'SnSm',
-            'Mentalis': 'Ment', 'Hypertonicity': 'Bucci', 'Brow Cocked': 'BrowCk'
-        }
-        if hyper_canonical_key and hyper_canonical_key not in synk_abbr: synk_abbr[
-            hyper_canonical_key] = 'Bucci'  # Ensure canonical maps if different
-        if bc_canonical_key and bc_canonical_key not in synk_abbr: synk_abbr[bc_canonical_key] = 'BrowCk'
 
-        # Paralysis Text (Unchanged logic)
+        # Paralysis Text
         paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'L':<{p_side_width}} {'R':<{p_side_width}}")
         paralysis_text_lines.append("-" * (p_finding_width + p_side_width * 2 + 1))
         for row_label, zone_key in [('Upper', 'Upper'), ('Mid', 'Mid'), ('Lower', 'Lower')]:
@@ -629,43 +403,6 @@ class FacialAUVisualizer:
             paralysis_text_lines.append(" ".join(line_parts));
         paralysis_summary_text = "\n".join(paralysis_text_lines)
 
-        # Synkinesis/Hypertonicity/BrowCocked Text (Unified Loop)
-        synkinesis_text_lines.append(f"{'Type':<{s_finding_width}} {'L':<{s_side_width}} {'R':<{s_side_width}}")
-        synkinesis_text_lines.append("-" * (s_finding_width + s_side_width * 2 + 1))
-
-        # Iterate through ALL canonical types defined in constants
-        for canonical_synk_type in local_synk_types:
-            type_abbr = synk_abbr.get(canonical_synk_type, canonical_synk_type[:6])  # Get abbreviation or fallback
-            line_parts = [f"{type_abbr:<{s_finding_width}}"]
-
-            # Fetch the consolidated data for this type (use .get for safety)
-            algo_data = consolidated_synk.get(canonical_synk_type, {})
-
-            for side in ['Left', 'Right']:
-                side_lower = side.lower()
-                algo_key = f"{canonical_synk_type} {side}"  # Use canonical type name for contradiction key
-                # Fetch consolidated boolean detection and confidence
-                algo_detected = algo_data.get(side, False)  # Use .get() for side
-                algo_conf = algo_data.get(f"Conf_{side[0]}", 0.0)  # Use Conf_L/Conf_R keys
-
-                std_algo = standardize_binary_label(algo_detected)
-                expert_val = contradictions.get(algo_key)
-                has_contradiction = False
-                if expert_val is not None and std_algo != expert_val:
-                    has_contradiction = True
-
-                if algo_detected:
-                    cell_text = f"Y [{algo_conf:.1f}!]" if has_contradiction else f"Y({algo_conf:.1f})"
-                else:
-                    cell_text = "N [!]" if has_contradiction else "N"
-
-                line_parts.append(f"{cell_text:<{s_side_width}}")
-
-            synkinesis_text_lines.append(" ".join(line_parts))
-
-        # Removed the separate Brow Cocked row addition logic
-        synkinesis_summary_text = "\n".join(synkinesis_text_lines)
-
         color_primary = self.color_scheme['right_raw'];
         color_secondary = self.color_scheme['left_raw'];
         color_text = self.color_scheme['text'];
@@ -674,10 +411,10 @@ class FacialAUVisualizer:
         color_textbox_bg = self.color_scheme['textbox_bg'];
         color_textbox_border = self.color_scheme['textbox_border'];
         color_header_text = self.color_scheme['header_text']
-        # Use updated Title: Synkinesis/Hypertonicity
+        # Dashboard for paralysis detection only
         html = f"""<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Facial Analysis Dashboard - {patient_id}</title><style>body{{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;margin:0;padding:0;background-color:#f8f9fa;color:{color_text}}} .container{{max-width:1400px;margin:20px auto;background-color:{color_background};padding:25px;border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,0.08)}} h1,h2{{color:{color_secondary};border-bottom:2px solid {color_primary};padding-bottom:10px;margin-top:30px;margin-bottom:15px}} h1{{text-align:center;font-size:2em;color:{color_primary}}} .findings-container {{ display: flex; justify-content: space-around; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }} .findings-box {{ background-color: {color_textbox_bg}; border: 1px solid {color_textbox_border}; border-radius: 4px; padding: 10px; flex: 1; min-width: 250px; }} .findings-box h3 {{ color:{color_header_text}; margin-top:0; margin-bottom:8px; font-size:1.1em; border-bottom: 1px solid #ddd; padding-bottom: 4px; text-align: center;}} pre {{ font-family: monospace; font-size: 0.85em; white-space: pre; margin: 0; line-height: 1.3; }} .plot-container{{text-align:center;margin-bottom:30px;padding:15px;border:1px solid #eee;border-radius:5px;background:#fdfdfd}} .plot-container img{{max-width:98%;height:auto;border:1px solid #ccc;border-radius:4px}} .grid-container{{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px;margin-top:20px}} .grid-item{{background-color:{color_background};padding:15px;border-radius:5px;border:1px solid #eee;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.05)}} .grid-item img{{max-width:100%;height:auto;border:1px solid #ddd;border-radius:4px}} .grid-item h4{{color:{color_text};margin-top:15px;margin-bottom:10px;text-align:center;font-size:1.1em}}</style></head><body><div class="container"><h1>Facial Analysis Dashboard - {patient_id}</h1>
-        <h2>Clinical Findings</h2><div class="findings-container"><div class="findings-box"><h3>Paralysis</h3><pre>{paralysis_summary_text}</pre></div><div class="findings-box"><h3>Synkinesis/Hypertonicity</h3><pre>{synkinesis_summary_text}</pre></div></div>"""  # Updated title here
+        <h2>Clinical Findings</h2><div class="findings-container"><div class="findings-box"><h3>Paralysis</h3><pre>{paralysis_summary_text}</pre></div></div>"""
         if symmetry_plot_path_rel: html += f'<h2>Symmetry Analysis</h2><div class="plot-container"><img src="{symmetry_plot_filename}" alt="Symmetry Plot"></div>'
 
         html += '<h2>Action Visualizations</h2><div class="grid-container">'

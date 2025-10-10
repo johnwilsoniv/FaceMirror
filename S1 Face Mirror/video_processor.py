@@ -12,8 +12,8 @@ warnings.filterwarnings('ignore', message='torch.meshgrid: in an upcoming releas
 
 class VideoProcessor:
     """Handles video file processing with face mirroring"""
-    
-    def __init__(self, landmark_detector, face_mirror, debug_mode=False, num_threads=6):
+
+    def __init__(self, landmark_detector, face_mirror, debug_mode=False, num_threads=6, progress_callback=None):
         """Initialize with references to landmark detector and face mirror
 
         Args:
@@ -21,11 +21,13 @@ class VideoProcessor:
             face_mirror: Face mirroring instance
             debug_mode: Enable debug logging
             num_threads: Number of threads for parallel frame processing (default: 6)
+            progress_callback: Optional callback function for progress updates (stage, current, total, message)
         """
         self.landmark_detector = landmark_detector
         self.face_mirror = face_mirror
         self.debug_mode = debug_mode
         self.num_threads = num_threads
+        self.progress_callback = progress_callback
 
         if debug_mode:
             logging.basicConfig(level=logging.INFO)
@@ -71,10 +73,16 @@ class VideoProcessor:
 
         print(f"\nProcessing video: {input_path.name}")
 
-        # Process video rotation
+        # Process video rotation with progress updates
         print("Checking video rotation...")
+        if self.progress_callback:
+            self.progress_callback('rotation', 0, 100, "Checking video rotation...")
+
         rotated_input_path = output_dir / f"{input_path.stem}_rotated{input_path.suffix}"
         rotated_input_path = process_video_rotation(str(input_path), str(rotated_input_path))
+
+        if self.progress_callback:
+            self.progress_callback('rotation', 100, 100, "Video rotation complete")
 
         # Update output filenames to reflect anatomical sides
         anatomical_right_output = output_dir / f"{input_path.stem}_right_mirrored.mp4"
@@ -108,6 +116,11 @@ class VideoProcessor:
         print(f"\nReading {total_frames} frames into memory...")
         frames = []
         frame_count = 0
+
+        # Send initial progress update
+        if self.progress_callback:
+            self.progress_callback('reading', 0, total_frames, "Reading frames into memory...")
+
         while True:
             ret, frame = cap.read()
             if not ret:
@@ -115,12 +128,25 @@ class VideoProcessor:
             frames.append((frame_count, frame.copy()))
             frame_count += 1
 
+            # Send progress updates periodically
+            if self.progress_callback and frame_count % 10 == 0:
+                self.progress_callback('reading', frame_count, total_frames, "Reading frames into memory...")
+
         cap.release()
         print(f"Read {len(frames)} frames")
+
+        # Send completion update
+        if self.progress_callback:
+            self.progress_callback('reading', len(frames), total_frames, f"Read {len(frames)} frames")
 
         # Process frames with threading and tqdm progress bar
         print(f"\nProcessing frames (using {self.num_threads} threads)...")
         frame_results = {}
+        processed_count = 0
+
+        # Send initial progress update
+        if self.progress_callback:
+            self.progress_callback('processing', 0, len(frames), "Processing frames with face detection...")
 
         with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
             # Submit all frames and wrap futures with tqdm
@@ -134,14 +160,35 @@ class VideoProcessor:
                     idx, right, left, debug = future.result()
                     frame_results[idx] = (right, left, debug)
                     pbar.update(1)
+                    processed_count += 1
+
+                    # Send progress updates with tqdm's rate
+                    if self.progress_callback:
+                        # Get current FPS from tqdm
+                        tqdm_rate = pbar.format_dict.get('rate', 0) or 0
+                        self.progress_callback('processing', processed_count, len(frames), "Processing frames with face detection...", tqdm_rate)
 
         # Write results in order
         print("\nWriting frames to output files...")
-        for write_idx in tqdm(sorted(frame_results.keys()), desc="Writing", unit="frame"):
-            right_face, left_face, debug_frame = frame_results[write_idx]
-            right_writer.write(right_face.astype(np.uint8))
-            left_writer.write(left_face.astype(np.uint8))
-            debug_writer.write(debug_frame)
+        total_write = len(frame_results)
+        write_count = 0
+
+        # Send initial progress update
+        if self.progress_callback:
+            self.progress_callback('writing', 0, total_write, "Writing frames to output files...")
+
+        with tqdm(sorted(frame_results.keys()), desc="Writing", unit="frame") as pbar:
+            for write_idx in pbar:
+                right_face, left_face, debug_frame = frame_results[write_idx]
+                right_writer.write(right_face.astype(np.uint8))
+                left_writer.write(left_face.astype(np.uint8))
+                debug_writer.write(debug_frame)
+                write_count += 1
+
+                # Send progress updates periodically with tqdm's rate
+                if self.progress_callback and write_count % 10 == 0:
+                    tqdm_rate = pbar.format_dict.get('rate', 0) or 0
+                    self.progress_callback('writing', write_count, total_write, "Writing frames to output files...", tqdm_rate)
 
         # Clean up
         print(f"\nProcessing complete: {len(frame_results)} frames processed")

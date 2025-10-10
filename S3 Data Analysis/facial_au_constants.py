@@ -4,14 +4,12 @@
 """
 Constants and definitions for facial AU analysis.
 Contains definitions of Action Units (AUs) for different facial actions.
-Includes Mentalis Synkinesis pattern and Hypertonicity constants.
+Focused on paralysis detection only.
 V1.14 Update: Refined ACTION_TO_AUS for peak frame finding for all actions.
               Added descriptions for new actions.
               Removed INCLUDED_ACTIONS dependency (analyzer handles this).
 V1.15 Update: Changed key AU for 'PL' from AU23 to AU17 based on analysis.
-V1.16 Update: Add Brow Cocked constants.
-V1.17 Update: Formalized Brow Cocked within SYNKINESIS_PATTERNS.
-V1.18 Update: Verified EXPERT_KEY_MAPPING for Brow Cocked (User action needed).
+V1.19 Update: Removed all synkinesis and hypertonicity detection code.
 """
 import logging
 import pandas as pd
@@ -30,7 +28,7 @@ def standardize_paralysis_label(val):
     return 'None'
 
 def standardize_binary_label(val):
-    """Standardizes binary labels (synkinesis, hypertonicity) to 'Yes', 'No'."""
+    """Standardizes binary labels to 'Yes', 'No'."""
     if val is None or pd.isna(val): return 'No'
     if isinstance(val, bool): return 'Yes' if val else 'No'
     if isinstance(val, (int, float)):
@@ -103,54 +101,7 @@ ALL_AU_COLUMNS = [
     'AU25_r', 'AU26_r', 'AU45_r'
 ]
 
-# Synkinesis pattern definitions
-SYNKINESIS_PATTERNS = {
-    'Ocular-Oral': {
-        'trigger_aus': ['AU45_r', 'AU01_r', 'AU02_r'], 'coupled_aus': ['AU12_r', 'AU25_r', 'AU14_r'],
-        'description': 'Eye actions cause unwanted mouth movement', 'relevant_actions': ['ET', 'ES', 'RE', 'BK']
-    },
-    'Oral-Ocular': {
-        'trigger_aus': ['AU12_r', 'AU25_r'], 'coupled_aus': ['AU45_r', 'AU06_r'],
-        'description': 'Mouth movement causes unwanted eye narrowing/closure', 'relevant_actions': ['BS', 'SS', 'SO', 'SE', 'PL', 'LT']
-    },
-    'Snarl-Smile': {
-        'trigger_aus': ['AU12_r', 'AU25_r'], 'coupled_aus': ['AU09_r', 'AU10_r', 'AU14_r'],
-        'description': 'Smile causes unwanted nose wrinkling and upper lip raising (snarl)', 'relevant_actions': ['BS', 'SS']
-    },
-    'Mentalis': {
-        'trigger_actions': ['ET', 'ES', 'BS', 'SS', 'SO', 'SE', 'RE', 'PL', 'FR', 'BK', 'WN', 'BC', 'LT'],
-        'indicator_au': 'AU17_r', # This might be better named `coupled_aus`: ['AU17_r'] for consistency
-        'description': 'Other movements cause unwanted chin muscle activation (AU17)',
-        # Let's add trigger/coupled for consistency, even if logic differs slightly internally
-        'trigger_aus': [], # Triggered by actions, not specific AUs in the classic sense
-        'coupled_aus': ['AU17_r'],
-        'relevant_actions': ['ET', 'ES', 'BS', 'SS', 'SO', 'SE', 'RE', 'PL', 'FR', 'BK', 'WN', 'BC', 'LT'],
-    },
-    'Hypertonicity': {
-        'relevant_actions': ['BL'], 'indicator_aus': ['AU04_r','AU06_r', 'AU07_r', 'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r'],
-        'description': 'Excessive muscle tone at rest',
-        'trigger_aus': [], # Not applicable
-        'coupled_aus': [], # Not applicable in the same way
-    },
-
-    'Brow Cocked': {
-        # Based on synkinesis_config.py entry
-        'trigger_aus': ['AU07_r'],  # Config lists this as trigger (context for ET)
-        'coupled_aus': ['AU01_r', 'AU02_r'], # Config lists these as coupled/interest AUs
-        'description': 'Asymmetric brow elevation or position',
-        'relevant_actions': ['ET'] # Config lists this as relevant for *check*
-        # Note: Actual features use BL/RE data as well. This definition aligns with config.
-    }
-
-}
-
-# Derive synkinesis types from pattern keys
-# Synkinesis detection removed in this version
-SYNKINESIS_TYPES = []  # Placeholder for compatibility
-SYNKINESIS_THRESHOLDS = {}
-
-HYPERTONICITY_AUS = ['AU04_r','AU06_r', 'AU07_r', 'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r']
-HYPERTONICITY_THRESHOLDS = { 'baseline_activation_abs': 0.4, 'asymmetry_perc_diff': 70, 'min_aus_affected': 2 }
+# Synkinesis and hypertonicity detection removed - paralysis detection only
 
 PARALYSIS_SEVERITY_LEVELS = ['None', 'Partial', 'Complete', 'Error']
 SEVERITY_ABBREVIATIONS = { 'None': 'N', 'Partial': 'I', 'Complete': 'C', 'Error': 'E' }
@@ -160,16 +111,14 @@ USE_ML_FOR_UPPER_FACE = True
 USE_ML_FOR_MIDFACE = True
 USE_ML_FOR_LOWER_FACE = True
 
-# Paralysis-only detection: Only paralysis findings are compared with expert key
+# Expert key mapping for paralysis detection only
 EXPERT_KEY_MAPPING = {
-    # Paralysis mappings (only)
     'Left Upper Face Paralysis': 'Paralysis - Left Upper Face',
     'Left Mid Face Paralysis': 'Paralysis - Left Mid Face',
     'Left Lower Face Paralysis': 'Paralysis - Left Lower Face',
     'Right Upper Face Paralysis': 'Paralysis - Right Upper Face',
     'Right Mid Face Paralysis': 'Paralysis - Right Mid Face',
     'Right Lower Face Paralysis': 'Paralysis - Right Lower Face',
-    # Synkinesis mappings removed (not detected in this paralysis-only version)
 }
 
 PARALYSIS_FINDINGS_KEYS = [k for k in EXPERT_KEY_MAPPING if 'Paralysis' in k]
@@ -243,11 +192,5 @@ PATIENT_SUMMARY_COLUMNS = [
     'Patient ID',
     'Left Upper Face Paralysis', 'Left Mid Face Paralysis', 'Left Lower Face Paralysis',
     'Right Upper Face Paralysis', 'Right Mid Face Paralysis', 'Right Lower Face Paralysis',
-    'Ocular-Oral Left', 'Ocular-Oral Right',
-    'Oral-Ocular Left', 'Oral-Ocular Right',
-    'Snarl-Smile Left', 'Snarl-Smile Right',
-    'Mentalis Left', 'Mentalis Right',
-    'Hypertonicity Left', 'Hypertonicity Right',
-    'Brow Cocked Left', 'Brow Cocked Right', # Already included
-    'Paralysis Detected', 'Synkinesis Detected', 'Hypertonicity Detected',
+    'Paralysis Detected',
 ]

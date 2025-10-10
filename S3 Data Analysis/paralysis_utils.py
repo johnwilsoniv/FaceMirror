@@ -39,13 +39,7 @@ except ImportError:
     logger.info(
         "paralysis_config.py not found or required configs missing. Using default PARALYSIS_MAP and empty configs.")
 
-try:
-    from synkinesis_config import CLASS_NAMES as SYNKINESIS_CLASS_NAMES_CONFIG
-
-    SYNKINESIS_MAP = SYNKINESIS_CLASS_NAMES_CONFIG
-except ImportError:
-    SYNKINESIS_MAP = {0: 'None', 1: 'Synkinesis'}
-    logger.info("synkinesis_config.py not found or CLASS_NAMES not defined. Using default SYNKINESIS_MAP.")
+# Synkinesis detection code removed - paralysis detection only
 
 from paralysis_training_helpers import calculate_class_weights_for_model
 
@@ -123,26 +117,7 @@ def standardize_paralysis_labels(val):
     return 'NA'
 
 
-def standardize_synkinesis_labels(val):
-    label_map = SYNKINESIS_MAP
-    positive_label_name = label_map.get(1, 'Synkinesis')
-    negative_label_name = label_map.get(0, 'None')
-
-    if val is None or pd.isna(val): return 'NA'
-    val_str = str(val).strip().lower()
-    if val_str == '' or val_str == 'not assessed': return 'NA'
-
-    for key_num, label_name in label_map.items():
-        if str(key_num) == val_str: return label_name
-
-    if val_str in ['yes', 'true', '1', '1.0', 'y', 't', 'partial', 'mild', 'moderate', 'incomplete', 'i', 'p',
-                   'complete', 'severe', 'c', '2', '2.0']:
-        return positive_label_name
-    if val_str in ['no', 'false', '0', '0.0', 'none', 'normal', 'n', 'f']:
-        return negative_label_name
-
-    if val_str == 'error': return 'Error'
-    return 'NA'
+# standardize_synkinesis_labels function removed - paralysis detection only
 
 def process_binary_target(target_series):
     if target_series is None: return np.array([], dtype=int)

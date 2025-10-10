@@ -6,6 +6,7 @@ from pathlib import Path
 from face_splitter import StableFaceSplitter
 from openface_integration import run_openface_processing
 from multiprocessing import cpu_count
+from progress_window import ProcessingProgressWindow, ProgressUpdate
 
 class OpenFaceOptionsDialog(simpledialog.Dialog):
     """
@@ -53,23 +54,69 @@ def process_single_video(args):
     Must be a top-level function for multiprocessing to work.
 
     Args:
-        args: tuple of (input_path, output_dir, debug_mode)
+        args: tuple of (input_path, output_dir, debug_mode, video_name, video_num, total_videos, progress_window)
 
     Returns:
         dict with processing results
     """
-    input_path, output_dir, debug_mode = args
+    input_path, output_dir, debug_mode, video_name, video_num, total_videos, progress_window = args
+
+    # Create progress callback function
+    def progress_callback(stage, current, total, message, fps=0.0):
+        """Callback to send progress updates to the GUI window"""
+        print(f"[MAIN DEBUG] progress_callback: stage={stage}, {current}/{total}, video={video_num}/{total_videos}, fps={fps:.1f}")
+        if progress_window:
+            try:
+                progress_window.update_progress(ProgressUpdate(
+                    video_name=video_name,
+                    video_num=video_num,
+                    total_videos=total_videos,
+                    stage=stage,
+                    current=current,
+                    total=total,
+                    message=message,
+                    fps=fps
+                ))
+                print(f"[MAIN DEBUG] Progress update sent successfully")
+            except Exception as e:
+                print(f"[MAIN DEBUG] Progress update error: {e}")
+
     try:
-        # Create a new splitter instance for this worker
+        # Create a new splitter instance for this worker with progress callback
         # Each worker gets its own detector to avoid sharing state
-        splitter = StableFaceSplitter(debug_mode=debug_mode)
+        splitter = StableFaceSplitter(debug_mode=debug_mode, progress_callback=progress_callback)
         outputs = splitter.process_video(input_path, output_dir)
+
+        # Send completion update
+        if progress_window:
+            progress_window.update_progress(ProgressUpdate(
+                video_name=video_name,
+                video_num=video_num,
+                total_videos=total_videos,
+                stage='complete',
+                current=1,
+                total=1,
+                message="Video processing complete"
+            ))
+
         return {
             'input': input_path,
             'success': True,
             'outputs': outputs
         }
     except Exception as e:
+        # Send error update
+        if progress_window:
+            progress_window.update_progress(ProgressUpdate(
+                video_name=video_name,
+                video_num=video_num,
+                total_videos=total_videos,
+                stage='error',
+                current=0,
+                total=1,
+                error=str(e)
+            ))
+
         return {
             'input': input_path,
             'success': False,
@@ -99,6 +146,11 @@ def main():
         print(f"Available CPU cores: {cpu_count()}")
         print(f"Each video will use multi-threaded frame processing\n")
 
+        # Create progress window
+        print(f"[MAIN DEBUG] Creating progress window for {len(input_paths)} video(s)")
+        progress_window = ProcessingProgressWindow(total_videos=len(input_paths))
+        print(f"[MAIN DEBUG] Progress window created successfully")
+
         # Process videos sequentially (one at a time)
         # Each video uses multi-threading internally for optimal performance
         results = []
@@ -106,9 +158,17 @@ def main():
             print(f"\n{'='*60}")
             print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
             print(f"{'='*60}")
-            result = process_single_video((input_path, output_dir, debug_mode))
+
+            video_name = Path(input_path).name
+            result = process_single_video((
+                input_path, output_dir, debug_mode,
+                video_name, video_num, len(input_paths), progress_window
+            ))
             results.append(result)
             print(f"\nCompleted {video_num}/{len(input_paths)} videos")
+
+        # Close progress window
+        progress_window.close()
 
         summary = "Processing Results:\n\n"
         for result in results:
