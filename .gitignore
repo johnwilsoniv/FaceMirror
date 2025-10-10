@@ -24,6 +24,10 @@ S1O Processed Files/
 S2O Processed Files/
 S3O Results/
 */output/
+
+# Data folders (patient videos)
+D Facial Paralysis Pts/
+D Normal Pts/
 # Data junk
 haarcascade_frontalface_default.xml
 shape_predictor_68_face_landmarks.dat
