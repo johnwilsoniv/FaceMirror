@@ -7,6 +7,8 @@ from face_splitter import StableFaceSplitter
 from openface_integration import run_openface_processing
 from multiprocessing import cpu_count
 from progress_window import ProcessingProgressWindow, ProgressUpdate
+import gc
+import torch
 
 class OpenFaceOptionsDialog(simpledialog.Dialog):
     """
@@ -99,6 +101,10 @@ def process_single_video(args):
                 message="Video processing complete"
             ))
 
+        # Cleanup detector memory before returning
+        splitter.landmark_detector.cleanup_memory()
+        del splitter
+
         return {
             'input': input_path,
             'success': True,
@@ -166,6 +172,12 @@ def main():
             ))
             results.append(result)
             print(f"\nCompleted {video_num}/{len(input_paths)} videos")
+
+            # Aggressive memory cleanup after each video
+            gc.collect()  # Force garbage collection
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()  # Clear CUDA cache if using GPU
+            print(f"Memory cleanup completed for video {video_num}")
 
         # Close progress window
         progress_window.close()

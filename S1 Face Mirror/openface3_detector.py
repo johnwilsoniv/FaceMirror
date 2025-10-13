@@ -167,6 +167,30 @@ class OpenFace3LandmarkDetector:
         self.perf_landmark_time = []
         self.perf_total_time = []
 
+    def cleanup_memory(self):
+        """
+        Aggressive memory cleanup after processing a video.
+        Clears all accumulated data and performance tracking.
+        """
+        # Clear performance tracking arrays (these grow unbounded)
+        self.perf_detection_time.clear()
+        self.perf_landmark_time.clear()
+        self.perf_total_time.clear()
+
+        # Clear all history buffers
+        self.landmarks_history.clear()
+        self.glabella_history.clear()
+        self.chin_history.clear()
+        self.yaw_history.clear()
+        self.frame_quality_history.clear()
+
+        # Clear PyTorch cache if using GPU
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+        # Reset all tracking state
+        self.reset_tracking_history()
+
     def preprocess_frame(self, frame):
         """
         Enhance frame for better face detection

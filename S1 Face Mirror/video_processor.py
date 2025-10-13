@@ -196,6 +196,12 @@ class VideoProcessor:
         left_writer.release()
         debug_writer.release()
 
+        # Aggressive memory cleanup - clear large data structures
+        frames.clear()
+        frame_results.clear()
+        del frames
+        del frame_results
+
         # Print performance statistics
         self.landmark_detector.print_performance_summary()
 
