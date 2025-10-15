@@ -191,22 +191,32 @@ If the built applications are too large:
 
 ### Creating Release Packages
 
-#### macOS
-Create a `.dmg` file:
-```bash
-# Install create-dmg if needed
-brew install create-dmg
+#### macOS - Easy DMG Creation
 
-# Create DMG for S1
-create-dmg \
-  --volname "Face Mirror" \
-  --window-pos 200 120 \
-  --window-size 800 400 \
-  --icon-size 100 \
-  --app-drop-link 600 185 \
-  "Face-Mirror-v2.0.0.dmg" \
-  "S1 Face Mirror/dist/Face Mirror.app"
+**Option 1: All-in-One (Recommended)**
+Builds apps and creates DMGs in one step:
+```bash
+./build_and_package_macos.sh
 ```
+
+**Option 2: Create DMGs from Already-Built Apps**
+If you've already built the apps:
+```bash
+./create_dmg.sh
+```
+
+This will create user-friendly DMG installers in `DMG_Installers/`:
+- `SplitFace-FaceMirror-v2.0.0.dmg`
+- `SplitFace-ActionCoder-v2.0.0.dmg`
+- `SplitFace-DataAnalysis-v2.0.0.dmg`
+
+**What Users See:**
+When users double-click a DMG file, they see a window with:
+- The application icon
+- An Applications folder shortcut
+- Arrow indicating "drag here to install"
+
+This is the standard macOS installation experience!
 
 #### Windows
 Create a `.zip` archive:

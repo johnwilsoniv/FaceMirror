@@ -36,3 +36,6 @@ shape_predictor_68_face_landmarks.dat
 build/
 dist/
 *.spec.bak
+
+# DMG installers (generated from dist/)
+DMG_Installers/
