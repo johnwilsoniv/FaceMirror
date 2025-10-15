@@ -71,6 +71,11 @@ class VideoProcessor:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Calculate Combined Data directory for source video
+        s1o_base = output_dir.parent
+        combined_data_dir = s1o_base / 'Combined Data'
+        combined_data_dir.mkdir(parents=True, exist_ok=True)
+
         print(f"\nProcessing video: {input_path.name}")
 
         # Process video rotation with progress updates
@@ -78,7 +83,8 @@ class VideoProcessor:
         if self.progress_callback:
             self.progress_callback('rotation', 0, 100, "Checking video rotation...")
 
-        source_input_path = output_dir / f"{input_path.stem}_source{input_path.suffix}"
+        # Save source video directly to Combined Data folder
+        source_input_path = combined_data_dir / f"{input_path.stem}_source{input_path.suffix}"
         source_input_path = process_video_rotation(str(input_path), str(source_input_path))
 
         if self.progress_callback:
@@ -211,8 +217,12 @@ class VideoProcessor:
             output_files.append(str(source_input_path))
 
         print("\nOutput files:")
-        for f in output_files:
-            print(f"- {Path(f).name}")
+        print("  Mirror videos (Face Mirror 1.0 Output):")
+        for f in [str(anatomical_right_output), str(anatomical_left_output), str(debug_output)]:
+            print(f"    - {Path(f).name}")
+        if str(source_input_path) != str(input_path):
+            print("  Source video (Combined Data):")
+            print(f"    - {Path(source_input_path).name}")
         print("")
 
         return output_files

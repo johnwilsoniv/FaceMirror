@@ -16,6 +16,7 @@ import tkinter as tk
 import logging
 import sys
 import os
+import config_paths
 
 # Get the directory where the currently running script (main.py) is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -95,7 +96,9 @@ logging.getLogger('matplotlib').setLevel(logging.INFO)
 
 # Configure specific loggers
 logger = logging.getLogger(__name__) # Logger for this main module
-logger.info("================ STARTING APPLICATION ================")
+logger.info("=" * 60)
+logger.info(f"{config_paths.APP_NAME} v{config_paths.VERSION}")
+logger.info("=" * 60)
 logger.info(f"Root logging level set to: {logging.getLevelName(LOG_LEVEL)}")
 if file_handler: logger.info(f"Logging to file: {log_file_path}")
 
@@ -110,8 +113,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Default output directory
-    output_dir = "../S3O Results"
+    # Default output directory - use config_paths for cross-platform compatibility
+    output_dir = str(config_paths.get_output_base_dir())
 
     # Run in batch mode if specified
     if args.batch:

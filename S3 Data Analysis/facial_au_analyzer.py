@@ -10,6 +10,7 @@ import os
 import re
 import glob
 import json # Added for logging potentially
+import config_paths
 
 # Import project constants and detectors
 from facial_au_constants import (
@@ -27,7 +28,10 @@ logger = logging.getLogger(__name__)
 class FacialAUAnalyzer:
     """Analyzes facial AU data for facial paralysis detection."""
 
-    def __init__(self, output_dir="../S3O Results"):
+    def __init__(self, output_dir=None):
+        # Use config_paths for default output directory
+        if output_dir is None:
+            output_dir = str(config_paths.get_output_base_dir())
         self.left_data = None; self.right_data = None; self.combined_data = None
         self.patient_id = "UnknownPatient"; self.output_dir = output_dir
         self.results = {}; self.frame_paths = {}; self.action_peak_frames = {}

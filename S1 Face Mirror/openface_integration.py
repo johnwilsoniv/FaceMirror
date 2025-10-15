@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
-OpenFace 3.0 Integration for S1 Face Mirror
-
-Processes mirrored videos using OpenFace 3.0 Python API to extract facial action units.
-Outputs CSV files compatible with OpenFace 2.0 format for downstream S2/S3 analysis.
+OpenFace 3.0 integration for AU extraction from mirrored videos.
 """
 
 import os
@@ -35,15 +32,7 @@ from openface3_to_18au_adapter import OpenFace3To18AUAdapter
 
 
 class OpenFace3Processor:
-    """
-    Process videos with OpenFace 3.0 to extract action units
-
-    Uses direct RetinaFace model for face detection (in-memory, no temp files),
-    LandmarkDetector for landmarks, and MultitaskPredictor for AU extraction.
-    Outputs CSV files in OpenFace 2.0-compatible format with 18 AUs.
-
-    Implementation follows official demo2.py approach for maximum performance.
-    """
+    """Video processor for extracting action units using OpenFace 3.0"""
 
     def __init__(self, device=None, weights_dir=None, confidence_threshold=0.5, nms_threshold=0.4, calculate_landmarks=False, num_threads=6):
         """
@@ -295,6 +284,13 @@ class OpenFace3Processor:
                     confidence_threshold=0.5
                 )
                 landmarks_98 = landmarks_98_list[0] if landmarks_98_list is not None and len(landmarks_98_list) > 0 else None
+
+                # Debug: Check if landmarks were extracted
+                if frame_index % 100 == 0:  # Log every 100 frames
+                    if landmarks_98 is not None:
+                        print(f"  [Debug] Frame {frame_index}: Landmarks extracted, shape: {landmarks_98.shape}")
+                    else:
+                        print(f"  [Debug] Frame {frame_index}: No landmarks extracted")
 
             # Extract AUs using multitask model
             emotion_logits, gaze_output, au_output = self.multitask_model.predict(cropped_face)
@@ -592,199 +588,4 @@ def process_videos(directory_path, specific_files=None, output_dir=None):
                 print(f"✗ Error processing {filename}: {e}\n")
 
     print(f"\nProcessing complete. {processed_count} files were processed.")
-    return processed_count
-
-
-def organize_single_video_files(s1o_base_dir, video_basename):
-    """
-    [LEGACY] Organize files for a single processed video
-
-    Note: This function is no longer used in the main workflow as CSV files
-    are now written directly to Combined Data. Kept for backward compatibility.
-
-    Moves specific files from:
-    - "Face Mirror 1.0 Output/" (SOURCE video, not mirrored)
-    - "Combined Data/" (CSV file - if moved to temp location)
-
-    To:
-    - "Combined Data/"
-
-    Args:
-        s1o_base_dir: Base S1O Processed Files directory
-        video_basename: Base name of video file (e.g., "video_left_mirrored")
-
-    Returns:
-        tuple: (bool, bool) Whether video and CSV were moved successfully
-    """
-    s1o_base_dir = Path(s1o_base_dir)
-
-    video_source_dir = s1o_base_dir / 'Face Mirror 1.0 Output'
-    csv_source_dir = s1o_base_dir / 'Combined Data'
-    patient_dest_dir = s1o_base_dir / 'Combined Data'
-
-    # Create destination directory
-    patient_dest_dir.mkdir(parents=True, exist_ok=True)
-
-    video_moved = False
-    csv_moved = False
-
-    # Move SOURCE video (not mirrored video)
-    # Extract base name by removing "_left_mirrored" or "_right_mirrored" suffix
-    if video_basename.endswith('_left_mirrored'):
-        original_base = video_basename.replace('_left_mirrored', '')
-    elif video_basename.endswith('_right_mirrored'):
-        original_base = video_basename.replace('_right_mirrored', '')
-    else:
-        original_base = video_basename
-
-    # Look for source video file
-    source_basename = f"{original_base}_source"
-    if video_source_dir.exists():
-        # Find source video file with this basename (any extension)
-        for video_file in video_source_dir.glob(f"{source_basename}.*"):
-            if video_file.is_file() and 'debug' not in video_file.name:
-                dest_path = patient_dest_dir / video_file.name
-                # Only move if not already moved (this function gets called twice for left + right)
-                if not dest_path.exists():
-                    try:
-                        shutil.move(str(video_file), str(dest_path))
-                        video_moved = True
-                        print(f"  → Organized: {video_file.name}")
-                    except Exception as e:
-                        print(f"  Error moving {video_file.name}: {e}")
-                else:
-                    print(f"  ✓ Already organized: {video_file.name}")
-                    video_moved = True  # Count as success even if already there
-                break
-
-    # Move corresponding CSV file
-    csv_file = csv_source_dir / f"{video_basename}.csv"
-    if csv_file.exists():
-        dest_path = patient_dest_dir / csv_file.name
-        try:
-            shutil.move(str(csv_file), str(dest_path))
-            csv_moved = True
-            print(f"  → Organized: {csv_file.name}")
-        except Exception as e:
-            print(f"  Error moving {csv_file.name}: {e}")
-
-    return video_moved, csv_moved
-
-
-def organize_patient_files(s1o_base_dir):
-    """
-    [LEGACY] Organize processed files into final patient data structure
-
-    Note: This function is no longer used in the main workflow as CSV files
-    are now written directly to Combined Data. Kept for backward compatibility.
-
-    Moves files from:
-    - "Face Mirror 1.0 Output/" (SOURCE videos, not mirrored)
-    - "Combined Data/" (CSV files - if in temp location)
-
-    To:
-    - "Combined Data/" (organized by patient)
-
-    Args:
-        s1o_base_dir: Base S1O Processed Files directory
-
-    Returns:
-        tuple: (int, int) Number of moved video files and CSV files
-    """
-    s1o_base_dir = Path(s1o_base_dir)
-
-    video_source_dir = s1o_base_dir / 'Face Mirror 1.0 Output'
-    csv_source_dir = s1o_base_dir / 'Combined Data'
-    patient_dest_dir = s1o_base_dir / 'Combined Data'
-
-    # Create destination directory
-    patient_dest_dir.mkdir(parents=True, exist_ok=True)
-
-    moved_video_count = 0
-    moved_csv_count = 0
-
-    print("\nOrganizing files into patient data structure...")
-
-    # Move SOURCE videos (not mirrored or debug videos)
-    if video_source_dir.exists():
-        for video_file in video_source_dir.iterdir():
-            if video_file.is_file() and 'source' in video_file.name and 'mirrored' not in video_file.name and 'debug' not in video_file.name:
-                dest_path = patient_dest_dir / video_file.name
-                try:
-                    shutil.move(str(video_file), str(dest_path))
-                    moved_video_count += 1
-                    print(f"  Moved video: {video_file.name}")
-                except Exception as e:
-                    print(f"  Error moving {video_file.name}: {e}")
-
-    # Move CSV files
-    if csv_source_dir.exists():
-        for csv_file in csv_source_dir.iterdir():
-            if csv_file.suffix.lower() == '.csv':
-                dest_path = patient_dest_dir / csv_file.name
-                try:
-                    shutil.move(str(csv_file), str(dest_path))
-                    moved_csv_count += 1
-                    print(f"  Moved CSV: {csv_file.name}")
-                except Exception as e:
-                    print(f"  Error moving {csv_file.name}: {e}")
-
-    print(f"\n✓ Organized {moved_video_count} videos and {moved_csv_count} CSV files")
-    print(f"  Destination: {patient_dest_dir}")
-
-    return moved_video_count, moved_csv_count
-
-
-def move_processed_files(output_dir):
-    """
-    Legacy function maintained for compatibility
-
-    Now calls organize_patient_files() to move files to the new structure.
-
-    Args:
-        output_dir (str): Path to the output directory (Face Mirror 1.0 Output)
-
-    Returns:
-        tuple: (int, int) Number of moved video files and CSV files
-    """
-    output_dir = Path(output_dir)
-
-    # Get S1O base directory
-    s1o_base = output_dir.parent
-
-    # Use new organization function
-    return organize_patient_files(s1o_base)
-
-
-def run_openface_processing(output_dir, move_files=True, specific_files=None):
-    """
-    Main function to run OpenFace 3.0 processing on video files
-
-    Args:
-        output_dir (str): Path to the output directory containing video files
-        move_files (bool): Whether to organize processed files after completion
-        specific_files (list, optional): List of specific files to process.
-                                         If None, all eligible files will be processed.
-
-    Returns:
-        int: Number of processed files
-    """
-    output_dir = Path(output_dir)
-
-    print(f"Looking for video files in: {output_dir}")
-
-    # Check if the output directory exists
-    if not output_dir.is_dir():
-        print(f"Error: Directory '{output_dir}' does not exist.")
-        return 0
-
-    # Process videos in the output directory
-    processed_count = process_videos(output_dir, specific_files)
-
-    # Organize processed files if requested
-    if move_files and processed_count > 0:
-        print("\nOrganizing processed files...")
-        s1o_base = output_dir.parent
-        organize_patient_files(s1o_base)
-
     return processed_count

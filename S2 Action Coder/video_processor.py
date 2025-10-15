@@ -65,6 +65,8 @@ class VideoProcessor:
                 frame = add_text_overlay(frame, action_code, position="bottom-center")
 
             out.write(frame)
+            # Explicitly delete frame to release memory immediately
+            del frame
             frame_index += 1
 
             # Update progress

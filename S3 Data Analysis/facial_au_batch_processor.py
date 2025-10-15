@@ -7,6 +7,8 @@ import pandas as pd
 import logging
 import glob
 import re
+import gc
+import config_paths
 from facial_au_analyzer import FacialAUAnalyzer
 from facial_au_visualizer import FacialAUVisualizer
 from facial_au_constants import (
@@ -22,7 +24,10 @@ logger = logging.getLogger(__name__)
 class FacialAUBatchProcessor:
     """ Process multiple patients' facial AU data in batch mode. """
 
-    def __init__(self, output_dir="../S3O Results"):
+    def __init__(self, output_dir=None):
+        # Use config_paths for default output directory
+        if output_dir is None:
+            output_dir = str(config_paths.get_output_base_dir())
         self.output_dir = output_dir
         self.patients = []
         self.summary_data = None
@@ -262,6 +267,11 @@ class FacialAUBatchProcessor:
                      try: logger.info(f"({patient_id}) Cleaning up frames in finally block..."); analyzer.cleanup_extracted_frames()
                      except Exception as e_cleanup: logger.error(f"({patient_id}) Error during final frame cleanup: {e_cleanup}")
                  del analyzer
+            # Clean up visualizer to prevent matplotlib memory accumulation
+            try:
+                del visualizer
+            except NameError:
+                pass  # visualizer was never created (early exit from try block)
             logger.info(f"--- Finished processing patient {patient_id} ---")
 
 
@@ -300,6 +310,9 @@ class FacialAUBatchProcessor:
                  debug_mode=debug_mode
              )
              if patient_summary: all_patient_summaries.append(patient_summary)
+
+             # Force garbage collection between patients to prevent memory accumulation
+             gc.collect()
 
         if all_patient_summaries:
             logger.info(f"Generating combined summary CSV for {len(all_patient_summaries)} processed patients.")

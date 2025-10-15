@@ -32,3 +32,7 @@ D Normal Pts/
 # Data junk
 haarcascade_frontalface_default.xml
 shape_predictor_68_face_landmarks.dat
+# PyInstaller build artifacts
+build/
+dist/
+*.spec.bak

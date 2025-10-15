@@ -39,9 +39,9 @@ def configure_pydub():
         return # Cannot configure if not available
 
     try:
-        from app_controller import find_ffmpeg_path # Import helper
+        import config_paths
         import shutil
-        ffmpeg_path = find_ffmpeg_path()
+        ffmpeg_path = config_paths.get_ffmpeg_path()
         ffprobe_path = shutil.which("ffprobe")
         if not ffprobe_path and sys.platform == 'darwin' and os.path.exists('/opt/homebrew/bin/ffprobe'): ffprobe_path = '/opt/homebrew/bin/ffprobe'
 

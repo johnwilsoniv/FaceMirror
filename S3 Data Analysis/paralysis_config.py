@@ -3,12 +3,16 @@
 import os
 # from scipy.stats import uniform, randint # Not directly used here for Optuna defaults
 import json  # For export/import
+import config_paths
 
-MODEL_DIR = 'models'
-LOG_DIR = 'logs'
-ANALYSIS_DIR = 'analysis_results'
+# Use config_paths for cross-platform compatibility
+# Models are bundled resources, logs and analysis go to output directory
+MODEL_DIR = str(config_paths.get_models_dir())
+OUTPUT_BASE = str(config_paths.get_output_base_dir())
+LOG_DIR = os.path.join(OUTPUT_BASE, 'logs')
+ANALYSIS_DIR = os.path.join(OUTPUT_BASE, 'analysis_results')
 
-os.makedirs(MODEL_DIR, exist_ok=True)
+# Create writable directories (not MODEL_DIR as it's bundled)
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 

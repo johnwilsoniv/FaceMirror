@@ -4,12 +4,14 @@ import sys
 import os
 import tempfile # For audio snippets
 import subprocess # For ffmpeg
+import gc
 from PyQt5.QtCore import QObject, pyqtSlot, QTimer
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QLabel
 from PyQt5.QtMultimedia import QMediaPlayer
 
 # Import project modules
+import config_paths
 from qt_media_player import QTMediaPlayer
 from gui_component import MainWindow
 from action_tracker import ActionTracker
@@ -22,21 +24,18 @@ from ui_manager import UIManager
 from playback_manager import PlaybackManager
 from processing_manager import ProcessingManager
 from history_manager import HistoryManager
+import native_dialogs
 import copy
 import traceback
-
-# (find_ffmpeg_path unchanged)
-def find_ffmpeg_path():
-    import shutil
-    ffmpeg_path = shutil.which("ffmpeg")
-    if not ffmpeg_path and sys.platform == 'darwin' and os.path.exists('/opt/homebrew/bin/ffmpeg'):
-        ffmpeg_path = '/opt/homebrew/bin/ffmpeg'
-    if not ffmpeg_path: print("WARNING: ffmpeg not found.")
-    return ffmpeg_path
+import time
+import sys
 
 class ApplicationController(QObject):
     def __init__(self, app_instance):
-        # (Initialization unchanged)
+        # Display version information
+        print(f"\n{'='*60}")
+        print(f"{config_paths.APP_NAME} v{config_paths.VERSION}")
+        print(f"{'='*60}\n")
         super().__init__()
         self.app = app_instance
         self.window = None
@@ -45,7 +44,7 @@ class ApplicationController(QObject):
         self.csv_handler = CSVHandler()
         self.batch_processor = BatchProcessor()
         self.timeline_processor = TimelineProcessor(config)
-        self.ffmpeg_path = find_ffmpeg_path()
+        self.ffmpeg_path = config_paths.get_ffmpeg_path()
         self.ui_manager = None
         self.playback_manager = None
         self.processing_manager = None
@@ -65,6 +64,10 @@ class ApplicationController(QObject):
         self.next_timeline_event_index = 0
         self.selected_timeline_range_data = None
         self.current_selected_index = -1
+        # Batch processing tracking
+        self.batch_start_time = None
+        self.failed_files = []  # List of failed file base_ids
+        self.output_directory = None  # Track output directory for completion summary
         if not self._run_startup_sequence():
             if self.window: self.window.close()
             sys.exit(0)
@@ -85,20 +88,111 @@ class ApplicationController(QObject):
                 basename = os.path.basename(f)
                 if any(suffix.lower() in basename.lower() for suffix in processed_suffixes): rejected_files.append(basename)
                 else: valid_files.append(f)
-            if rejected_files: QMessageBox.warning(None, "Invalid Input Files", "Excluded potentially processed files:\n" + "\n".join(rejected_files))
-            if not valid_files and not selected_dir: QMessageBox.warning(None, "No Valid Files", "No valid video files selected or directory chosen."); return False
+            if rejected_files: native_dialogs.show_warning("Invalid Input Files", "Excluded potentially processed files:\n" + "\n".join(rejected_files))
+            if not valid_files and not selected_dir: native_dialogs.show_warning("No Valid Files", "No valid video files selected or directory chosen."); return False
             selected_files = valid_files; file_sets = []
             if not selected_files:
                  if selected_dir: file_sets=self.batch_processor.find_matching_files(selected_dir)
-                 if not file_sets: QMessageBox.warning(None,"No Valid Files",f"No valid Video/CSV sets found in {selected_dir or 'selection'}."); return False
+                 if not file_sets: native_dialogs.show_warning("No Valid Files", f"No valid Video/CSV sets found in {selected_dir or 'selection'}."); return False
             else:
-                search_dir=os.path.dirname(selected_files[0]); file_sets=self.batch_processor.find_matching_files_for_videos(selected_files, search_dir)
-                if not file_sets: QMessageBox.warning(None,"No Matches","Could not find matching CSVs for the selected valid videos."); return False
+                # Determine search directory for CSVs
+                video_dir = os.path.dirname(selected_files[0])
+                search_dir = video_dir
+
+                # Check if videos are in "Face Mirror 1.0 Output" - if so, look for CSVs in sibling "Combined Data"
+                if os.path.basename(video_dir) == "Face Mirror 1.0 Output":
+                    parent_dir = os.path.dirname(video_dir)
+                    combined_data_dir = os.path.join(parent_dir, "Combined Data")
+                    if os.path.isdir(combined_data_dir):
+                        search_dir = combined_data_dir
+                        print(f"S1 integration: Videos in 'Face Mirror 1.0 Output', searching for CSVs in 'Combined Data'")
+
+                file_sets=self.batch_processor.find_matching_files_for_videos(selected_files, search_dir)
+                if not file_sets: native_dialogs.show_warning("No Matches", f"Could not find matching CSVs for the selected videos.\nSearched in: {search_dir}"); return False
+
+            # Check for existing outputs before proceeding
+            # Calculate output directory (same logic as in _initiate_save)
+            # Track whether user already confirmed via output detection dialog
+            user_already_confirmed = False
+            if file_sets:
+                first_video = file_sets[0].get('video')
+                if first_video:
+                    current_video_dir = os.path.dirname(first_video)
+                    batch_parent_dir = os.path.dirname(current_video_dir)
+                    if not batch_parent_dir or batch_parent_dir == current_video_dir:
+                        batch_parent_dir = current_video_dir
+                    # Always use standard output location from config_paths
+                    output_dir = str(config_paths.get_output_base_dir())
+
+                    # Check for existing outputs
+                    output_check = self.batch_processor.check_existing_outputs(file_sets, output_dir)
+
+                    if output_check['processed_count'] > 0:
+                        # Some files are already processed, show 3-option dialog
+                        total = len(file_sets)
+                        processed_count = output_check['processed_count']
+                        unprocessed_count = output_check['unprocessed_count']
+
+                        dialog_msg = f"Found {total} file sets:\n• {processed_count} already processed\n• {unprocessed_count} not yet processed\n\nWhat would you like to do?"
+
+                        user_choice = native_dialogs.ask_three_choice(
+                            "Existing Outputs Detected",
+                            dialog_msg,
+                            "Process All",
+                            "Skip Processed",
+                            "Cancel",
+                            default_button=2  # Default to "Skip Processed"
+                        )
+
+                        if user_choice == 1:
+                            # Process All - keep all file_sets
+                            print(f"User chose: Process All ({total} files)")
+                            user_already_confirmed = True
+                        elif user_choice == 2:
+                            # Skip Processed - keep only unprocessed
+                            file_sets = output_check['unprocessed']
+                            print(f"User chose: Skip Processed ({len(file_sets)} files)")
+                            user_already_confirmed = True
+                            if not file_sets:
+                                native_dialogs.show_info("Nothing to Process", "All files have already been processed.")
+                                return False
+                        else:
+                            # Cancel or None
+                            print("User cancelled at existing outputs dialog")
+                            return False
+
             self.batch_processor.set_file_sets(file_sets)
         else: return False
-        file_list_str="\n".join([f"- {os.path.basename(fs['video'])}" for fs in self.batch_processor.file_sets]); confirm_msg=f"Found {len(self.batch_processor.file_sets)} valid sets:\n{file_list_str}\n\nProceed?"
-        reply=QMessageBox.question(None,"Confirm Files",confirm_msg,QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if reply==QMessageBox.No: return False
+
+        # Only show confirmation dialog if user hasn't already confirmed via output detection dialog
+        if not user_already_confirmed:
+            # Build file list for confirmation (limit to first 10 for large batches)
+            total_files = len(self.batch_processor.file_sets)
+            if total_files <= 10:
+                # Show all files
+                file_list_str = "\n".join([f"- {os.path.basename(fs['video'])}" for fs in self.batch_processor.file_sets])
+            else:
+                # Show first 10 + count of remaining
+                first_10 = "\n".join([f"- {os.path.basename(fs['video'])}" for fs in self.batch_processor.file_sets[:10]])
+                remaining = total_files - 10
+                file_list_str = f"{first_10}\n...and {remaining} more"
+
+            confirm_msg = f"Found {total_files} valid sets:\n{file_list_str}\n\nProceed?"
+            print(f"DEBUG: About to show confirmation dialog for {total_files} files")
+            try:
+                user_response = native_dialogs.ask_yes_no("Confirm Files", confirm_msg, default_yes=True)
+                print(f"DEBUG: User response to confirmation: {user_response}")
+                if not user_response:
+                    print("DEBUG: User declined confirmation, returning False")
+                    return False
+            except Exception as e:
+                print(f"ERROR: Native dialog failed: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
+        else:
+            print(f"DEBUG: Skipping redundant confirmation dialog (user already confirmed via output detection)")
+
         self.window=MainWindow(); return True
     def _initialize_managers(self): # (Unchanged)
         if not self.window: raise RuntimeError("Cannot initialize managers without a MainWindow.")
@@ -208,6 +302,9 @@ class ApplicationController(QObject):
         else:
              self.ui_manager.update_frame_info(0, props.get('total_frames', 0)); print(f"Controller: File set loaded. Starting Whisper processing."); self.processing_manager.start_whisper_processing(video_path); return True
     def load_first_file(self): # (Unchanged)
+        # Start timing batch processing
+        self.batch_start_time = time.time()
+        self.failed_files = []  # Reset failed files list
         file_set=self.batch_processor.load_first_file(); self.load_batch_file_set(file_set) if file_set else self.ui_manager.show_message_box("warning", "No Files", "No files in batch.")
     def load_next_file(self): # (Unchanged)
         file_set=self.batch_processor.load_next_file(); self.load_batch_file_set(file_set) if file_set else None
@@ -498,8 +595,7 @@ class ApplicationController(QObject):
     @pyqtSlot()
     def _handle_clear_manual_annotations(self): # (Unchanged)
          print("DEBUG: _handle_clear_manual_annotations called.") # DEBUG
-         reply = QMessageBox.question(self.window, "Confirm Clear", "Are you sure you want to remove ALL annotations for this file?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-         if reply == QMessageBox.Yes:
+         if native_dialogs.ask_yes_no("Confirm Clear", "Are you sure you want to remove ALL annotations for this file?", default_yes=False):
              if not self.action_tracker.action_ranges:
                  print("Controller: Clear All requested, but no annotations to clear.")
                  return
@@ -841,34 +937,40 @@ class ApplicationController(QObject):
         if self.processing_manager.whisper_thread and self.processing_manager.whisper_thread.isRunning():
              if self.ui_manager: self.ui_manager.show_message_box("warning", "Busy", "Whisper processing is still running. Please wait or cancel."); return
         if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment:
-             reply = QMessageBox.question(self.window, "Resolve Prompt?", "A confirmation or near miss assignment is pending.\nDiscard the prompt to continue saving?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-             if reply == QMessageBox.Yes:
+             if native_dialogs.ask_yes_no("Resolve Prompt?", "A confirmation or near miss assignment is pending.\nDiscard the prompt to continue saving?", default_yes=False):
                  print("Controller: Discarding active prompt to allow saving.")
                  if self.waiting_for_confirmation: self._handle_discard_confirmation_prompt()
                  elif self.waiting_for_near_miss_assignment: self._handle_discard_near_miss_prompt()
                  if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment: print("Controller ERROR: Failed to clear prompt state before saving."); self.ui_manager.show_message_box("warning", "Save Error", "Failed to clear pending prompt. Cannot save yet."); return
-             else: self.ui_manager.show_message_box("info", "Save Cancelled", "Save cancelled. Please resolve the prompt first."); return
+             else:
+                 native_dialogs.show_info("Save Cancelled", "Save cancelled. Please resolve the prompt first.")
+                 return
         placeholders_exist = any(r.get('action') in ['TBC', 'NM'] or r.get('status') == 'confirm_needed' for r in self.action_tracker.action_ranges)
         if placeholders_exist:
-            reply = QMessageBox.question(self.window, "Unresolved Ranges", "There are unassigned ('??') or unconfirmed ('CODE?') ranges.\nThese will be saved as '' (blank).\n\nDo you want to continue saving?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No: return
+            if not native_dialogs.ask_yes_no("Unresolved Ranges", "There are unassigned ('??') or unconfirmed ('CODE?') ranges.\nThese will be saved as '' (blank).\n\nDo you want to continue saving?", default_yes=False):
+                return
         self.playback_manager.pause(); last_frame = self.playback_manager.total_frames - 1 if self.playback_manager.total_frames > 0 else 0
         print(f"Controller: Validating tracker for save (up to F{last_frame})..."); self.action_tracker.set_frame(last_frame); self.action_tracker.validate_ranges(drag_info=None)
         actions_dict, num_frames_in_dict = self.action_tracker.get_all_actions_for_export()
         print(f"Controller: Exporting {len(actions_dict)} action entries for {num_frames_in_dict} frames (after filtering placeholders).")
         actual_actions_count = sum(1 for action in actions_dict.values() if action not in ["", "BL"]) # Check for non-blank, non-BL
         if actual_actions_count == 0 and num_frames_in_dict > 0:
-            reply = QMessageBox.question(self.window, "No Actions Coded", f"Only blank or 'BL' recorded for {num_frames_in_dict} frames (excluding placeholders).\nSave blank/BL-only files?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No: return
+            if not native_dialogs.ask_yes_no("No Actions Coded", f"Only blank or 'BL' recorded for {num_frames_in_dict} frames (excluding placeholders).\nSave blank/BL-only files?", default_yes=False):
+                return
         elif num_frames_in_dict == 0:
-             reply = QMessageBox.question(self.window, "No Data", "No frames found in export data (after filtering placeholders).\nAttempt save empty/blank files anyway?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-             if reply == QMessageBox.No: return
+             if not native_dialogs.ask_yes_no("No Data", "No frames found in export data (after filtering placeholders).\nAttempt save empty/blank files anyway?", default_yes=False):
+                 return
         try:
             video_path = active_file_set.get('video'); csv1_path = active_file_set.get('csv1'); csv2_path = active_file_set.get('csv2')
             if not video_path or not csv1_path : raise ValueError("Missing video or primary CSV path in active_file_set.")
             current_video_dir = os.path.dirname(video_path); batch_parent_dir = os.path.dirname(current_video_dir)
             if not batch_parent_dir or batch_parent_dir == current_video_dir: batch_parent_dir = current_video_dir
-            output_folder_name = "S2O Coded Files"; output_dir = os.path.join(batch_parent_dir, output_folder_name); os.makedirs(output_dir, exist_ok=True)
+            # Always use standard output location from config_paths
+            output_dir = str(config_paths.get_output_base_dir())
+            os.makedirs(output_dir, exist_ok=True)
+            print(f"Controller: Output directory set to: {output_dir}")
+            # Store output directory for completion summary
+            self.output_directory = output_dir
             video_bn = os.path.splitext(os.path.basename(video_path))[0]; csv1_bn = os.path.splitext(os.path.basename(csv1_path))[0]
             out_csv = os.path.join(output_dir, f"{csv1_bn}_coded.csv"); out_vid = os.path.join(output_dir, f"{video_bn}_coded.mp4"); out_csv2 = None
             if csv2_path: csv2_bn = os.path.splitext(os.path.basename(csv2_path))[0]; out_csv2 = os.path.join(output_dir, f"{csv2_bn}_coded.csv")
@@ -878,14 +980,95 @@ class ApplicationController(QObject):
         if self.ui_manager: self.ui_manager.show_progress_bar(True)
         self.processing_manager.start_save_processing( video_path, self.action_tracker, self.csv_handler, actions_dict, out_csv, out_vid, out_csv2 )
     @pyqtSlot(bool)
-    def _handle_save_complete(self, success): # (Unchanged)
+    def _handle_save_complete(self, success): # (Modified for comprehensive completion summary)
         if self.ui_manager: self.ui_manager.show_progress_bar(False)
+
+        # Track failed files
         if not success:
-            reply = QMessageBox.warning(self.window, "Save Error", "Error saving file (check console/logs for details).\n\nContinue processing the next file?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if reply == QMessageBox.No:
-                print("Controller: Batch stopped by user after save error."); self.ui_manager.show_message_box("info", "Batch Stopped", "Batch processing stopped by user."); self.ui_manager.set_batch_navigation(False, self.batch_processor.get_current_index(), self.batch_processor.get_total_files()); return
-        if self.batch_processor.has_next_file(): print("Controller: Save complete (or user chose to continue), loading next file..."); QTimer.singleShot(100, self.load_next_file)
-        else: print("Controller: Save complete. Batch finished."); self.ui_manager.show_batch_complete_message(); self.ui_manager.set_batch_navigation(False, self.batch_processor.get_current_index(), self.batch_processor.get_total_files())
+            current_file_set = self.current_file_set
+            if current_file_set:
+                base_id = current_file_set.get('base_id', 'Unknown')
+                self.failed_files.append(base_id)
+
+            if not native_dialogs.ask_yes_no("Save Error", "Error saving file (check console/logs for details).\n\nContinue processing the next file?", default_yes=True):
+                print("Controller: Batch stopped by user after save error.")
+                # Show early exit summary
+                self._show_batch_completion_summary(incomplete=True)
+                return
+
+        if self.batch_processor.has_next_file():
+            print("Controller: Save complete (or user chose to continue), loading next file...")
+            # Force garbage collection between files to prevent memory accumulation
+            gc.collect()
+            QTimer.singleShot(100, self.load_next_file)
+        else:
+            print("Controller: Save complete. Batch finished.")
+            # Show comprehensive completion summary and exit
+            self._show_batch_completion_summary(incomplete=False)
+
+    def _show_batch_completion_summary(self, incomplete=False):
+        """
+        Show comprehensive batch processing completion summary with native dialog.
+        Exits the application after user acknowledges the summary.
+
+        Args:
+            incomplete: True if batch was stopped early, False if completed normally
+        """
+        # Calculate processing time
+        if self.batch_start_time:
+            total_seconds = time.time() - self.batch_start_time
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            seconds = int(total_seconds % 60)
+            if hours > 0:
+                time_str = f"{hours}h {minutes}m {seconds}s"
+            elif minutes > 0:
+                time_str = f"{minutes}m {seconds}s"
+            else:
+                time_str = f"{seconds}s"
+        else:
+            time_str = "Unknown"
+
+        # Calculate statistics
+        total_files = self.batch_processor.get_total_files()
+        current_index = self.batch_processor.get_current_index()
+        processed_count = current_index + 1  # Index is 0-based
+        failed_count = len(self.failed_files)
+        successful_count = processed_count - failed_count
+
+        # Build summary message
+        if incomplete:
+            summary = f"Batch Processing Stopped\n\n"
+        else:
+            summary = f"Batch Processing Complete!\n\n"
+
+        summary += f"Files processed: {processed_count} of {total_files}\n"
+        summary += f"  • Successful: {successful_count}\n"
+        if failed_count > 0:
+            summary += f"  • Failed: {failed_count}\n"
+            # List failed files
+            summary += f"\nFailed files:\n"
+            for failed_id in self.failed_files[:5]:  # Show first 5
+                summary += f"  • {failed_id}\n"
+            if len(self.failed_files) > 5:
+                summary += f"  ... and {len(self.failed_files) - 5} more\n"
+
+        summary += f"\nProcessing time: {time_str}\n"
+
+        if self.output_directory:
+            summary += f"\nOutput location:\n{self.output_directory}"
+
+        # Show native dialog
+        if incomplete:
+            native_dialogs.show_warning("Processing Stopped", summary)
+        else:
+            native_dialogs.show_info("Processing Complete", summary)
+
+        # Disable UI and exit application
+        self.ui_manager.set_batch_navigation(False, current_index, total_files)
+        print("Controller: Exiting application after batch completion")
+        QTimer.singleShot(100, lambda: self.app.quit())
+
     def cleanup_on_exit(self): # (Unchanged)
         print("Controller: Cleanup on exit..."); self._cleanup_active_snippet()
         if self.processing_manager: self.processing_manager.cleanup_on_exit()

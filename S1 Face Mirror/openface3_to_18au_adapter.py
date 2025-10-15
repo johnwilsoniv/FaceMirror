@@ -113,13 +113,19 @@ class OpenFace3To18AUAdapter:
         # Calculate AU45 from landmarks if available
         if landmarks_98 is not None:
             try:
-                au45_value = self.au45_calculator.calculate_au45_from_landmarks(landmarks_98)
+                # Debug first 5 frames to see what's happening
+                debug_mode = frame_num is not None and frame_num < 5
+                au45_value = self.au45_calculator.calculate_au45_from_landmarks(landmarks_98, debug=debug_mode)
                 adapted_aus['AU45_r'] = au45_value
+                if debug_mode:
+                    print(f"  [Frame {frame_num}] AU45 final value: {au45_value}")
             except Exception as e:
                 if frame_num is not None:
                     print(f"Warning: AU45 calculation failed for frame {frame_num}: {e}")
                 adapted_aus['AU45_r'] = np.nan
         else:
+            if frame_num is not None and frame_num < 5:
+                print(f"  [Frame {frame_num}] No landmarks provided for AU45 calculation")
             adapted_aus['AU45_r'] = np.nan
 
         # Fill in missing AUs with NaN (including AU07)

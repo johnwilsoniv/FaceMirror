@@ -1,25 +1,28 @@
 """
-S1 Face Mirror - Main Entry Point
-Version 2.0 - Multi-Mode Processing
-
-Provides three processing workflows:
-1. Mirror + OpenFace: Complete pipeline (rotate, split, mirror, AU extraction)
-2. Mirror Only: Video processing without AU extraction
-3. OpenFace Only: Batch process existing mirrored videos for AU analysis
+S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog
 from pathlib import Path
+import native_dialogs
 from multiprocessing import cpu_count
 import gc
 import torch
+import psutil
+import time
 
-# Import workflow components
-from mode_selection_window import show_mode_selection
+# Import configuration and workflow components
+import config_paths
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor
-from progress_window import ProcessingProgressWindow, ProgressUpdate, OpenFaceProgressWindow, OpenFacePatientUpdate
+from progress_window import ProcessingProgressWindow, ProgressUpdate
+
+
+# Configuration Constants
+NUM_THREADS = 6  # Thread count for parallel processing
+MEMORY_CHECKPOINT_INTERVAL = 10  # Deep cleanup every N videos
+PROGRESS_UPDATE_INTERVAL = 50  # Terminal progress update every N frames
 
 
 def auto_detect_device():
@@ -61,9 +64,9 @@ def check_existing_outputs(input_path, output_dir, openface_output_dir=None):
     base_name = input_file.stem
     output_dir = Path(output_dir)
 
-    # Check for mirror outputs (source, left, right)
+    # Check for mirror outputs in Face Mirror 1.0 Output (left, right)
     mirror_files_exist = True
-    for suffix in ['_source', '_left_mirrored', '_right_mirrored']:
+    for suffix in ['_left_mirrored', '_right_mirrored']:
         found = False
         for ext in ['.mp4', '.avi', '.mov', '.mkv']:
             if (output_dir / f"{base_name}{suffix}{ext}").exists():
@@ -72,6 +75,17 @@ def check_existing_outputs(input_path, output_dir, openface_output_dir=None):
         if not found:
             mirror_files_exist = False
             break
+
+    # Check for source video in Combined Data (if openface_output_dir provided)
+    if mirror_files_exist and openface_output_dir:
+        openface_output_dir_path = Path(openface_output_dir)
+        source_found = False
+        for ext in ['.mp4', '.avi', '.mov', '.mkv', '.MOV', '.MP4']:
+            if (openface_output_dir_path / f"{base_name}_source{ext}").exists():
+                source_found = True
+                break
+        if not source_found:
+            mirror_files_exist = False
 
     # Check for OpenFace CSV outputs if directory provided
     openface_files_exist = False
@@ -87,15 +101,14 @@ def check_existing_outputs(input_path, output_dir, openface_output_dir=None):
     }
 
 
-def filter_existing_outputs(input_paths, output_dir, openface_output_dir=None, mode_name=""):
+def filter_existing_outputs(input_paths, output_dir, openface_output_dir=None):
     """
     Check which input files have existing outputs and prompt user.
 
     Args:
         input_paths: List of input video paths
         output_dir: Path to Face Mirror 1.0 Output directory
-        openface_output_dir: Path to Combined Data directory (optional, for mode 1)
-        mode_name: Name of the mode (for display purposes)
+        openface_output_dir: Path to Combined Data directory (optional)
 
     Returns:
         List of input paths to process (filtered based on user choice)
@@ -124,127 +137,56 @@ def filter_existing_outputs(input_paths, output_dir, openface_output_dir=None, m
     if not files_with_outputs:
         return list(input_paths)
 
-    # Show dialog asking user what to do
+    # Build consolidated message with all info and options
     if files_without_outputs:
         # Some files have outputs, some don't
         message = (
-            f"Found existing outputs for {len(files_with_outputs)} of {len(input_paths)} selected files.\n\n"
-            f"Files with existing outputs:\n"
+            f"Found {len(files_with_outputs)} of {len(input_paths)} file(s) "
+            f"already processed.\n\n"
+            f"Files already processed:\n"
         )
         for f in files_with_outputs[:3]:
             message += f"  • {Path(f).name}\n"
         if len(files_with_outputs) > 3:
             message += f"  ... and {len(files_with_outputs) - 3} more\n"
 
-        message += f"\n\nHow would you like to proceed?"
+        message += f"\nWhat would you like to do?"
+
+        result = native_dialogs.ask_three_choice(
+            "Existing Outputs Detected",
+            message,
+            f"Re-run All ({len(input_paths)})",
+            f"Process Unprocessed ({len(files_without_outputs)})",
+            "Cancel",
+            default_button=2
+        )
+
+        if result == 1:  # Re-run all
+            return list(input_paths)
+        elif result == 2:  # Process unprocessed
+            return files_without_outputs
+        else:  # Cancel or None
+            return []
     else:
         # All files have outputs
         message = (
-            f"All {len(input_paths)} selected files already have existing outputs.\n\n"
-            f"Would you like to re-process them?"
+            f"All {len(input_paths)} selected file(s) "
+            f"already have existing outputs.\n\n"
+            f"Files already processed:\n"
         )
+        for f in files_with_outputs[:5]:
+            message += f"  • {Path(f).name}\n"
+        if len(files_with_outputs) > 5:
+            message += f"  ... and {len(files_with_outputs) - 5} more\n"
 
-    # Create custom dialog
-    root = tk.Tk()
-    root.withdraw()
+        message += "\n\nRe-process all files? (This will overwrite existing outputs)"
 
-    dialog = tk.Toplevel(root)
-    dialog.title("Existing Outputs Detected")
-    dialog.geometry("500x300")
-    dialog.resizable(False, False)
-    dialog.configure(bg='#f5f7fa')
+        result = native_dialogs.ask_yes_no("Existing Outputs Detected", message, default_yes=False)
 
-    # Make modal
-    dialog.transient(root)
-    dialog.grab_set()
-
-    user_choice = {'action': 'cancel'}
-
-    # Message frame
-    msg_frame = tk.Frame(dialog, bg='#ffffff', padx=20, pady=20)
-    msg_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-    tk.Label(
-        msg_frame,
-        text=message,
-        font=("Helvetica Neue", 10),
-        bg='#ffffff',
-        fg='#1a1a1a',
-        justify=tk.LEFT,
-        wraplength=450
-    ).pack(anchor=tk.W)
-
-    # Button frame
-    btn_frame = tk.Frame(dialog, bg='#f5f7fa', pady=10)
-    btn_frame.pack(fill=tk.X, padx=10, pady=(0, 10))
-
-    def on_rerun_all():
-        user_choice['action'] = 'rerun_all'
-        dialog.destroy()
-        root.destroy()
-
-    def on_skip_completed():
-        user_choice['action'] = 'skip_completed'
-        dialog.destroy()
-        root.destroy()
-
-    def on_cancel():
-        user_choice['action'] = 'cancel'
-        dialog.destroy()
-        root.destroy()
-
-    tk.Button(
-        btn_frame,
-        text="Re-run All Files",
-        command=on_rerun_all,
-        font=("Helvetica Neue", 10, "bold"),
-        bg='#0066cc',
-        fg='white',
-        padx=15,
-        pady=8,
-        relief=tk.RAISED
-    ).pack(side=tk.LEFT, padx=(0, 5))
-
-    if files_without_outputs:
-        tk.Button(
-            btn_frame,
-            text="Skip Completed Files",
-            command=on_skip_completed,
-            font=("Helvetica Neue", 10),
-            bg='#00a86b',
-            fg='white',
-            padx=15,
-            pady=8,
-            relief=tk.RAISED
-        ).pack(side=tk.LEFT, padx=5)
-
-    tk.Button(
-        btn_frame,
-        text="Cancel",
-        command=on_cancel,
-        font=("Helvetica Neue", 10),
-        bg='#e0e0e0',
-        fg='#1a1a1a',
-        padx=15,
-        pady=8,
-        relief=tk.RAISED
-    ).pack(side=tk.LEFT, padx=5)
-
-    # Center dialog
-    dialog.update_idletasks()
-    x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
-    y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
-    dialog.geometry(f'+{x}+{y}')
-
-    dialog.wait_window()
-
-    # Return filtered list based on user choice
-    if user_choice['action'] == 'rerun_all':
-        return list(input_paths)
-    elif user_choice['action'] == 'skip_completed':
-        return files_without_outputs
-    else:
-        return []  # Cancel - return empty list
+        if result:
+            return list(input_paths)
+        else:
+            return []
 
 
 def process_single_video(args):
@@ -311,7 +253,23 @@ def process_single_video(args):
                 stage_name = stage_names.get(stage, stage.title())
                 print(f"  [{stage_name}] {current:>6}/{total:>6} frames (100.0%) - Complete          ")
 
+    splitter = None
+    openface_processor = None
+
     try:
+        # Validate input file exists and is readable
+        input_file = Path(input_path)
+        if not input_file.exists():
+            raise FileNotFoundError(f"Input video file not found: {input_path}")
+
+        if not input_file.is_file():
+            raise ValueError(f"Input path is not a file: {input_path}")
+
+        # Check file size (warn if file is suspiciously small)
+        file_size = input_file.stat().st_size
+        if file_size < 1000:  # Less than 1KB
+            raise ValueError(f"Input video file appears to be empty or corrupted (size: {file_size} bytes)")
+
         # Create a new splitter instance for this worker with progress callback
         # Use GPU for face detection/landmark tracking if available
         splitter = StableFaceSplitter(
@@ -320,11 +278,6 @@ def process_single_video(args):
             progress_callback=progress_callback
         )
         outputs = splitter.process_video(input_path, output_dir)
-
-        # Cleanup detector memory after face splitting
-        splitter.landmark_detector.cleanup_memory()
-        del splitter
-        gc.collect()
 
         # Run OpenFace processing if requested (Mode 1: Mirror + OpenFace)
         openface_outputs = []
@@ -342,8 +295,8 @@ def process_single_video(args):
                 # Initialize OpenFace processor with same device as mirroring
                 openface_processor = OpenFace3Processor(
                     device=device,
-                    calculate_landmarks=False,  # Not needed for basic AU extraction
-                    num_threads=6  # Use 6 threads for parallel CPU processing
+                    calculate_landmarks=True,  # Required for AU45 (blink) calculation
+                    num_threads=NUM_THREADS
                 )
 
                 # Process each mirrored video
@@ -353,8 +306,14 @@ def process_single_video(args):
                     csv_filename = mirrored_video.stem + '.csv'
                     output_csv_path = openface_output_dir / csv_filename
 
-                    # Determine side info for progress display (1/2 or 2/2)
-                    side_info = f"{idx}/{total_mirrored}"
+                    # Determine side info for progress display (e.g., "Left 1/2" or "Right 2/2")
+                    if 'left' in mirrored_video.name.lower():
+                        side_name = "Left"
+                    elif 'right' in mirrored_video.name.lower():
+                        side_name = "Right"
+                    else:
+                        side_name = ""
+                    side_info = f"{side_name} {idx}/{total_mirrored}" if side_name else f"{idx}/{total_mirrored}"
 
                     # Create OpenFace progress callback
                     def openface_progress_callback(current_frame, total_frames, processing_fps):
@@ -451,20 +410,48 @@ def process_single_video(args):
             'success': False,
             'error': str(e)
         }
+    finally:
+        # Ensure resources are cleaned up even if errors occur
+        # Memory cleanup is critical for batch processing to prevent crashes
+        try:
+            if splitter is not None:
+                splitter.landmark_detector.cleanup_memory()
+                del splitter
+        except Exception as e:
+            print(f"  Warning: Splitter cleanup failed: {e}")
+
+        try:
+            if openface_processor is not None:
+                # Clear priorbox cache to prevent memory accumulation
+                openface_processor.clear_cache()
+                del openface_processor
+        except Exception as e:
+            print(f"  Warning: OpenFace processor cleanup failed: {e}")
+
+        # Force garbage collection (always runs regardless of above errors)
+        try:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
 
 def workflow_mirror_openface():
     """
-    Mode 1: Mirror + OpenFace
-    Process new videos through complete pipeline (rotate, split, mirror + AU extraction)
+    Full pipeline: Process videos through complete workflow
+    (rotate, split, mirror + AU extraction)
     """
-    print("\n=== MODE 1: MIRROR + OPENFACE ===")
-
     # Select input videos
     root = tk.Tk()
     root.withdraw()
+
+    # Make file dialog appear on top
+    root.attributes('-topmost', True)
+    root.after(100, lambda: root.attributes('-topmost', False))
+
     input_paths = filedialog.askopenfilenames(
-        title="Select Video Files for Complete Processing",
+        title="Select Video Files for Processing",
         filetypes=[("Video files", "*.mp4 *.avi *.mov *.mkv"), ("All files", "*.*")]
     )
 
@@ -472,19 +459,15 @@ def workflow_mirror_openface():
         root.destroy()
         return
 
-    # Setup output directories
-    s1o_base = Path.cwd().parent / 'S1O Processed Files'
-    output_dir = s1o_base / 'Face Mirror 1.0 Output'
-    openface_output_dir = s1o_base / 'Combined Data'
-    output_dir.mkdir(parents=True, exist_ok=True)
-    openface_output_dir.mkdir(parents=True, exist_ok=True)
+    # Setup output directories using config_paths
+    output_dir = config_paths.get_mirror_output_dir()
+    openface_output_dir = config_paths.get_combined_data_dir()
 
     # Check for existing outputs and filter
     input_paths = filter_existing_outputs(
         input_paths,
         output_dir,
-        openface_output_dir,
-        mode_name="Mirror + OpenFace"
+        openface_output_dir
     )
 
     if not input_paths:
@@ -497,15 +480,21 @@ def workflow_mirror_openface():
     # Auto-detect GPU for entire pipeline
     device = auto_detect_device()
 
-    print(f"\nProcessing {len(input_paths)} video(s) with complete pipeline...")
+    print(f"\nProcessing {len(input_paths)} video(s)...")
     print(f"Available CPU cores: {cpu_count()}")
     print(f"Using device: {device.upper()}")
 
     # Create progress window with OpenFace stage enabled
     progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=True)
 
-    # Process videos sequentially with OpenFace enabled
+    # Start timing
+    start_time = time.time()
+
+    # Process videos sequentially with full pipeline
     results = []
+    process = psutil.Process()
+    initial_memory_mb = process.memory_info().rss / 1024**2
+
     for video_num, input_path in enumerate(input_paths, 1):
         print(f"\n{'='*60}")
         print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
@@ -515,7 +504,7 @@ def workflow_mirror_openface():
         result = process_single_video((
             input_path, output_dir, debug_mode,
             video_name, video_num, len(input_paths), progress_window,
-            True,  # run_openface=True (Mode 1)
+            True,  # run_openface=True (full pipeline)
             device  # Use GPU for both mirroring and OpenFace
         ))
         results.append(result)
@@ -525,407 +514,69 @@ def workflow_mirror_openface():
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        print(f"Memory cleanup completed for video {video_num}")
 
-    # Close progress window
-    progress_window.close()
-
-    # Show results summary
-    summary = "Processing Results:\n\n"
-    for result in results:
-        if result['success']:
-            summary += f"✓ {Path(result['input']).name}\n"
-            summary += f"  - Mirrored videos: {len([f for f in result['outputs'] if 'mirrored' in f and 'debug' not in f])}\n"
-            summary += f"  - AU CSV files: {len(result.get('openface_outputs', []))}\n"
-        else:
-            summary += f"✗ {Path(result['input']).name} - Error: {result['error']}\n"
-
-    messagebox.showinfo("Processing Complete", summary)
-    root.destroy()
-
-
-def workflow_mirror_only():
-    """
-    Mode 2: Mirror Only
-    Process new videos with rotation, splitting, and mirroring (no AU extraction)
-    """
-    print("\n=== MODE 2: MIRROR ONLY ===")
-
-    # Select input videos
-    root = tk.Tk()
-    root.withdraw()
-    input_paths = filedialog.askopenfilenames(
-        title="Select Video Files for Mirroring",
-        filetypes=[("Video files", "*.mp4 *.avi *.mov *.mkv"), ("All files", "*.*")]
-    )
-
-    if not input_paths:
-        root.destroy()
-        return
-
-    # Setup output directories
-    s1o_base = Path.cwd().parent / 'S1O Processed Files'
-    output_dir = s1o_base / 'Face Mirror 1.0 Output'
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Check for existing outputs and filter
-    input_paths = filter_existing_outputs(
-        input_paths,
-        output_dir,
-        openface_output_dir=None,  # No OpenFace outputs to check
-        mode_name="Mirror Only"
-    )
-
-    if not input_paths:
-        print("No videos to process (user cancelled or all files skipped)")
-        root.destroy()
-        return
-
-    debug_mode = True
-
-    # Auto-detect GPU for face detection/mirroring
-    device = auto_detect_device()
-
-    print(f"\nProcessing {len(input_paths)} video(s) - mirroring only...")
-    print(f"Available CPU cores: {cpu_count()}")
-    print(f"Using device: {device.upper()}")
-
-    # Create progress window WITHOUT OpenFace stage (Mirror Only mode)
-    progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=False)
-
-    # Process videos sequentially WITHOUT OpenFace
-    results = []
-    for video_num, input_path in enumerate(input_paths, 1):
-        print(f"\n{'='*60}")
-        print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
-        print(f"{'='*60}")
-
-        video_name = Path(input_path).name
-        result = process_single_video((
-            input_path, output_dir, debug_mode,
-            video_name, video_num, len(input_paths), progress_window,
-            False,  # run_openface=False (Mode 2)
-            device  # Use GPU for mirroring
-        ))
-        results.append(result)
-        print(f"\nCompleted {video_num}/{len(input_paths)} videos")
-
-        # Aggressive memory cleanup after each video
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-        print(f"Memory cleanup completed for video {video_num}")
-
-    # Close progress window
-    progress_window.close()
-
-    # Show results summary
-    summary = "Processing Results:\n\n"
-    for result in results:
-        if result['success']:
-            summary += f"✓ {Path(result['input']).name}\n"
-            left_video = next((f for f in result['outputs'] if 'left_mirrored' in f), None)
-            right_video = next((f for f in result['outputs'] if 'right_mirrored' in f), None)
-            if left_video:
-                summary += f"  - Left: {Path(left_video).name}\n"
-            if right_video:
-                summary += f"  - Right: {Path(right_video).name}\n"
-        else:
-            summary += f"✗ {Path(result['input']).name} - Error: {result['error']}\n"
-
-    messagebox.showinfo("Processing Complete", summary)
-    root.destroy()
-
-
-def workflow_openface_only():
-    """
-    Mode 3: OpenFace Only
-    Select source videos and automatically process their left/right mirrored versions
-    """
-    print("\n=== MODE 3: OPENFACE ONLY ===")
-
-    # Setup directories
-    s1o_base = Path.cwd().parent / 'S1O Processed Files'
-    mirrored_videos_dir = s1o_base / 'Face Mirror 1.0 Output'
-    openface_output_dir = s1o_base / 'Combined Data'
-
-    # Use native file picker to select source videos
-    root = tk.Tk()
-    root.withdraw()
-
-    # Show instruction dialog first
-    messagebox.showinfo(
-        "Select Videos for Processing",
-        "Please select videos with names ending in '_source.mp4' (or .avi, .mov, .mkv).\n\n"
-        "Example: 'patient123_source.mp4'\n\n"
-        "The system will automatically find and process the corresponding left and right mirrored videos."
-    )
-
-    selected_source_files = filedialog.askopenfilenames(
-        title="Select SOURCE Videos (files ending in '_source.mp4')",
-        initialdir=mirrored_videos_dir,
-        filetypes=[
-            ("Source videos", "*_source.mp4 *_source.avi *_source.mov *_source.mkv"),
-            ("All video files", "*.mp4 *.avi *.mov *.mkv"),
-            ("All files", "*.*")
-        ]
-    )
-
-    if not selected_source_files:
-        print("No videos selected for processing")
-        root.destroy()
-        return
-
-    # Validate that user selected source files
-    invalid_files = []
-    valid_source_files = []
-
-    for file_path in selected_source_files:
-        file_name = Path(file_path).name
-        # Check if file is a source video (not debug, not mirrored)
-        if '_source' in file_name and '_debug' not in file_name and '_mirrored' not in file_name:
-            valid_source_files.append(file_path)
-        else:
-            invalid_files.append(file_name)
-
-    # Show error if user selected wrong file types
-    if invalid_files:
-        messagebox.showerror(
-            "Invalid File Selection",
-            f"Please select only un-mirrored videos (files ending in '_source.mp4').\n\n"
-            f"The following files are not un-mirrored source videos:\n" +
-            "\n".join(invalid_files[:5]) +
-            (f"\n... and {len(invalid_files) - 5} more" if len(invalid_files) > 5 else "") +
-            f"\n\nCorrect format examples:\n"
-            f"  ✓ patient123_source.mp4\n"
-            f"  ✗ patient123_left_mirrored.mp4 (mirrored video)\n"
-            f"  ✗ patient123_debug.mp4 (debug file)"
-        )
-
-    if not valid_source_files:
-        print("No valid source videos selected")
-        root.destroy()
-        return
-
-    # For each source video, find corresponding left and right mirrored videos
-    # Group by patient (each patient has left and right videos)
-    patient_videos = []  # List of dicts: {'patient_name': str, 'left': Path, 'right': Path}
-    missing_videos = []
-
-    for source_path in valid_source_files:
-        source_file = Path(source_path)
-        base_name = source_file.stem.replace('_source', '')
-
-        # Find left and right mirrored videos
-        left_mirrored = None
-        right_mirrored = None
-
-        # Search for left mirrored video (any video extension)
-        for ext in ['.mp4', '.avi', '.mov', '.mkv']:
-            candidate = mirrored_videos_dir / f"{base_name}_left_mirrored{ext}"
-            if candidate.exists():
-                left_mirrored = candidate
-                break
-
-        # Search for right mirrored video (any video extension)
-        for ext in ['.mp4', '.avi', '.mov', '.mkv']:
-            candidate = mirrored_videos_dir / f"{base_name}_right_mirrored{ext}"
-            if candidate.exists():
-                right_mirrored = candidate
-                break
-
-        if left_mirrored and right_mirrored:
-            patient_videos.append({
-                'patient_name': base_name,
-                'left': left_mirrored,
-                'right': right_mirrored
-            })
-            print(f"Found pair: {left_mirrored.name} + {right_mirrored.name}")
-        else:
-            missing_videos.append(source_file.name)
-            if not left_mirrored:
-                print(f"Warning: Missing left mirrored video for {source_file.name}")
-            if not right_mirrored:
-                print(f"Warning: Missing right mirrored video for {source_file.name}")
-
-    if missing_videos:
-        messagebox.showwarning(
-            "Missing Mirrored Videos",
-            f"Could not find mirrored videos for:\n" + "\n".join(missing_videos[:5]) +
-            (f"\n... and {len(missing_videos) - 5} more" if len(missing_videos) > 5 else "")
-        )
-
-    if not patient_videos:
-        messagebox.showerror(
-            "No Videos to Process",
-            "No mirrored videos were found for the selected source videos."
-        )
-        root.destroy()
-        return
-
-    root.destroy()
-
-    # Auto-detect GPU for OpenFace processing
-    device = auto_detect_device()
-
-    total_patients = len(patient_videos)
-    print(f"\nProcessing {total_patients} patient(s) (left + right sides) with OpenFace...")
-    print(f"Using device: {device.upper()}")
-
-    # Create OpenFace output directory
-    openface_output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create progress window for OpenFace-only mode (simplified patient-based UI)
-    progress_window = OpenFaceProgressWindow(total_patients=total_patients)
-
-    # Initialize OpenFace processor with detected device
-    openface_processor = OpenFace3Processor(
-        device=device,
-        calculate_landmarks=False,  # Not needed for basic AU extraction
-        num_threads=6  # Use 6 threads for parallel CPU processing
-    )
-
-    # Process each patient (left + right sides)
-    processed_count = 0
-    for patient_num, patient in enumerate(patient_videos, 1):
-        patient_name = patient['patient_name']
-
-        print(f"\n{'='*60}")
-        print(f"PATIENT {patient_num} of {total_patients}: {patient_name}")
-        print(f"{'='*60}")
-
-        # Process both sides for this patient
-        for side, side_name in [('left', 'Left'), ('right', 'Right')]:
-            video_path = patient[side]
-            video_file = Path(video_path)
-            csv_filename = video_file.stem + '.csv'
-            output_csv_path = openface_output_dir / csv_filename
-
-            print(f"\nProcessing {side_name} side: {video_file.name}")
-
-            # Create progress callback for both GUI and terminal
-            def progress_callback(current_frame, total_frames, processing_fps, side=side, patient_name=patient_name, patient_num=patient_num):
-                """Progress callback for Mode 3 with patient-based GUI support"""
-                # Update GUI progress window
-                if progress_window:
-                    try:
-                        progress_window.update_progress(OpenFacePatientUpdate(
-                            patient_name=patient_name,
-                            patient_num=patient_num,
-                            total_patients=total_patients,
-                            side=side,
-                            current_frame=current_frame,
-                            total_frames=total_frames,
-                            fps=processing_fps
-                        ))
-                    except Exception:
-                        pass  # Silently ignore progress update errors
-
-                # Update terminal (every 50 frames)
-                if current_frame > 0 and current_frame % 50 == 0:
-                    percentage = (current_frame / total_frames * 100) if total_frames > 0 else 0
-                    if processing_fps > 0:
-                        remaining_frames = total_frames - current_frame
-                        eta_seconds = remaining_frames / processing_fps
-                        eta_str = f" | ETA: {int(eta_seconds // 60):02d}:{int(eta_seconds % 60):02d}"
-                        fps_str = f" | {processing_fps:.1f} fps"
-                    else:
-                        eta_str = ""
-                        fps_str = ""
-                    side_display = side_name
-                    print(f"  [{side_display} Side] {current_frame:>6}/{total_frames:>6} frames ({percentage:>5.1f}%){fps_str}{eta_str}", end='\r')
-
-                # Print completion message
-                elif current_frame == total_frames and total_frames > 0:
-                    side_display = side_name
-                    print(f"  [{side_display} Side] {current_frame:>6}/{total_frames:>6} frames (100.0%) - Complete          ")
-
-            try:
-                frame_count = openface_processor.process_video(video_file, output_csv_path, progress_callback=progress_callback)
-
-                if frame_count > 0:
-                    processed_count += 1
-                    print(f"\n✓ Successfully processed: {video_file.name}")
-                    print(f"   CSV saved: {output_csv_path.name}")
-                else:
-                    print(f"✗ Failed to process: {video_file.name}")
-
-                    # Send error update
-                    if progress_window:
-                        progress_window.update_progress(OpenFacePatientUpdate(
-                            patient_name=patient_name,
-                            patient_num=patient_num,
-                            total_patients=total_patients,
-                            side=side,
-                            current_frame=0,
-                            total_frames=1,
-                            fps=0.0,
-                            error="No frames processed"
-                        ))
-
-            except Exception as e:
-                print(f"✗ Error processing {video_file.name}: {e}")
-
-                # Send error update
-                if progress_window:
-                    progress_window.update_progress(OpenFacePatientUpdate(
-                        patient_name=patient_name,
-                        patient_num=patient_num,
-                        total_patients=total_patients,
-                        side=side,
-                        current_frame=0,
-                        total_frames=1,
-                        fps=0.0,
-                        error=str(e)
-                    ))
-
-            # Memory cleanup after each side (important when processing left + right)
+        # Memory monitoring and deep cleanup
+        if video_num % MEMORY_CHECKPOINT_INTERVAL == 0:
             gc.collect()
+            gc.collect()  # Run twice for cyclic garbage
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
-    # Cleanup OpenFace processor
-    del openface_processor
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+            # Memory checkpoint
+            current_memory_mb = process.memory_info().rss / 1024**2
+            memory_growth_mb = current_memory_mb - initial_memory_mb
+            print(f"Memory checkpoint [{video_num}/{len(input_paths)}]: {current_memory_mb:.1f} MB (growth: +{memory_growth_mb:.1f} MB)")
+
+    # End timing
+    end_time = time.time()
+    total_seconds = end_time - start_time
 
     # Close progress window
     progress_window.close()
 
-    print(f"\nProcessing complete. {processed_count}/{total_patients * 2} files were processed.")
+    # Show results summary (compact format for large batches)
+    successful_count = sum(1 for r in results if r['success'])
+    failed_count = len(results) - successful_count
 
-    # Show completion message
-    messagebox.showinfo(
-        "OpenFace Processing Complete",
-        f"{processed_count} video(s) were processed with OpenFace.\n\n"
-        f"CSV files saved to:\n{s1o_base / 'Combined Data'}"
-    )
+    total_mirrored = sum(len([f for f in r['outputs'] if 'mirrored' in f and 'debug' not in f])
+                         for r in results if r['success'])
+    total_csvs = sum(len(r.get('openface_outputs', [])) for r in results if r['success'])
+
+    # Format processing time
+    hours = int(total_seconds // 3600)
+    minutes = int((total_seconds % 3600) // 60)
+    seconds = int(total_seconds % 60)
+    if hours > 0:
+        time_str = f"{hours}h {minutes}m {seconds}s"
+    elif minutes > 0:
+        time_str = f"{minutes}m {seconds}s"
+    else:
+        time_str = f"{seconds}s"
+
+    summary = "Processing Complete!\n\n"
+    summary += f"Successfully processed: {successful_count} video(s)\n"
+    if failed_count > 0:
+        summary += f"Failed: {failed_count} video(s)\n"
+    summary += f"\nProcessing time: {time_str}\n"
+    summary += "\nGenerated Files:\n"
+    summary += f"  • {total_mirrored} mirrored videos\n"
+    summary += f"  • {total_csvs} AU CSV files\n\n"
+    summary += "Results saved to: Combined Data/\n\n"
+    summary += "Next step: Open 'Combined Data' folder to view your Action Unit CSV files."
+
+    native_dialogs.show_info("Processing Complete", summary)
+    root.destroy()
 
 
 def main():
-    """Main entry point - show mode selection and route to appropriate workflow"""
+    """Main entry point - go straight to full pipeline workflow"""
+    print("\n" + "="*60)
+    print(f"S1 FACE MIRROR v{config_paths.VERSION} - FULL PIPELINE")
+    print("Face Mirroring + Action Unit Extraction")
+    print("="*60)
 
-    # Define mode selection callback
-    selected_mode = None
-
-    def on_mode_selected(mode):
-        nonlocal selected_mode
-        selected_mode = mode
-
-    # Show mode selection window
-    show_mode_selection(on_mode_selected)
-
-    # Route to appropriate workflow
-    if selected_mode == 'mirror_openface':
-        workflow_mirror_openface()
-    elif selected_mode == 'mirror_only':
-        workflow_mirror_only()
-    elif selected_mode == 'openface_only':
-        workflow_openface_only()
-    else:
-        print("No mode selected - exiting")
-
+    # Go straight to the full pipeline workflow
+    workflow_mirror_openface()
 
 if __name__ == "__main__":
     main()

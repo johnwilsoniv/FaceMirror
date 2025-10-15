@@ -35,10 +35,11 @@ class AU45Calculator:
         self.left_eye_indices = list(range(68, 76))   # 8 points
 
         # EAR calibration parameters
-        # These values are empirically determined from typical face videos
-        self.ear_open = 0.25      # Typical EAR when eyes are fully open
-        self.ear_closed = 0.05    # Typical EAR when eyes are fully closed
-        self.ear_threshold = 0.20 # Below this threshold = eyes are closing
+        # These values are empirically determined from WFLW 98-point landmarks
+        # WFLW uses 8 points per eye (not 6), resulting in higher EAR values
+        self.ear_open = 0.75      # Typical EAR when eyes are fully open (WFLW format)
+        self.ear_closed = 0.60    # Typical EAR when eyes are closed during blink (WFLW format)
+        self.ear_threshold = 0.68 # Below this threshold = eyes are closing
 
         # Temporal smoothing to reduce jitter
         self.au45_history = []
@@ -126,7 +127,7 @@ class AU45Calculator:
 
         return float(au45_intensity)
 
-    def calculate_au45_from_landmarks(self, landmarks_98):
+    def calculate_au45_from_landmarks(self, landmarks_98, debug=False):
         """
         Calculate AU45 (blink) intensity from WFLW 98-point landmarks
 
@@ -141,11 +142,14 @@ class AU45Calculator:
 
         Args:
             landmarks_98: (98, 2) numpy array of WFLW facial landmarks
+            debug: Print debug information (default: False)
 
         Returns:
             float: AU45 intensity (0.0 to 5.0), or np.nan if calculation fails
         """
         if landmarks_98 is None or len(landmarks_98) < 76:
+            if debug:
+                print(f"  [AU45 Debug] landmarks_98 is None or too short")
             return np.nan
 
         try:
@@ -153,9 +157,16 @@ class AU45Calculator:
             right_eye = landmarks_98[self.right_eye_indices]
             left_eye = landmarks_98[self.left_eye_indices]
 
+            if debug:
+                print(f"  [AU45 Debug] Right eye landmarks shape: {right_eye.shape}")
+                print(f"  [AU45 Debug] Left eye landmarks shape: {left_eye.shape}")
+
             # Calculate EAR for both eyes
             right_ear = self.calculate_ear(right_eye)
             left_ear = self.calculate_ear(left_eye)
+
+            if debug:
+                print(f"  [AU45 Debug] Right EAR: {right_ear}, Left EAR: {left_ear}")
 
             # Average both eyes (or use available eye if one fails)
             if right_ear is not None and left_ear is not None:

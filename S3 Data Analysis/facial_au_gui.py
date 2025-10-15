@@ -10,6 +10,7 @@ import os
 import platform
 import logging
 import re
+import config_paths
 # Removed time import as it wasn't used
 from facial_au_analyzer import FacialAUAnalyzer
 from facial_au_batch_processor import FacialAUBatchProcessor
@@ -31,13 +32,13 @@ class FacialAUAnalyzerGUI:
             root (tk.Tk): Root window
         """
         self.root = root
-        self.root.title("Facial AU Analyzer")
+        self.root.title(f"{config_paths.APP_NAME} v{config_paths.VERSION}")
         # Let Tkinter determine initial size
         # self.root.geometry("...")
 
         # Initialize variables
         self.data_dir = tk.StringVar()
-        self.output_dir = "../S3O Results"
+        self.output_dir = str(config_paths.get_output_base_dir())
         self.generate_visuals_var = tk.BooleanVar(value=True)
         self.debug_mode_var = tk.BooleanVar(value=False)
 

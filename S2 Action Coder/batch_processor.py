@@ -46,28 +46,39 @@ class BatchProcessor(QObject):
         if csv_files:
             print(f"CSV file examples: {csv_files[:3]}")
 
-        # Extract base identifiers using a more robust method
+        # Extract base identifiers by removing known suffixes
         video_bases = {}
         for video_file in video_files:
-            # First try to extract the base ID before any suffix (like "_rotated")
-            # This should handle "IMG_0935_rotated.MOV" -> "IMG_0935"
-            parts = video_file.split('_')
-            if len(parts) >= 2:
-                # Use the first two parts as the base (e.g., "IMG_0935")
-                base_id = f"{parts[0]}_{parts[1]}"
-                video_bases[base_id] = video_file
-                print(f"Extracted base '{base_id}' from video file '{video_file}'")
+            # Remove file extension first, then remove _source suffix
+            # This handles "IMG_0435_source.MOV" -> "IMG_0435"
+            # and "20240723_185024000_iOS_source.MOV" -> "20240723_185024000_iOS"
+            name_without_ext = os.path.splitext(video_file)[0]
+            if name_without_ext.endswith('_source'):
+                base_id = name_without_ext[:-7]  # Remove "_source" (7 chars)
+            elif name_without_ext.endswith('_rotated'):
+                base_id = name_without_ext[:-8]  # Remove "_rotated" (8 chars)
+            else:
+                base_id = name_without_ext
+
+            video_bases[base_id] = video_file
+            print(f"Extracted base '{base_id}' from video file '{video_file}'")
 
         csv_groups = {}
         for csv_file in csv_files:
-            # Extract the base ID in the same way
-            parts = csv_file.split('_')
-            if len(parts) >= 2:
-                base_id = f"{parts[0]}_{parts[1]}"
-                if base_id not in csv_groups:
-                    csv_groups[base_id] = []
-                csv_groups[base_id].append(csv_file)
-                print(f"Extracted base '{base_id}' from CSV file '{csv_file}'")
+            # Remove known CSV suffixes to extract base ID
+            # This handles "IMG_0435_left_mirrored.csv" -> "IMG_0435"
+            if csv_file.endswith('_left_mirrored.csv'):
+                base_id = csv_file[:-18]  # Remove "_left_mirrored.csv" (18 chars)
+            elif csv_file.endswith('_right_mirrored.csv'):
+                base_id = csv_file[:-19]  # Remove "_right_mirrored.csv" (19 chars)
+            else:
+                # Fallback - remove .csv extension
+                base_id = os.path.splitext(csv_file)[0]
+
+            if base_id not in csv_groups:
+                csv_groups[base_id] = []
+            csv_groups[base_id].append(csv_file)
+            print(f"Extracted base '{base_id}' from CSV file '{csv_file}'")
 
         # Match video files with CSV files
         file_sets = []
@@ -111,35 +122,54 @@ class BatchProcessor(QObject):
 
             print(f"Looking for CSV matches for video: {video_filename} in {csv_search_dir}")
 
-            # Extract base identifier from video filename
-            parts = video_filename.split('_')
-            if len(parts) >= 2:
-                # Use the first two parts as the base (e.g., "IMG_0935")
-                base_id = f"{parts[0]}_{parts[1]}"
-                print(f"Extracted base '{base_id}' from video file '{video_filename}'")
+            # Extract base identifier from video filename by removing known suffixes
+            name_without_ext = os.path.splitext(video_filename)[0]
+            if name_without_ext.endswith('_source'):
+                base_id = name_without_ext[:-7]  # Remove "_source" (7 chars)
+            elif name_without_ext.endswith('_rotated'):
+                base_id = name_without_ext[:-8]  # Remove "_rotated" (8 chars)
+            else:
+                base_id = name_without_ext
 
-                # Look for matching CSV files in the search directory
-                csv_files = []
-                if os.path.isdir(csv_search_dir):
-                    all_files = os.listdir(csv_search_dir)
-                    for file in all_files:
-                        if file.lower().endswith('.csv'):
-                            file_parts = file.split('_')
-                            if len(file_parts) >= 2 and f"{file_parts[0]}_{file_parts[1]}" == base_id:
-                                csv_files.append(os.path.join(csv_search_dir, file))
+            print(f"Extracted base '{base_id}' from video file '{video_filename}'")
 
-                # If we found matching CSVs, create a file set
-                if csv_files:
-                    file_set = {
-                        'base_id': base_id,
-                        'video': video_file,
-                        'csv1': csv_files[0] if len(csv_files) > 0 else None,
-                        'csv2': csv_files[1] if len(csv_files) > 1 else None
-                    }
-                    file_sets.append(file_set)
-                    print(f"Created match for {base_id}:")
-                    print(f"  Video: {video_file}")
-                    print(f"  CSVs: {csv_files[:2]}")
+            # Look for matching CSV files in the search directory
+            csv_files = []
+            if os.path.isdir(csv_search_dir):
+                all_files = os.listdir(csv_search_dir)
+                print(f"  Found {len(all_files)} total files in search directory")
+                csv_count = sum(1 for f in all_files if f.lower().endswith('.csv'))
+                print(f"  Found {csv_count} CSV files to check")
+
+                for file in all_files:
+                    if file.lower().endswith('.csv'):
+                        # Extract base ID from CSV filename
+                        if file.endswith('_left_mirrored.csv'):
+                            csv_base_id = file[:-18]  # Remove "_left_mirrored.csv" (18 chars)
+                        elif file.endswith('_right_mirrored.csv'):
+                            csv_base_id = file[:-19]  # Remove "_right_mirrored.csv" (19 chars)
+                        else:
+                            csv_base_id = os.path.splitext(file)[0]
+
+                        print(f"  Checking CSV '{file}' -> base_id='{csv_base_id}' (looking for '{base_id}')")
+                        if csv_base_id == base_id:
+                            csv_files.append(os.path.join(csv_search_dir, file))
+                            print(f"    -> MATCH! Added to csv_files")
+            else:
+                print(f"  WARNING: csv_search_dir is not a directory: {csv_search_dir}")
+
+            # If we found matching CSVs, create a file set
+            if csv_files:
+                file_set = {
+                    'base_id': base_id,
+                    'video': video_file,
+                    'csv1': csv_files[0] if len(csv_files) > 0 else None,
+                    'csv2': csv_files[1] if len(csv_files) > 1 else None
+                }
+                file_sets.append(file_set)
+                print(f"Created match for {base_id}:")
+                print(f"  Video: {video_file}")
+                print(f"  CSVs: {csv_files[:2]}")
 
         print(f"Total matched file sets: {len(file_sets)}")
         return file_sets
@@ -211,3 +241,61 @@ class BatchProcessor(QObject):
     def has_previous_file(self):
         """Check if there is a previous file in the sequence."""
         return self.current_index > 0
+
+    def check_existing_outputs(self, file_sets, output_dir):
+        """
+        Check which file sets already have processed outputs.
+
+        Uses STRICT checking: Both *_left_mirrored_coded.csv AND *_right_mirrored_coded.csv
+        must exist for a file to be considered "already processed".
+
+        Args:
+            file_sets: List of file set dicts to check
+            output_dir: Directory where coded outputs are stored
+
+        Returns:
+            Dict with keys:
+                'processed': List of file sets that have complete outputs
+                'unprocessed': List of file sets that don't have complete outputs
+                'processed_count': Number of processed file sets
+                'unprocessed_count': Number of unprocessed file sets
+        """
+        if not os.path.isdir(output_dir):
+            # Output directory doesn't exist yet, nothing is processed
+            return {
+                'processed': [],
+                'unprocessed': file_sets,
+                'processed_count': 0,
+                'unprocessed_count': len(file_sets)
+            }
+
+        processed = []
+        unprocessed = []
+
+        for file_set in file_sets:
+            base_id = file_set.get('base_id')
+            if not base_id:
+                # Can't check without base_id, consider unprocessed
+                unprocessed.append(file_set)
+                continue
+
+            # Check for BOTH coded CSV files (strict checking)
+            left_coded_csv = os.path.join(output_dir, f"{base_id}_left_mirrored_coded.csv")
+            right_coded_csv = os.path.join(output_dir, f"{base_id}_right_mirrored_coded.csv")
+
+            left_exists = os.path.isfile(left_coded_csv)
+            right_exists = os.path.isfile(right_coded_csv)
+
+            if left_exists and right_exists:
+                processed.append(file_set)
+                print(f"Output check: {base_id} - PROCESSED (both CSVs exist)")
+            else:
+                unprocessed.append(file_set)
+                print(f"Output check: {base_id} - UNPROCESSED (left={left_exists}, right={right_exists})")
+
+        return {
+            'processed': processed,
+            'unprocessed': unprocessed,
+            'processed_count': len(processed),
+            'unprocessed_count': len(unprocessed)
+        }

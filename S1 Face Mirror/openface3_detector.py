@@ -41,22 +41,22 @@ class OpenFace3LandmarkDetector:
         """
         import os
 
-        # Determine model directory - use script location if not specified
+        # Determine model directory - use config_paths for cross-platform support
         if model_dir is None:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            model_dir = os.path.join(script_dir, 'weights')
+            import config_paths
+            model_dir = str(config_paths.get_weights_dir())
 
         # OpenFace 3.0 expects weights at "./weights/mobilenetV1X0.25_pretrain.tar"
-        # Change to script directory if weights aren't in current working directory
+        # Change to model directory if weights aren't in current working directory
         original_cwd = os.getcwd()
         weights_exist_in_cwd = os.path.exists('./weights/mobilenetV1X0.25_pretrain.tar')
 
         if not weights_exist_in_cwd:
-            # Change to the script directory where weights folder exists
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(script_dir)
+            # Change to the directory containing weights folder
+            weights_parent = os.path.dirname(model_dir)
+            os.chdir(weights_parent)
             if debug_mode:
-                print(f"Changed working directory to: {script_dir}")
+                print(f"Changed working directory to: {weights_parent}")
 
         try:
             # Initialize OpenFace 3.0 models with correct parameters
@@ -190,29 +190,6 @@ class OpenFace3LandmarkDetector:
 
         # Reset all tracking state
         self.reset_tracking_history()
-
-    def preprocess_frame(self, frame):
-        """
-        Enhance frame for better face detection
-
-        Args:
-            frame: Input BGR image
-
-        Returns:
-            enhanced: Enhanced grayscale image
-            gray: Original grayscale image
-        """
-        # Convert to grayscale
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # Apply adaptive histogram equalization
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        enhanced = clahe.apply(gray)
-
-        # Apply bilateral filter to reduce noise while preserving edges
-        denoised = cv2.bilateralFilter(enhanced, 9, 75, 75)
-
-        return denoised, gray
 
     def _convert_68_landmarks(self, landmarks_98):
         """
@@ -529,25 +506,6 @@ class OpenFace3LandmarkDetector:
 
         return None, None
 
-    def validate_landmarks(self, landmarks):
-        """Validate landmark detection quality"""
-        if landmarks is None:
-            return False
-
-        # Check for outliers
-        distances = np.linalg.norm(landmarks - landmarks.mean(axis=0), axis=1)
-        z_scores = (distances - distances.mean()) / (distances.std() + 1e-6)
-        if np.any(np.abs(z_scores) > 3):
-            return False
-
-        # Check for minimum face size
-        face_width = landmarks[:, 0].max() - landmarks[:, 0].min()
-        face_height = landmarks[:, 1].max() - landmarks[:, 1].min()
-        if face_width < 60 or face_height < 60:
-            return False
-
-        return True
-
     def get_facial_midline(self, landmarks):
         """
         Calculate the anatomical midline points
@@ -668,24 +626,6 @@ class OpenFace3LandmarkDetector:
             return normalized_offset * 45.0
 
         return None
-
-    def validate_head_pose(self, landmarks, threshold=10.0):
-        """
-        Validates if the head yaw is within acceptable threshold
-
-        Returns:
-            valid: Boolean indicating if yaw is valid
-            warning: Warning message if yaw is invalid, None otherwise
-        """
-        yaw = self.calculate_head_pose(landmarks)
-
-        if yaw is None:
-            return False, "No valid head pose detected"
-
-        if abs(yaw) > threshold:
-            return False, f"Head rotation ({abs(yaw):.1f}°) exceeds {threshold}°"
-
-        return True, None
 
     def calculate_face_stability(self):
         """
