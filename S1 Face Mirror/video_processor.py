@@ -78,8 +78,8 @@ class VideoProcessor:
         if self.progress_callback:
             self.progress_callback('rotation', 0, 100, "Checking video rotation...")
 
-        rotated_input_path = output_dir / f"{input_path.stem}_rotated{input_path.suffix}"
-        rotated_input_path = process_video_rotation(str(input_path), str(rotated_input_path))
+        source_input_path = output_dir / f"{input_path.stem}_source{input_path.suffix}"
+        source_input_path = process_video_rotation(str(input_path), str(source_input_path))
 
         if self.progress_callback:
             self.progress_callback('rotation', 100, 100, "Video rotation complete")
@@ -90,9 +90,9 @@ class VideoProcessor:
         debug_output = output_dir / f"{input_path.stem}_debug.mp4"
 
         # Open video and get properties
-        cap = cv2.VideoCapture(str(rotated_input_path))
+        cap = cv2.VideoCapture(str(source_input_path))
         if not cap.isOpened():
-            raise RuntimeError(f"Error opening video file: {rotated_input_path}")
+            raise RuntimeError(f"Error opening video file: {source_input_path}")
 
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -207,8 +207,8 @@ class VideoProcessor:
 
         # Determine the list of output files
         output_files = [str(anatomical_right_output), str(anatomical_left_output), str(debug_output)]
-        if str(rotated_input_path) != str(input_path):
-            output_files.append(str(rotated_input_path))
+        if str(source_input_path) != str(input_path):
+            output_files.append(str(source_input_path))
 
         print("\nOutput files:")
         for f in output_files:

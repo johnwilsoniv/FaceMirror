@@ -23,12 +23,26 @@ class ProgressUpdate:
     video_name: str
     video_num: int
     total_videos: int
-    stage: str  # 'rotation', 'reading', 'processing', 'writing', 'complete', 'error'
+    stage: str  # 'rotation', 'reading', 'processing', 'writing', 'openface', 'complete', 'error'
     current: int
     total: int
     message: str = ""
     error: str = ""
     fps: float = 0.0  # Processing rate from tqdm
+    side_info: str = ""  # For OpenFace: "1/2" or "2/2" to indicate which side is being processed
+
+
+@dataclass
+class OpenFacePatientUpdate:
+    """Data class for OpenFace-only patient progress updates"""
+    patient_name: str
+    patient_num: int
+    total_patients: int
+    side: str  # 'left' or 'right'
+    current_frame: int
+    total_frames: int
+    fps: float = 0.0
+    error: str = ""
 
 
 class ProcessingProgressWindow:
@@ -38,16 +52,17 @@ class ProcessingProgressWindow:
     Scientific high-end design with precise data visualization.
     """
 
-    def __init__(self, total_videos=1):
+    def __init__(self, total_videos=1, include_openface=True):
         """
         Initialize the progress window.
 
         Args:
             total_videos: Total number of videos to process
+            include_openface: Whether to include OpenFace AU extraction stage in the pipeline
         """
-        print(f"[GUI DEBUG] Initializing progress window with {total_videos} total videos")
 
         self.total_videos = total_videos
+        self.include_openface = include_openface
         self.current_video = 0
         self.start_time = datetime.now()
         self.stage_start_time = datetime.now()
@@ -61,7 +76,7 @@ class ProcessingProgressWindow:
         # Create main window
         self.root = tk.Toplevel()
         self.root.title("FaceMirror Processing Pipeline")
-        self.root.geometry("760x600")
+        self.root.geometry("820x600")  # Increased width to prevent clipping
         self.root.resizable(False, False)
 
         # Scientific color palette - clinical precision
@@ -98,7 +113,6 @@ class ProcessingProgressWindow:
         # Progress update queue (thread-safe)
         self.progress_queue = queue.Queue()
 
-        print(f"[GUI DEBUG] Progress queue created")
 
         # Setup UI
         self._setup_ui()
@@ -106,11 +120,9 @@ class ProcessingProgressWindow:
         # Start queue monitoring
         self._monitor_queue()
 
-        print(f"[GUI DEBUG] GUI setup complete, monitoring started")
 
     def _setup_ui(self):
         """Setup the user interface with scientific design"""
-        print(f"[GUI DEBUG] Setting up UI...")
 
         # Configure custom styles
         style = ttk.Style()
@@ -201,7 +213,7 @@ class ProcessingProgressWindow:
             video_inner,
             text="No video selected",
             font=("Helvetica Neue", 11),
-            wraplength=680,
+            wraplength=740,
             bg=self.colors['bg_card'],
             fg=self.colors['text'],
             anchor=tk.W,
@@ -219,11 +231,14 @@ class ProcessingProgressWindow:
             anchor=tk.W
         ).pack(anchor=tk.W, pady=(0, 8))
 
-        # Stage visualization - scientific grid layout
+        # Stage visualization - scientific grid layout with uniform sizing
         stages_frame = tk.Frame(video_inner, bg=self.colors['bg_card'])
         stages_frame.pack(fill=tk.X, pady=(0, 16))
 
         self.stage_indicators = {}
+        self.stage_base_text = {}  # Store base text for dynamic updates
+
+        # Build stages list based on mode
         stages = [
             ('rotation', 'ROTATION'),
             ('reading', 'READING'),
@@ -231,19 +246,23 @@ class ProcessingProgressWindow:
             ('writing', 'WRITING')
         ]
 
-        for i, (stage_key, stage_text) in enumerate(stages):
-            stage_container = tk.Frame(stages_frame, bg=self.colors['bg_card'])
-            stage_container.pack(side=tk.LEFT, expand=True, fill=tk.X,
-                               padx=(0, 6 if i < 3 else 0))
+        # Only add OpenFace stage if enabled
+        if self.include_openface:
+            stages.append(('openface', 'AU EXTRACTION'))
 
+        # Configure grid columns to be uniform width
+        for col in range(len(stages)):
+            stages_frame.grid_columnconfigure(col, weight=1, uniform='stage')
+
+        for i, (stage_key, stage_text) in enumerate(stages):
             # Stage indicator box - clean borders
             stage_box = tk.Frame(
-                stage_container,
+                stages_frame,
                 bg=self.colors['stage_waiting'],
                 highlightbackground=self.colors['border'],
                 highlightthickness=1
             )
-            stage_box.pack(fill=tk.BOTH, expand=True)
+            stage_box.grid(row=0, column=i, sticky='nsew', padx=(0, 6 if i < 4 else 0))
 
             # Stage label
             label = tk.Label(
@@ -253,10 +272,12 @@ class ProcessingProgressWindow:
                 bg=self.colors['stage_waiting'],
                 fg=self.colors['text_tertiary'],
                 pady=12,
-                padx=10
+                padx=4,
+                wraplength=120  # Allow text to wrap if needed
             )
             label.pack(fill=tk.BOTH, expand=True)
             self.stage_indicators[stage_key] = (stage_box, label)
+            self.stage_base_text[stage_key] = stage_text
 
         # Current stage status
         self.stage_label = tk.Label(
@@ -312,7 +333,7 @@ class ProcessingProgressWindow:
             bg=self.colors['data_bg'],
             fg=self.colors['text_secondary'],
             anchor=tk.W,
-            wraplength=680,
+            wraplength=740,
             justify=tk.LEFT
         )
         self.stage_eta_label.pack(anchor=tk.W)
@@ -335,7 +356,6 @@ class ProcessingProgressWindow:
 
         # Update window
         self.root.update()
-        print(f"[GUI DEBUG] UI setup complete")
 
     def _create_section_card(self, parent, title):
         """Create a section card with consistent styling"""
@@ -376,7 +396,6 @@ class ProcessingProgressWindow:
             while True:
                 update = self.progress_queue.get_nowait()
                 update_count += 1
-                print(f"[GUI DEBUG] Processing update #{update_count}: stage={update.stage}, video={update.video_num}/{update.total_videos}, progress={update.current}/{update.total}")
                 self._apply_update(update)
         except queue.Empty:
             pass
@@ -386,7 +405,6 @@ class ProcessingProgressWindow:
 
     def _apply_update(self, update: ProgressUpdate):
         """Apply a progress update to the UI"""
-        print(f"[GUI DEBUG] Applying update: {update.video_name}, stage={update.stage}, {update.current}/{update.total}")
 
         # Update current video tracking
         if update.video_num != self.current_video:
@@ -395,7 +413,6 @@ class ProcessingProgressWindow:
             self.fps_history.clear()  # Reset FPS history for new video
             self.eta_history.clear()  # Reset ETA history for new video
             self.last_frame_count = 0
-            print(f"[GUI DEBUG] Video changed to #{update.video_num}")
 
         # Update overall progress
         overall_pct = ((update.video_num - 1) / self.total_videos) * 100
@@ -417,7 +434,7 @@ class ProcessingProgressWindow:
         self.video_name_label.config(text=update.video_name)
 
         # Update stage indicators
-        self._update_stage_indicators(update.stage)
+        self._update_stage_indicators(update.stage, update.side_info)
 
         # Update stage progress
         if update.total > 0:
@@ -433,6 +450,7 @@ class ProcessingProgressWindow:
             'reading': 'Frame Acquisition',
             'processing': 'Frame Processing',
             'writing': 'Output Generation',
+            'openface': 'AU Extraction',
             'complete': 'Complete',
             'error': 'Error'
         }
@@ -440,7 +458,7 @@ class ProcessingProgressWindow:
         self.stage_label.config(text=f"Stage: {stage_text} — {stage_pct:5.1f}%")
 
         # Update metrics using tqdm's FPS
-        if update.stage in ['reading', 'processing', 'writing'] and update.total > 0:
+        if update.stage in ['reading', 'processing', 'writing', 'openface'] and update.total > 0:
             self.stage_details_label.config(
                 text=f"Frames Processed: {update.current:>6,} / {update.total:,}"
             )
@@ -461,7 +479,7 @@ class ProcessingProgressWindow:
                 print(f"[ETA DEBUG] Raw ETA: {eta_seconds:.1f}s, Smoothed ETA: {smoothed_eta:.1f}s")
 
                 self.stage_eta_label.config(
-                    text=f"Processing Rate: {fps_to_display:>6.1f} fps    |    Est. Remaining: {self._format_seconds(smoothed_eta)}"
+                    text=f"Rate: {fps_to_display:>6.1f} fps  |  Est. Remaining: {self._format_seconds(smoothed_eta)}"
                 )
             elif update.current > 0:
                 # Fallback: only show if we have processed some frames
@@ -495,18 +513,22 @@ class ProcessingProgressWindow:
 
         # Force UI update
         self.root.update()
-        print(f"[GUI DEBUG] UI updated successfully")
 
-    def _update_stage_indicators(self, current_stage):
+    def _update_stage_indicators(self, current_stage, side_info=""):
         """Update the visual pipeline stage indicators"""
-        stage_order = ['rotation', 'reading', 'processing', 'writing']
+        stage_order = ['rotation', 'reading', 'processing', 'writing', 'openface']
 
-        print(f"[GUI DEBUG] Updating stage indicators, current stage: {current_stage}")
 
         # Reset all to default
         for stage_key, (box, label) in self.stage_indicators.items():
+            # Use base text + side_info for openface stage
+            label_text = self.stage_base_text[stage_key]
+            if stage_key == 'openface' and side_info:
+                label_text = f"{label_text}\n({side_info})"
+
             box.config(bg=self.colors['stage_waiting'])
             label.config(
+                text=label_text,
                 bg=self.colors['stage_waiting'],
                 fg=self.colors['text_tertiary'],
                 font=("Helvetica Neue", 8, "bold")
@@ -531,8 +553,14 @@ class ProcessingProgressWindow:
             # Mark active stage
             if current_stage in self.stage_indicators:
                 box, label = self.stage_indicators[current_stage]
+                # Update label text with side_info if applicable
+                label_text = self.stage_base_text[current_stage]
+                if current_stage == 'openface' and side_info:
+                    label_text = f"{label_text}\n({side_info})"
+
                 box.config(bg=self.colors['stage_active'])
                 label.config(
+                    text=label_text,
                     bg=self.colors['stage_active'],
                     fg='white',
                     font=("Helvetica Neue", 9, "bold")
@@ -556,21 +584,17 @@ class ProcessingProgressWindow:
         Args:
             update: ProgressUpdate object with current progress
         """
-        print(f"[GUI DEBUG] update_progress called: stage={update.stage}, video={update.video_num}/{update.total_videos}")
         self.progress_queue.put(update)
-        print(f"[GUI DEBUG] Update added to queue (queue size: {self.progress_queue.qsize()})")
 
         # CRITICAL FIX: Force the event loop to run so _monitor_queue can process the queue
         # This is necessary because video processing blocks the main thread
         try:
             self.root.update()
-            print(f"[GUI DEBUG] Forced GUI update after adding to queue")
         except Exception as e:
-            print(f"[GUI DEBUG] Error forcing GUI update: {e}")
+            pass  # Silently ignore update errors
 
     def close(self):
         """Close the progress window"""
-        print(f"[GUI DEBUG] Closing progress window")
         if self.root:
             try:
                 self.root.destroy()
@@ -599,6 +623,376 @@ class ProcessingProgressWindow:
             minutes = (seconds % 3600) // 60
             secs = seconds % 60
             return f"{hours}:{minutes:02d}:{secs:02d}"
+
+
+class OpenFaceProgressWindow:
+    """
+    Simplified progress window for OpenFace-only mode.
+    Shows patient-by-patient progress with paired left/right side tracking.
+    """
+
+    def __init__(self, total_patients=1):
+        """
+        Initialize the OpenFace progress window.
+
+        Args:
+            total_patients: Total number of patients to process
+        """
+        self.total_patients = total_patients
+        self.current_patient = 0
+        self.start_time = datetime.now()
+
+        # Track left and right side progress separately
+        self.left_progress = {'current': 0, 'total': 0, 'complete': False}
+        self.right_progress = {'current': 0, 'total': 0, 'complete': False}
+        self.eta_history = deque(maxlen=3)
+
+        # Create main window (use Tk() instead of Toplevel() to avoid blank parent window)
+        self.root = tk.Tk()
+        self.root.title("OpenFace Action Unit Extraction")
+        self.root.geometry("700x450")
+        self.root.resizable(False, False)
+
+        # Use same color palette
+        self.colors = {
+            'primary': '#1a3a52',
+            'accent': '#0066cc',
+            'success': '#00a86b',
+            'danger': '#d32f2f',
+            'bg': '#f5f7fa',
+            'bg_card': '#ffffff',
+            'bg_alt': '#fafbfc',
+            'border': '#d1d9e0',
+            'border_light': '#e4e9ef',
+            'text': '#1a1a1a',
+            'text_primary': '#2c3e50',
+            'text_secondary': '#546e7a',
+            'data_bg': '#f8f9fa',
+        }
+
+        self.root.configure(bg=self.colors['bg'])
+        # Make window stay on top and grab focus
+        self.root.lift()
+        self.root.attributes('-topmost', True)
+        self.root.after_idle(self.root.attributes, '-topmost', False)
+        self.root.grab_set()
+
+        # Progress update queue
+        self.progress_queue = queue.Queue()
+
+        # Setup UI
+        self._setup_ui()
+        self._monitor_queue()
+
+    def _setup_ui(self):
+        """Setup simplified UI for OpenFace-only mode"""
+
+        # Configure styles
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("OpenFace.Horizontal.TProgressbar",
+                       troughcolor=self.colors['border_light'],
+                       background=self.colors['accent'],
+                       borderwidth=0,
+                       thickness=20)
+        style.configure("Complete.Horizontal.TProgressbar",
+                       troughcolor=self.colors['border_light'],
+                       background=self.colors['success'],
+                       borderwidth=0,
+                       thickness=20)
+
+        # Header
+        header_frame = tk.Frame(self.root, bg=self.colors['primary'], height=70)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+
+        title_label = tk.Label(
+            header_frame,
+            text="OpenFace Action Unit Extraction",
+            font=("Helvetica Neue", 16, "normal"),
+            bg=self.colors['primary'],
+            fg='white'
+        )
+        title_label.pack(pady=(18, 2))
+
+        subtitle_label = tk.Label(
+            header_frame,
+            text="Processing facial action units",
+            font=("Helvetica Neue", 9),
+            bg=self.colors['primary'],
+            fg='#b0c4de'
+        )
+        subtitle_label.pack()
+
+        # Main container
+        main_frame = tk.Frame(self.root, bg=self.colors['bg'], padx=24, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Patient info section
+        patient_card = self._create_card(main_frame, "CURRENT PATIENT")
+        patient_card.pack(fill=tk.X, pady=(0, 16))
+
+        patient_inner = tk.Frame(patient_card, bg=self.colors['bg_card'], padx=20, pady=16)
+        patient_inner.pack(fill=tk.BOTH)
+
+        self.patient_label = tk.Label(
+            patient_inner,
+            text="Patient 0 of 0",
+            font=("SF Mono", 12, "normal") if self._is_mac() else ("Consolas", 12, "normal"),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_primary']
+        )
+        self.patient_label.pack(anchor=tk.W, pady=(0, 8))
+
+        self.patient_name_label = tk.Label(
+            patient_inner,
+            text="",
+            font=("Helvetica Neue", 10),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.patient_name_label.pack(anchor=tk.W)
+
+        # Progress section
+        progress_card = self._create_card(main_frame, "EXTRACTION PROGRESS")
+        progress_card.pack(fill=tk.BOTH, expand=True)
+
+        progress_inner = tk.Frame(progress_card, bg=self.colors['bg_card'], padx=20, pady=16)
+        progress_inner.pack(fill=tk.BOTH, expand=True)
+
+        # Left side
+        tk.Label(
+            progress_inner,
+            text="Left Side:",
+            font=("Helvetica Neue", 10, "bold"),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text']
+        ).pack(anchor=tk.W, pady=(0, 4))
+
+        self.left_progress_bar = ttk.Progressbar(
+            progress_inner,
+            mode='determinate',
+            length=600,
+            style="OpenFace.Horizontal.TProgressbar"
+        )
+        self.left_progress_bar.pack(fill=tk.X, pady=(0, 4))
+
+        self.left_status_label = tk.Label(
+            progress_inner,
+            text="Waiting...",
+            font=("SF Mono", 9) if self._is_mac() else ("Consolas", 9),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.left_status_label.pack(anchor=tk.W, pady=(0, 16))
+
+        # Right side
+        tk.Label(
+            progress_inner,
+            text="Right Side:",
+            font=("Helvetica Neue", 10, "bold"),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text']
+        ).pack(anchor=tk.W, pady=(0, 4))
+
+        self.right_progress_bar = ttk.Progressbar(
+            progress_inner,
+            mode='determinate',
+            length=600,
+            style="OpenFace.Horizontal.TProgressbar"
+        )
+        self.right_progress_bar.pack(fill=tk.X, pady=(0, 4))
+
+        self.right_status_label = tk.Label(
+            progress_inner,
+            text="Waiting...",
+            font=("SF Mono", 9) if self._is_mac() else ("Consolas", 9),
+            bg=self.colors['bg_card'],
+            fg=self.colors['text_secondary']
+        )
+        self.right_status_label.pack(anchor=tk.W)
+
+        # Overall status
+        status_frame = tk.Frame(
+            progress_inner,
+            bg=self.colors['data_bg'],
+            highlightbackground=self.colors['border_light'],
+            highlightthickness=1
+        )
+        status_frame.pack(fill=tk.X, pady=(16, 0))
+
+        status_inner = tk.Frame(status_frame, bg=self.colors['data_bg'], padx=16, pady=12)
+        status_inner.pack(fill=tk.X)
+
+        self.overall_status_label = tk.Label(
+            status_inner,
+            text="Overall: 0 completed | 0 in progress",
+            font=("Helvetica Neue", 10),
+            bg=self.colors['data_bg'],
+            fg=self.colors['text_primary']
+        )
+        self.overall_status_label.pack(anchor=tk.W)
+
+        # Status bar
+        status_bar = tk.Frame(self.root, bg=self.colors['primary'], height=36)
+        status_bar.pack(fill=tk.X, side=tk.BOTTOM)
+        status_bar.pack_propagate(False)
+
+        self.status_bar_label = tk.Label(
+            status_bar,
+            text="Initializing...",
+            font=("Helvetica Neue", 9),
+            bg=self.colors['primary'],
+            fg='white',
+            anchor=tk.W,
+            padx=20
+        )
+        self.status_bar_label.pack(fill=tk.BOTH, expand=True)
+
+        self.root.update()
+
+    def _create_card(self, parent, title):
+        """Create a card with title"""
+        card = tk.Frame(
+            parent,
+            bg=self.colors['bg_card'],
+            highlightbackground=self.colors['border'],
+            highlightthickness=1
+        )
+
+        title_frame = tk.Frame(card, bg=self.colors['bg_alt'], height=30)
+        title_frame.pack(fill=tk.X)
+        title_frame.pack_propagate(False)
+
+        tk.Label(
+            title_frame,
+            text=title,
+            font=("Helvetica Neue", 9, "bold"),
+            bg=self.colors['bg_alt'],
+            fg=self.colors['text_secondary'],
+            anchor=tk.W,
+            padx=20
+        ).pack(fill=tk.BOTH, expand=True)
+
+        return card
+
+    def _is_mac(self):
+        """Check if running on macOS"""
+        import platform
+        return platform.system() == 'Darwin'
+
+    def _monitor_queue(self):
+        """Monitor the progress queue"""
+        try:
+            while True:
+                update = self.progress_queue.get_nowait()
+                self._apply_update(update)
+        except queue.Empty:
+            pass
+        self.root.after(100, self._monitor_queue)
+
+    def _apply_update(self, update: OpenFacePatientUpdate):
+        """Apply progress update"""
+
+        # Update patient info
+        if update.patient_num != self.current_patient:
+            self.current_patient = update.patient_num
+            self.left_progress = {'current': 0, 'total': 0, 'complete': False}
+            self.right_progress = {'current': 0, 'total': 0, 'complete': False}
+            self.eta_history.clear()
+
+        self.patient_label.config(text=f"Patient {update.patient_num} of {self.total_patients}")
+        self.patient_name_label.config(text=update.patient_name)
+
+        # Update appropriate side
+        if update.side == 'left':
+            self.left_progress['current'] = update.current_frame
+            self.left_progress['total'] = update.total_frames
+
+            if update.current_frame >= update.total_frames and update.total_frames > 0:
+                self.left_progress['complete'] = True
+                self.left_progress_bar.configure(style="Complete.Horizontal.TProgressbar")
+                self.left_status_label.config(text="✓ Complete", fg=self.colors['success'])
+            else:
+                pct = (update.current_frame / update.total_frames * 100) if update.total_frames > 0 else 0
+                self.left_progress_bar['value'] = pct
+
+                if update.fps > 0:
+                    remaining = update.total_frames - update.current_frame
+                    eta_sec = remaining / update.fps
+                    self.left_status_label.config(
+                        text=f"Frame {update.current_frame}/{update.total_frames} | {update.fps:.1f} fps | ETA: {self._format_seconds(eta_sec)}"
+                    )
+                else:
+                    self.left_status_label.config(text=f"Frame {update.current_frame}/{update.total_frames}")
+
+        elif update.side == 'right':
+            self.right_progress['current'] = update.current_frame
+            self.right_progress['total'] = update.total_frames
+
+            if update.current_frame >= update.total_frames and update.total_frames > 0:
+                self.right_progress['complete'] = True
+                self.right_progress_bar.configure(style="Complete.Horizontal.TProgressbar")
+                self.right_status_label.config(text="✓ Complete", fg=self.colors['success'])
+            else:
+                pct = (update.current_frame / update.total_frames * 100) if update.total_frames > 0 else 0
+                self.right_progress_bar['value'] = pct
+
+                if update.fps > 0:
+                    remaining = update.total_frames - update.current_frame
+                    eta_sec = remaining / update.fps
+                    self.right_status_label.config(
+                        text=f"Frame {update.current_frame}/{update.total_frames} | {update.fps:.1f} fps | ETA: {self._format_seconds(eta_sec)}"
+                    )
+                else:
+                    self.right_status_label.config(text=f"Frame {update.current_frame}/{update.total_frames}")
+
+        # Update overall status
+        completed_patients = update.patient_num - 1
+        if self.left_progress['complete'] and self.right_progress['complete']:
+            completed_patients = update.patient_num
+
+        in_progress = 1 if (self.left_progress['current'] > 0 or self.right_progress['current'] > 0) and completed_patients < update.patient_num else 0
+
+        self.overall_status_label.config(
+            text=f"Overall: {completed_patients} completed | {in_progress} in progress"
+        )
+
+        # Update status bar
+        if update.error:
+            self.status_bar_label.config(text=f"ERROR: {update.error}", bg=self.colors['danger'])
+        elif self.left_progress['complete'] and self.right_progress['complete']:
+            self.status_bar_label.config(text="Patient complete — Both sides processed", bg=self.colors['success'])
+        elif update.side == 'left' and not self.left_progress['complete']:
+            self.status_bar_label.config(text="Processing left side...", bg=self.colors['primary'])
+        elif update.side == 'right' and not self.right_progress['complete']:
+            self.status_bar_label.config(text="Processing right side...", bg=self.colors['primary'])
+
+        self.root.update()
+
+    def update_progress(self, update: OpenFacePatientUpdate):
+        """Thread-safe progress update"""
+        self.progress_queue.put(update)
+        try:
+            self.root.update()
+        except Exception:
+            pass
+
+    def close(self):
+        """Close window"""
+        if self.root:
+            try:
+                self.root.destroy()
+            except:
+                pass
+
+    @staticmethod
+    def _format_seconds(seconds):
+        """Format seconds as MM:SS"""
+        seconds = int(seconds)
+        minutes = seconds // 60
+        secs = seconds % 60
+        return f"{minutes:02d}:{secs:02d}"
 
 
 # Test code
