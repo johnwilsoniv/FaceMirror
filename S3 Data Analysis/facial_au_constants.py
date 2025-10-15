@@ -43,18 +43,18 @@ def standardize_binary_label(val):
 ACTION_TO_AUS = {
     'RE': ['AU01_r', 'AU02_r'],  # Raise Eyebrows
     'ES': ['AU45_r'],            # Close Eyes Softly
-    'ET': ['AU07_r', 'AU45_r'],  # Close Eyes Tightly (Revised)
+    'ET': ['AU06_r', 'AU45_r'],  # Close Eyes Tightly (AU07→AU06 for OpenFace 3.0)
     'SS': ['AU12_r'],            # Soft Smile
-    'BS': ['AU12_r', 'AU25_r', 'AU07_r'], # Big Smile (Kept as per instruction, despite alternative logic)
-    'SO': ['AU25_r', 'AU26_r'],  # Say 'O'
-    'SE': ['AU20_r', 'AU25_r'],  # Say 'E' (Revised)
+    'BS': ['AU12_r', 'AU25_r', 'AU06_r'], # Big Smile (AU07→AU06 for OpenFace 3.0)
+    'SO': ['AU25_r'],            # Say 'O' (AU26 not available in OpenFace 3.0)
+    'SE': ['AU20_r', 'AU25_r'],  # Say 'E'
     'BL': [],                    # Baseline (Uses median frame logic)
-    'FR': ['AU04_r'],            # Frown (New)
-    'BK': ['AU45_r'],            # Blink (New)
-    'WN': ['AU09_r'],            # Wrinkle Nose
-    'PL': ['AU17_r'],            # Pucker Lips (Revised - Using Chin Raiser as better peak proxy)
-    'BC': ['AU23_r'],            # Blow Cheeks (New/Revised - using AU23 as best proxy for tightening)
-    'LT': ['AU16_r'],            # Lower Teeth (New - assumes AU16 available)
+    'FR': ['AU04_r'],            # Frown
+    'BK': ['AU45_r'],            # Blink
+    'WN': ['AU06_r'],            # Wrinkle Nose (AU09→AU06 for OpenFace 3.0)
+    'PL': [],                    # Pucker Lips (AU17 not available - use median frame)
+    'BC': [],                    # Blow Cheeks (AU23 not available - use median frame)
+    'LT': ['AU15_r'],            # Lower Teeth (AU16→AU15 for OpenFace 3.0)
     'Unknown': []                # Default for unknown actions
 }
 
@@ -126,13 +126,13 @@ BOOL_FINDINGS_KEYS = [k for k in EXPERT_KEY_MAPPING if 'Paralysis' not in k]
 
 FACIAL_ZONES = {
     'upper': ['AU01_r', 'AU02_r'],
-    'mid': ['AU45_r', 'AU07_r'],
+    'mid': ['AU45_r', 'AU06_r'],
     'lower': ['AU12_r', 'AU25_r']
 }
 
 FACIAL_ZONE_WEIGHTS = {
     'upper': {'AU01_r': 0.7, 'AU02_r': 0.3},
-    'mid': {'AU45_r': 0.7, 'AU07_r': 0.3},
+    'mid': {'AU45_r': 0.7, 'AU06_r': 0.3},
     'lower': {'AU12_r': 0.56, 'AU25_r': 0.44}
 }
 
@@ -143,7 +143,7 @@ AU_ZONE_DETECTION_MODIFIERS = {
     },
     'mid': {
         'AU45_r': {'asymmetry_weight': 1.2, 'ignore_above_threshold': 2.0, 'confidence_bonus': 0.1, 'use_normalized': True},
-        'AU07_r': {'asymmetry_weight': 1.0, 'use_normalized': True, 'confidence_bonus': 0.1}
+        'AU06_r': {'asymmetry_weight': 1.0, 'use_normalized': True, 'confidence_bonus': 0.1}
     },
     'lower': {
         'AU12_r': {'asymmetry_weight': 1.3, 'use_normalized': True, 'critical_detection': True},
@@ -153,7 +153,7 @@ AU_ZONE_DETECTION_MODIFIERS = {
 
 PARALYSIS_DETECTION_AU_IMPORTANCE = {
     'upper': {'AU01_r': 1.0, 'AU02_r': 0.8},
-    'mid': {'AU45_r': 1.0, 'AU07_r': 0.8},
+    'mid': {'AU45_r': 1.0, 'AU06_r': 0.8},
     'lower': {'AU12_r': 1.2, 'AU25_r': 0.9}
 }
 
