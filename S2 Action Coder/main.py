@@ -24,9 +24,6 @@ def add_exception_logging():
         except Exception as msg_e: print(f"Error showing critical message box: {msg_e}")
     sys.excepthook = exception_handler; print("Exception logging enabled.")
 
-# Stage 3: Loading video processor
-splash.update_status("Loading video processor...")
-
 # Import the main controller
 from app_controller import ApplicationController
 from batch_processor import BatchProcessor # Needed for monkey-patching
