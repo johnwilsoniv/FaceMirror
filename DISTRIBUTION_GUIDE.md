@@ -4,6 +4,22 @@ Guide for creating professional installers for public distribution.
 
 ## macOS Distribution (DMG Files)
 
+### Prerequisites
+
+Before building, ensure you have PyInstaller installed:
+
+**Using Conda (Recommended):**
+```bash
+conda install -c conda-forge pyinstaller
+```
+
+**Using pip:**
+```bash
+pip install pyinstaller
+# Or if you encounter SSL errors:
+pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pyinstaller
+```
+
 ### Quick Start
 
 **Build everything in one command:**

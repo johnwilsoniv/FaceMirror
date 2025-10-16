@@ -17,12 +17,43 @@ The SplitFace suite consists of three applications:
    - Verify: `python --version` or `python3 --version`
 
 2. **PyInstaller 6.0+**
+
+   **If using Conda (Recommended):**
+   ```bash
+   conda install -c conda-forge pyinstaller
+   ```
+
+   **If using pip:**
    ```bash
    pip install pyinstaller
    ```
 
+   **Note:** If you encounter SSL certificate errors with pip, use conda or:
+   ```bash
+   pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pyinstaller
+   ```
+
 3. **All application dependencies installed**
-   - Install each app's requirements in its directory:
+
+   **Option A: Using Conda (Recommended for building)**
+   ```bash
+   # Create dedicated build environment
+   conda create -n splitface_build python=3.11
+   conda activate splitface_build
+   conda install -c conda-forge pyinstaller
+
+   # Install app dependencies
+   cd "S1 Face Mirror"
+   pip install -r requirements.txt
+
+   cd "../S2 Action Coder"
+   pip install -r requirements.txt
+
+   cd "../S3 Data Analysis"
+   pip install -r requirements.txt
+   ```
+
+   **Option B: Using pip in existing environment**
    ```bash
    cd "S1 Face Mirror"
    pip install -r requirements.txt
@@ -157,9 +188,35 @@ S3 Data Analysis/dist/Data Analysis/Data Analysis.exe
 
 **"Module not found" errors during build**
 - Solution: Ensure all dependencies are installed: `pip install -r requirements.txt`
+- Verify you're in the correct environment: `which python`
 
 **"No module named 'PyInstaller'"**
-- Solution: Install PyInstaller: `pip install pyinstaller`
+- Solution: Install PyInstaller using conda (recommended): `conda install -c conda-forge pyinstaller`
+- Or with pip: `pip install pyinstaller`
+
+**SSL Certificate Errors when installing PyInstaller**
+```
+SSLError(SSLCertVerificationError('"default.ssl.fastly.net" certificate name does not match...
+```
+- **Solution 1 (Recommended):** Use conda instead: `conda install -c conda-forge pyinstaller`
+- **Solution 2:** Use trusted hosts flag:
+  ```bash
+  pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org pyinstaller
+  ```
+- **Solution 3:** Update SSL certificates:
+  ```bash
+  conda update conda
+  pip install --upgrade certifi
+  pip install pyinstaller
+  ```
+
+**Build fails in conda base environment**
+- Solution: Create a dedicated build environment:
+  ```bash
+  conda create -n splitface_build python=3.11
+  conda activate splitface_build
+  conda install -c conda-forge pyinstaller
+  ```
 
 **S1: "weights directory not found" error**
 - Solution: Ensure `weights/` directory exists with all model files

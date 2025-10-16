@@ -108,7 +108,15 @@ build_windows.bat
 
 1. **Clone or download the repository**
 
-2. **Create a virtual environment** (recommended):
+2. **Create a virtual environment** (recommended)
+
+   **Option A: Using Conda (Recommended)**
+   ```bash
+   conda create -n splitface python=3.11
+   conda activate splitface
+   ```
+
+   **Option B: Using venv**
    ```bash
    python3 -m venv splitface_env
    source splitface_env/bin/activate  # macOS/Linux
@@ -116,7 +124,7 @@ build_windows.bat
    splitface_env\Scripts\activate  # Windows
    ```
 
-3. **Install dependencies for each app**:
+3. **Install dependencies for each app**
    ```bash
    cd "S1 Face Mirror"
    pip install -r requirements.txt
@@ -127,6 +135,22 @@ build_windows.bat
    cd "../S3 Data Analysis"
    pip install -r requirements.txt
    ```
+
+### Building Standalone Applications
+
+To build standalone applications, you'll also need PyInstaller:
+
+**Using Conda (Recommended):**
+```bash
+conda install -c conda-forge pyinstaller
+```
+
+**Using pip:**
+```bash
+pip install pyinstaller
+```
+
+See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for complete build instructions.
 
 ### External Dependencies
 
