@@ -108,7 +108,7 @@ exe = EXE(
     console=True,  # Show console for progress output
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch='universal2',  # Build for both Intel and Apple Silicon
     codesign_identity=None,
     entitlements_file=None,
 )

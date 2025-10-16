@@ -121,7 +121,7 @@ exe = EXE(
     console=False,  # GUI application, no console
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch='universal2',  # Build for both Intel and Apple Silicon
     codesign_identity=None,
     entitlements_file=None,
 )
