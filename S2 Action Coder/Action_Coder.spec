@@ -121,7 +121,7 @@ exe = EXE(
     console=False,  # GUI application, no console
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='universal2',  # Build for both Intel and Apple Silicon
+    target_arch=None,  # Use current architecture (universal2 causes issues with Python.framework)
     codesign_identity=None,
     entitlements_file=None,
 )

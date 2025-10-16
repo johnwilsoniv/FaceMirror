@@ -13,22 +13,33 @@ Complete guide for building and distributing SplitFace applications.
 
 **What it does:**
 1. Builds all three `.app` bundles with PyInstaller (~5-15 min)
-2. Creates distribution-ready DMG installers (~2-5 min)
+2. Creates single combined DMG installer (~2-5 min)
 
 **Output:**
 - `.app` bundles in each app's `dist/` folder
-- Three DMG files in `DMG_Installers/`
+- One combined DMG file: `DMG_Installers/SplitFace-v2.0.0.dmg` (~1.2 GB)
+
+**DMG Structure:**
+The installer contains all three apps in an organized folder:
+```
+SplitFace/
+  ├── Face Mirror.app
+  ├── Action Coder.app
+  └── Data Analysis.app
+```
+
+Users drag the entire "SplitFace" folder to Applications.
 
 **Note:** Currently building for ARM64 (Apple Silicon) only. Intel Mac support requires building on an Intel Mac or using a non-framework Python installation. Windows support is postponed until ARM Mac version is stable.
 
 ### Distribute to Users
 
-Upload the DMG files to:
+Upload the DMG file to:
 - GitHub Releases (recommended)
 - Google Drive / Dropbox
 - Your own website
 
-Users download and install like any Mac app - no Python or technical knowledge required.
+Users download and install like any Mac app suite - no Python or technical knowledge required.
 
 ## Detailed Workflow
 
@@ -63,10 +74,8 @@ Application bundles:
 - `S2 Action Coder/dist/Action Coder.app`
 - `S3 Data Analysis/dist/Data Analysis.app`
 
-DMG installers in `DMG_Installers/`:
-- `SplitFace-FaceMirror-v2.0.0.dmg` (~812 MB)
-- `SplitFace-ActionCoder-v2.0.0.dmg` (~280 MB)
-- `SplitFace-DataAnalysis-v2.0.0.dmg` (~160 MB)
+Combined DMG installer in `DMG_Installers/`:
+- `SplitFace-v2.0.0.dmg` (~1.2 GB, contains all three apps)
 
 **Total time:** ~7-20 minutes depending on your system
 
@@ -75,15 +84,16 @@ DMG installers in `DMG_Installers/`:
 - Universal binary (Intel + ARM) support requires using conda or system Python instead of Python.framework
 - Intel-only builds can be made on Intel Macs
 
-### Step 3: Test Installers
+### Step 3: Test Installer
 
-Before distributing, test each DMG:
+Before distributing, test the DMG:
 
 1. Double-click the DMG to mount it
-2. Drag the app to Applications
-3. Launch the app
-4. Verify it runs without errors
-5. Test core functionality
+2. Drag the "SplitFace" folder to Applications
+3. Verify all three apps are in /Applications/SplitFace/
+4. Launch each app
+5. Verify they run without errors
+6. Test core functionality
 
 **Ideal test:** Use a Mac that has never had Python installed.
 
@@ -102,21 +112,21 @@ Before distributing, test each DMG:
    - Click "Releases" → "Create a new release"
    - Select the tag you created
    - Add release notes (see template below)
-   - Upload the three DMG files
+   - Upload the DMG file
    - Publish release
 
 3. **Share the release URL** with users
 
 #### Option B: Direct File Sharing
 
-Upload DMG files to:
+Upload DMG file to:
 - Google Drive
 - Dropbox
 - OneDrive
 - WeTransfer
 - Your own server
 
-Share download links with users.
+Share download link with users.
 
 ## Release Notes Template
 
@@ -128,9 +138,7 @@ Facial analysis suite with OpenFace 3.0 integration.
 ## Downloads
 
 ### macOS (Apple Silicon / ARM64)
-- [S1 Face Mirror v2.0.0](link-to-dmg)
-- [S2 Action Coder v2.0.0](link-to-dmg)
-- [S3 Data Analysis v2.0.0](link-to-dmg)
+- [SplitFace v2.0.0 - Complete Suite](link-to-dmg) (~1.2 GB)
 
 ### System Requirements
 - macOS 11.0 (Big Sur) or later
@@ -141,12 +149,13 @@ Facial analysis suite with OpenFace 3.0 integration.
 **Note:** Intel Mac and Windows versions are not yet available. ARM64 version works on all Apple Silicon Macs.
 
 ### Installation
-1. Download the DMG file for your desired application
-2. Double-click the DMG to mount it
-3. Drag the application to your Applications folder
-4. Launch from Applications
+1. Download SplitFace-v2.0.0.dmg
+2. Double-click to mount the DMG
+3. Drag the "SplitFace" folder to your Applications folder
+4. All three apps will be in /Applications/SplitFace/
+5. Launch any app from /Applications/SplitFace/
 
-No Python installation required!
+No Python installation required! All apps are self-contained.
 
 ### What's New in v2.0.0
 - OpenFace 3.0 integration
@@ -183,12 +192,12 @@ Share these instructions with end users:
 
 ### Installing SplitFace Applications
 
-1. **Download** the DMG file for your desired application
+1. **Download** the SplitFace DMG file
 2. **Locate** the downloaded file (usually in Downloads folder)
 3. **Double-click** the DMG file to mount it
-4. **Drag** the application icon to the Applications folder shortcut
+4. **Drag** the "SplitFace" folder to the Applications folder shortcut
 5. **Eject** the DMG by right-clicking and selecting "Eject"
-6. **Launch** the application from your Applications folder
+6. **Launch** any application from /Applications/SplitFace/
 
 **First launch:** macOS may show a security warning. If so:
 - Go to System Preferences → Security & Privacy
@@ -211,8 +220,8 @@ When releasing a new version:
    VERSION = "2.1.0"  # Update this
    ```
 
-2. **Update version in this script:**
-   Edit `create_installers.sh` and change:
+2. **Update version in build script:**
+   Edit `build_macos.sh` and change:
    ```bash
    VERSION="2.1.0"
    ```
@@ -220,10 +229,9 @@ When releasing a new version:
 3. **Rebuild:**
    ```bash
    ./build_macos.sh
-   ./create_installers.sh
    ```
 
-4. **Create new release** with updated DMG files
+4. **Create new release** with updated DMG file
 
 ## Technical Details
 
@@ -242,11 +250,13 @@ Each application includes:
 - System libraries (Tcl/Tk for S3)
 
 ### File Sizes
-| Application | DMG Size | Installed Size |
-|-------------|----------|----------------|
-| S1 Face Mirror | ~750 MB | ~1.5 GB |
-| S2 Action Coder | ~280 MB | ~600 MB |
-| S3 Data Analysis | ~160 MB | ~350 MB |
+| Component | Size |
+|-----------|------|
+| Combined DMG | ~1.2 GB |
+| S1 Face Mirror (installed) | ~1.5 GB |
+| S2 Action Coder (installed) | ~600 MB |
+| S3 Data Analysis (installed) | ~350 MB |
+| Total installed | ~2.5 GB |
 
 Sizes are large because they include complete Python runtimes and all dependencies.
 
@@ -301,7 +311,7 @@ pip install -r requirements.txt
 ### Distribution Issues
 
 **DMG won't mount**
-- Recreate: `./create_installers.sh`
+- Recreate: `./build_macos.sh`
 - Check disk space
 - Try on different Mac
 
@@ -319,13 +329,13 @@ pip install -r requirements.txt
 
 **Your workflow:**
 ```bash
-./build_macos.sh  # Single command: Build apps + Create DMGs (7-20 min)
+./build_macos.sh  # Single command: Build apps + Create DMG (7-20 min)
 # Upload to GitHub Releases
 ```
 
 **User workflow:**
 ```
-Download DMG → Mount → Drag to Applications → Launch
+Download DMG → Mount → Drag SplitFace folder to Applications → Launch apps
 ```
 
 Simple, professional, and works like any other Mac application!

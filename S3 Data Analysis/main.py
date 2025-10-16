@@ -11,11 +11,19 @@ Usage:
         python main.py --batch --data-dir /path/to/data [--skip-visuals]
 """
 
+import sys
+import os
+
+# Show splash screen before heavy imports
+from splash_screen import SplashScreen
+splash = SplashScreen("Data Analysis", "2.0.0")
+splash.show()
+
+# Stage 1: Loading frameworks
+splash.update_status("Loading frameworks...")
 import argparse
 import tkinter as tk
 import logging
-import sys
-import os
 import config_paths
 
 # Get the directory where the currently running script (main.py) is located
@@ -37,11 +45,14 @@ if os.path.isdir(analyzer_dir) and analyzer_dir not in sys.path:
 elif not os.path.isdir(analyzer_dir):
     print(f"DEBUG WARNING: Constructed analyzer_dir '{analyzer_dir}' does not exist. Check path logic.", file=sys.stderr)
 
+# Stage 2: Loading ML models
+splash.update_status("Loading ML models...")
 try:
     from facial_au_gui import FacialAUAnalyzerGUI
     from facial_au_batch_processor import FacialAUBatchProcessor
     from facial_au_constants import PARALYSIS_SEVERITY_LEVELS
 except ImportError as e:
+    splash.close()
     print(f"FATAL ERROR: Could not import necessary project modules: {e}", file=sys.stderr)
     print(f"Current sys.path: {sys.path}", file=sys.stderr)
     sys.exit(1) # Exit if essential imports fail
@@ -118,6 +129,9 @@ def main():
 
     # Run in batch mode if specified
     if args.batch:
+        # Close splash screen for batch mode
+        splash.close()
+
         if not args.data_dir:
             logger.error("--data-dir must be specified in batch mode")
             parser.print_help()
@@ -169,6 +183,9 @@ def main():
     else:
         logger.info("Starting GUI application")
         try:
+            # Close splash screen before showing main GUI
+            splash.close()
+
             root = tk.Tk()
             app = FacialAUAnalyzerGUI(root)
             root.mainloop()

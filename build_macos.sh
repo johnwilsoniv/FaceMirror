@@ -66,64 +66,6 @@ build_app() {
     cd - > /dev/null
 }
 
-# Function to create DMG installer
-create_dmg() {
-    local app_name="$1"
-    local app_path="$2"
-    local dmg_name="$3"
-
-    echo "=========================================="
-    echo "Creating DMG: $app_name"
-    echo "=========================================="
-
-    # Check if app exists
-    if [ ! -d "$app_path" ]; then
-        echo "ERROR: Application not found at $app_path"
-        echo "Build must have failed - check output above"
-        return 1
-    fi
-
-    # Remove old DMG if exists
-    if [ -f "$OUTPUT_DIR/$dmg_name" ]; then
-        echo "Removing old DMG..."
-        rm "$OUTPUT_DIR/$dmg_name"
-    fi
-
-    # Create temporary directory for DMG contents
-    TEMP_DIR=$(mktemp -d)
-
-    # Copy app to temp directory
-    echo "Copying application..."
-    cp -R "$app_path" "$TEMP_DIR/"
-
-    # Create symbolic link to Applications folder
-    echo "Creating Applications link..."
-    ln -s /Applications "$TEMP_DIR/Applications"
-
-    # Create DMG using hdiutil
-    echo "Creating disk image..."
-    hdiutil create \
-        -volname "$app_name v$VERSION" \
-        -srcfolder "$TEMP_DIR" \
-        -ov \
-        -format UDZO \
-        "$OUTPUT_DIR/$dmg_name" > /dev/null
-
-    # Clean up temp directory
-    rm -rf "$TEMP_DIR"
-
-    if [ $? -eq 0 ]; then
-        echo "✓ DMG created successfully!"
-        echo "  Location: $OUTPUT_DIR/$dmg_name"
-        echo "  Size: $(du -h "$OUTPUT_DIR/$dmg_name" | cut -f1)"
-    else
-        echo "✗ DMG creation failed!"
-        return 1
-    fi
-
-    echo ""
-}
-
 # Create output directory for DMGs
 mkdir -p "$OUTPUT_DIR"
 
@@ -138,25 +80,82 @@ build_app "Action Coder" "S2 Action Coder" "Action_Coder.spec"
 build_app "Data Analysis" "S3 Data Analysis" "Data_Analysis.spec"
 
 echo "=========================================="
-echo "STEP 2: Creating DMG Installers"
+echo "STEP 2: Creating Combined DMG Installer"
 echo "=========================================="
 echo ""
 
-# Create DMGs for all three applications
-create_dmg \
-    "Face Mirror" \
-    "S1 Face Mirror/dist/Face Mirror.app" \
-    "SplitFace-FaceMirror-v$VERSION.dmg"
+# Create single DMG with all three apps in a SplitFace folder
+DMG_NAME="SplitFace-v$VERSION.dmg"
 
-create_dmg \
-    "Action Coder" \
-    "S2 Action Coder/dist/Action Coder.app" \
-    "SplitFace-ActionCoder-v$VERSION.dmg"
+echo "Creating combined installer: $DMG_NAME"
+echo ""
 
-create_dmg \
-    "Data Analysis" \
-    "S3 Data Analysis/dist/Data Analysis.app" \
-    "SplitFace-DataAnalysis-v$VERSION.dmg"
+# Check if all apps exist
+MISSING_APPS=0
+if [ ! -d "S1 Face Mirror/dist/Face Mirror.app" ]; then
+    echo "ERROR: Face Mirror.app not found"
+    MISSING_APPS=1
+fi
+if [ ! -d "S2 Action Coder/dist/Action Coder.app" ]; then
+    echo "ERROR: Action Coder.app not found"
+    MISSING_APPS=1
+fi
+if [ ! -d "S3 Data Analysis/dist/Data Analysis.app" ]; then
+    echo "ERROR: Data Analysis.app not found"
+    MISSING_APPS=1
+fi
+
+if [ $MISSING_APPS -eq 1 ]; then
+    echo "Build must have failed - check output above"
+    exit 1
+fi
+
+# Remove old DMG if exists
+if [ -f "$OUTPUT_DIR/$DMG_NAME" ]; then
+    echo "Removing old DMG..."
+    rm "$OUTPUT_DIR/$DMG_NAME"
+fi
+
+# Create temporary directory for DMG contents
+TEMP_DIR=$(mktemp -d)
+echo "Temporary directory: $TEMP_DIR"
+
+# Create SplitFace folder in temp directory
+SPLITFACE_FOLDER="$TEMP_DIR/SplitFace"
+mkdir -p "$SPLITFACE_FOLDER"
+
+# Copy all three apps to SplitFace folder
+echo "Copying applications to SplitFace folder..."
+cp -R "S1 Face Mirror/dist/Face Mirror.app" "$SPLITFACE_FOLDER/"
+cp -R "S2 Action Coder/dist/Action Coder.app" "$SPLITFACE_FOLDER/"
+cp -R "S3 Data Analysis/dist/Data Analysis.app" "$SPLITFACE_FOLDER/"
+
+# Create symbolic link to Applications folder
+echo "Creating Applications link..."
+ln -s /Applications "$TEMP_DIR/Applications"
+
+# Create DMG using hdiutil
+echo "Creating disk image..."
+hdiutil create \
+    -volname "SplitFace v$VERSION" \
+    -srcfolder "$TEMP_DIR" \
+    -ov \
+    -format UDZO \
+    "$OUTPUT_DIR/$DMG_NAME" > /dev/null
+
+# Clean up temp directory
+rm -rf "$TEMP_DIR"
+
+if [ $? -eq 0 ]; then
+    echo "✓ Combined DMG created successfully!"
+    echo "  Location: $OUTPUT_DIR/$DMG_NAME"
+    echo "  Size: $(du -h "$OUTPUT_DIR/$DMG_NAME" | cut -f1)"
+else
+    echo "✗ DMG creation failed!"
+    exit 1
+fi
+
+echo ""
 
 echo "=========================================="
 echo "✓ Build Complete!"
@@ -167,8 +166,14 @@ echo "  • S1 Face Mirror/dist/Face Mirror.app"
 echo "  • S2 Action Coder/dist/Action Coder.app"
 echo "  • S3 Data Analysis/dist/Data Analysis.app"
 echo ""
-echo "Distribution-ready DMG installers:"
-ls -lh "$OUTPUT_DIR"/*.dmg 2>/dev/null | awk '{print "  • " $9 " (" $5 ")"}'
+echo "Distribution-ready installer:"
+echo "  • $OUTPUT_DIR/$DMG_NAME ($(du -h "$OUTPUT_DIR/$DMG_NAME" 2>/dev/null | cut -f1))"
+echo ""
+echo "DMG Contents:"
+echo "  SplitFace/"
+echo "    ├── Face Mirror.app"
+echo "    ├── Action Coder.app"
+echo "    └── Data Analysis.app"
 echo ""
 echo "Ready for distribution:"
 echo "  • Upload to GitHub Releases"
@@ -176,10 +181,11 @@ echo "  • Share via file hosting service"
 echo "  • Distribute directly to users"
 echo ""
 echo "User installation (macOS):"
-echo "  1. Download DMG file"
+echo "  1. Download SplitFace-v$VERSION.dmg"
 echo "  2. Double-click to mount"
-echo "  3. Drag app to Applications"
-echo "  4. Launch from Applications folder"
+echo "  3. Drag 'SplitFace' folder to Applications"
+echo "  4. Apps will be in /Applications/SplitFace/"
+echo "  5. Launch any app from /Applications/SplitFace/"
 echo ""
 echo "Target architecture: Apple Silicon (ARM64)"
 echo ""

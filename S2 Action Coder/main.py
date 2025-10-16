@@ -2,6 +2,17 @@
 
 import sys
 import os
+
+# Show splash screen before heavy imports
+from splash_screen import SplashScreen
+splash = SplashScreen("Action Coder", "2.0.0")
+splash.show()
+
+# Stage 1: Loading frameworks
+splash.update_status("Loading frameworks...")
+
+# Stage 2: Initializing PyQt5
+splash.update_status("Initializing PyQt5...")
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt # *** ADDED IMPORT ***
 
@@ -22,6 +33,9 @@ def add_exception_logging():
                  QMessageBox.critical( None, "Application Error", f"Unexpected error: {exc_type.__name__}: {exc_value}\n\nDetails logged to {log_file}")
         except Exception as msg_e: print(f"Error showing critical message box: {msg_e}")
     sys.excepthook = exception_handler; print("Exception logging enabled.")
+
+# Stage 3: Loading video processor
+splash.update_status("Loading video processor...")
 
 # Import the main controller
 from app_controller import ApplicationController
@@ -97,7 +111,13 @@ if __name__ == "__main__":
     configure_pydub()
     patch_batch_processor()
 
+    # Stage 4: Starting application
+    splash.update_status("Starting application...")
+
     app = QApplication(sys.argv)
+
+    # Close splash screen before showing main window
+    splash.close()
     # Set High DPI scaling based on Qt version
     # *** Qt is now imported, these should work ***
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):

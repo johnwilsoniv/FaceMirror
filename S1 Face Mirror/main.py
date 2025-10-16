@@ -2,21 +2,37 @@
 S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
+# Lightweight imports first
+from pathlib import Path
+from splash_screen import SplashScreen
+
+# Show splash screen immediately before heavy imports
+splash = SplashScreen("Face Mirror", "2.0.0")
+splash.show()
+
+# Stage 1: Loading frameworks
+splash.update_status("Loading frameworks...")
 import tkinter as tk
 from tkinter import filedialog
-from pathlib import Path
 import native_dialogs
 from multiprocessing import cpu_count
 import gc
-import torch
 import psutil
 import time
 
-# Import configuration and workflow components
+# Stage 2: Initializing PyTorch
+splash.update_status("Initializing PyTorch...")
+import torch
+
+# Stage 3: Loading OpenFace models
+splash.update_status("Loading OpenFace models...")
 import config_paths
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor
 from progress_window import ProcessingProgressWindow, ProgressUpdate
+
+# Close splash screen
+splash.close()
 
 
 # Configuration Constants
