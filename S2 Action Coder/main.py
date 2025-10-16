@@ -2,19 +2,9 @@
 
 import sys
 import os
-
-# Show splash screen before heavy imports
 from splash_screen import SplashScreen
-splash = SplashScreen("Action Coder", "2.0.0")
-splash.show()
-
-# Stage 1: Loading frameworks
-splash.update_status("Loading frameworks...")
-
-# Stage 2: Initializing PyQt5
-splash.update_status("Initializing PyQt5...")
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt # *** ADDED IMPORT ***
+from PyQt5.QtCore import Qt
 
 
 # Exception logging function (keep here or move to utils)
@@ -107,19 +97,29 @@ def patch_batch_processor():
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    # Show splash screen with loading stages (ONLY in main process)
+    splash = SplashScreen("Action Coder", "2.0.0")
+    splash.show()
+
+    # Stage 1: Loading frameworks
+    splash.update_status("Loading frameworks...")
+
+    # Stage 2: Initializing PyQt5
+    splash.update_status("Initializing PyQt5...")
+
     add_exception_logging()
     configure_pydub()
     patch_batch_processor()
 
-    # Stage 4: Starting application
+    # Stage 3: Starting application
     splash.update_status("Starting application...")
 
     app = QApplication(sys.argv)
 
     # Close splash screen before showing main window
     splash.close()
+
     # Set High DPI scaling based on Qt version
-    # *** Qt is now imported, these should work ***
     if hasattr(Qt, 'AA_EnableHighDpiScaling'):
         QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     if hasattr(Qt, 'AA_UseHighDpiPixmaps'):

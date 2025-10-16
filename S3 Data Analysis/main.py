@@ -13,14 +13,7 @@ Usage:
 
 import sys
 import os
-
-# Show splash screen before heavy imports
 from splash_screen import SplashScreen
-splash = SplashScreen("Data Analysis", "2.0.0")
-splash.show()
-
-# Stage 1: Loading frameworks
-splash.update_status("Loading frameworks...")
 import argparse
 import tkinter as tk
 import logging
@@ -45,14 +38,11 @@ if os.path.isdir(analyzer_dir) and analyzer_dir not in sys.path:
 elif not os.path.isdir(analyzer_dir):
     print(f"DEBUG WARNING: Constructed analyzer_dir '{analyzer_dir}' does not exist. Check path logic.", file=sys.stderr)
 
-# Stage 2: Loading ML models
-splash.update_status("Loading ML models...")
 try:
     from facial_au_gui import FacialAUAnalyzerGUI
     from facial_au_batch_processor import FacialAUBatchProcessor
     from facial_au_constants import PARALYSIS_SEVERITY_LEVELS
 except ImportError as e:
-    splash.close()
     print(f"FATAL ERROR: Could not import necessary project modules: {e}", file=sys.stderr)
     print(f"Current sys.path: {sys.path}", file=sys.stderr)
     sys.exit(1) # Exit if essential imports fail
@@ -116,6 +106,16 @@ if file_handler: logger.info(f"Logging to file: {log_file_path}")
 
 def main():
     """Main entry point."""
+    # Show splash screen (ONLY in main process)
+    splash = SplashScreen("Data Analysis", "2.0.0")
+    splash.show()
+
+    # Stage 1: Loading frameworks
+    splash.update_status("Loading frameworks...")
+
+    # Stage 2: Loading ML models
+    splash.update_status("Loading ML models...")
+
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Facial AU Analyzer')
     parser.add_argument('--batch', action='store_true', help='Run in batch mode (no GUI)')
