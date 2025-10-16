@@ -31,13 +31,18 @@ This creates `.app` bundles in each app's `dist/` folder with universal binaries
 
 ### Step 2: Create DMG Installers
 
-Create distribution-ready DMG files:
+Create distribution-ready DMG files using the **simple method (recommended)**:
 
 ```bash
 ./create_simple_dmg.sh
 ```
 
-This creates three DMG files in `DMG_Installers/`:
+**Alternative (Fancy DMGs with custom backgrounds):**
+```bash
+./create_dmg.sh  # Requires: brew install create-dmg
+```
+
+Both methods create three DMG files in `DMG_Installers/`:
 ```
 DMG_Installers/
 ├── SplitFace-FaceMirror-v2.0.0.dmg

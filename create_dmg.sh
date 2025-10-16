@@ -52,22 +52,27 @@ create_app_dmg() {
         rm "$OUTPUT_DIR/$dmg_name"
     fi
 
+    # Create temporary directory for DMG contents
+    TEMP_DIR=$(mktemp -d)
+    echo "Copying app to temporary directory..."
+    cp -R "$app_path" "$TEMP_DIR/"
+
     # Create DMG with create-dmg
     echo "Creating disk image..."
     create-dmg \
         --volname "$volume_name" \
-        --volicon "$app_path/Contents/Resources/AppIcon.icns" 2>/dev/null || true \
         --window-pos 200 120 \
         --window-size 600 400 \
         --icon-size 100 \
         --icon "$app_name.app" 175 190 \
         --hide-extension "$app_name.app" \
         --app-drop-link 425 185 \
-        --eula "LICENSE.txt" 2>/dev/null || true \
-        --background "dmg_background.png" 2>/dev/null || true \
+        --skip-jenkins \
         "$OUTPUT_DIR/$dmg_name" \
-        "$app_path" \
-        --skip-jenkins
+        "$TEMP_DIR"
+
+    # Clean up
+    rm -rf "$TEMP_DIR"
 
     if [ $? -eq 0 ]; then
         echo "✓ DMG created successfully!"

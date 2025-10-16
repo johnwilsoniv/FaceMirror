@@ -250,16 +250,24 @@ If the built applications are too large:
 
 #### macOS - Easy DMG Creation
 
-**Option 1: All-in-One (Recommended)**
-Builds apps and creates DMGs in one step:
+**Recommended Method:**
+Use the simple DMG creator (no external dependencies):
 ```bash
-./build_and_package_macos.sh
+./create_simple_dmg.sh
 ```
 
-**Option 2: Create DMGs from Already-Built Apps**
-If you've already built the apps:
+**Alternative (Fancy DMGs):**
+For DMGs with custom backgrounds and icons:
 ```bash
+brew install create-dmg  # One-time install
 ./create_dmg.sh
+```
+
+**All-in-One:**
+Build apps and create DMGs together:
+```bash
+./build_macos.sh           # Build apps
+./create_simple_dmg.sh     # Create DMGs
 ```
 
 This will create user-friendly DMG installers in `DMG_Installers/`:
