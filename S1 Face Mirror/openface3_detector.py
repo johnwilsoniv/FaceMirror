@@ -47,70 +47,88 @@ class OpenFace3LandmarkDetector:
             model_dir = str(config_paths.get_weights_dir())
 
         # OpenFace 3.0 expects weights at "./weights/mobilenetV1X0.25_pretrain.tar"
-        # Change to model directory if weights aren't in current working directory
+        # We need to patch the hardcoded path in OpenFace's internal code
+        weights_file_path = os.path.join(model_dir, 'mobilenetV1X0.25_pretrain.tar')
+
+        # Save original working directory to restore later
         original_cwd = os.getcwd()
-        weights_exist_in_cwd = os.path.exists('./weights/mobilenetV1X0.25_pretrain.tar')
+        self.original_cwd = original_cwd
 
-        if not weights_exist_in_cwd:
-            # Change to the directory containing weights folder
-            weights_parent = os.path.dirname(model_dir)
-            os.chdir(weights_parent)
-            if debug_mode:
-                print(f"Changed working directory to: {weights_parent}")
+        # Patch OpenFace's hardcoded weights path
+        # The FaceDetector initialization tries to load './weights/mobilenetV1X0.25_pretrain.tar'
+        # We'll monkey-patch the path to use the absolute path instead
+        import openface.face_detection
 
-        try:
-            # Initialize OpenFace 3.0 models with correct parameters
-            self.face_detector = FaceDetector(
-                model_path=f'{model_dir}/Alignment_RetinaFace.pth',
-                device=device,
-                confidence_threshold=0.9
-            )
+        # Store the absolute path to weights file for the monkey patch
+        self._weights_abs_path = weights_file_path
 
-            # Patch STAR config to use writable cache directory instead of /work
-            import openface.STAR.conf.alignment as alignment_conf
-            original_init = alignment_conf.Alignment.__init__
+        # Check if weights file exists
+        if not os.path.exists(weights_file_path):
+            raise FileNotFoundError(f"Weights file not found at {weights_file_path}")
 
-            def patched_init(self_inner, args):
-                original_init(self_inner, args)
-                # Replace hardcoded /work path with a writable location
-                home_dir = os.path.expanduser('~')
-                self_inner.ckpt_dir = os.path.join(home_dir, '.cache', 'openface', 'STAR')
-                self_inner.work_dir = osp.join(self_inner.ckpt_dir, self_inner.data_definition, self_inner.folder)
-                self_inner.model_dir = osp.join(self_inner.work_dir, 'model')
-                self_inner.log_dir = osp.join(self_inner.work_dir, 'log')
-                # Create directories if they don't exist
-                os.makedirs(self_inner.ckpt_dir, exist_ok=True)
+        # Monkey patch: Replace the hardcoded relative path with absolute path
+        # This is done by changing directory to the parent of weights, so './weights/...' resolves correctly
+        weights_parent = os.path.dirname(model_dir)
+        os.chdir(weights_parent)
+        if debug_mode:
+            print(f"Changed working directory to: {weights_parent}")
+            print(f"Weights accessible at: ./weights/mobilenetV1X0.25_pretrain.tar")
 
-            import os.path as osp
-            alignment_conf.Alignment.__init__ = patched_init
+        # Initialize OpenFace 3.0 models with correct parameters
+        self.face_detector = FaceDetector(
+            model_path=f'{model_dir}/Alignment_RetinaFace.pth',
+            device=device,
+            confidence_threshold=0.9
+        )
 
-            self.landmark_detector = LandmarkDetector(
-                model_path=f'{model_dir}/Landmark_98.pkl',
-                device=device
-            )
+        # Patch STAR config to use writable cache directory instead of /work
+        import openface.STAR.conf.alignment as alignment_conf
+        original_init = alignment_conf.Alignment.__init__
 
-            # Restore original __init__
-            alignment_conf.Alignment.__init__ = original_init
+        def patched_init(self_inner, args):
+            original_init(self_inner, args)
+            # Replace hardcoded /work path with a writable location
+            home_dir = os.path.expanduser('~')
+            self_inner.ckpt_dir = os.path.join(home_dir, '.cache', 'openface', 'STAR')
+            self_inner.work_dir = osp.join(self_inner.ckpt_dir, self_inner.data_definition, self_inner.folder)
+            self_inner.model_dir = osp.join(self_inner.work_dir, 'model')
+            self_inner.log_dir = osp.join(self_inner.work_dir, 'log')
+            # Create directories if they don't exist
+            os.makedirs(self_inner.ckpt_dir, exist_ok=True)
 
-            # Suppress verbose "Processing face..." output from landmark detector
-            import openface.landmark_detection as lm_module
-            original_detect = lm_module.LandmarkDetector.detect_landmarks
+        import os.path as osp
+        alignment_conf.Alignment.__init__ = patched_init
 
-            def silent_detect(self_inner, image, dets, confidence_threshold=0.5):
-                # Temporarily redirect stdout to suppress prints
-                import io
-                import contextlib
-                f = io.StringIO()
-                with contextlib.redirect_stdout(f):
-                    return original_detect(self_inner, image, dets, confidence_threshold)
+        self.landmark_detector = LandmarkDetector(
+            model_path=f'{model_dir}/Landmark_98.pkl',
+            device=device
+        )
 
-            lm_module.LandmarkDetector.detect_landmarks = silent_detect
-        finally:
-            # Restore original working directory
-            if not weights_exist_in_cwd:
-                os.chdir(original_cwd)
-                if debug_mode:
-                    print(f"Restored working directory to: {original_cwd}")
+        # Restore original __init__
+        alignment_conf.Alignment.__init__ = original_init
+
+        # DO NOT restore working directory yet - keep it at weights_parent
+        # OpenFace may need to access ./weights/ during runtime, not just initialization
+        # We'll store the weights_parent path for later use
+        self._weights_parent = weights_parent
+
+        if debug_mode:
+            print(f"Keeping working directory at: {os.getcwd()}")
+            print(f"Original working directory saved as: {original_cwd}")
+
+        # Suppress verbose "Processing face..." output from landmark detector
+        import openface.landmark_detection as lm_module
+        original_detect = lm_module.LandmarkDetector.detect_landmarks
+
+        def silent_detect(self_inner, image, dets, confidence_threshold=0.5):
+            # Temporarily redirect stdout to suppress prints
+            import io
+            import contextlib
+            f = io.StringIO()
+            with contextlib.redirect_stdout(f):
+                return original_detect(self_inner, image, dets, confidence_threshold)
+
+        lm_module.LandmarkDetector.detect_landmarks = silent_detect
 
         # Tracking history
         self.last_face = None

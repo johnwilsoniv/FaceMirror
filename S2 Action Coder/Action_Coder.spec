@@ -58,6 +58,8 @@ datas += collect_data_files('ctranslate2')
 
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
+    'tkinter',
+    'tkinter.ttk',
     'PyQt5.QtCore',
     'PyQt5.QtGui',
     'PyQt5.QtWidgets',
@@ -96,7 +98,7 @@ a = Analysis(
         'IPython',
         'jupyter',
         'notebook',
-        'tkinter',
+        # tkinter is needed for splash screen - DO NOT exclude
         'torch',
         'tensorflow',
     ],

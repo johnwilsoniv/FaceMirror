@@ -36,10 +36,15 @@ def show_info(title, message):
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        # Reuse existing root if available to prevent multiple app instances
+        root_created = False
+        if tk._default_root is None:
+            root = tk.Tk()
+            root.withdraw()
+            root_created = True
         messagebox.showinfo(title, message)
-        root.destroy()
+        if root_created:
+            root.destroy()
     except Exception as e:
         print(f"Error: Could not show dialog: {e}")
         print(f"{title}: {message}")
@@ -65,10 +70,15 @@ def show_warning(title, message):
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        # Reuse existing root if available to prevent multiple app instances
+        root_created = False
+        if tk._default_root is None:
+            root = tk.Tk()
+            root.withdraw()
+            root_created = True
         messagebox.showwarning(title, message)
-        root.destroy()
+        if root_created:
+            root.destroy()
     except Exception as e:
         print(f"Error: Could not show dialog: {e}")
         print(f"{title}: {message}")
@@ -94,10 +104,15 @@ def show_error(title, message):
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        # Reuse existing root if available to prevent multiple app instances
+        root_created = False
+        if tk._default_root is None:
+            root = tk.Tk()
+            root.withdraw()
+            root_created = True
         messagebox.showerror(title, message)
-        root.destroy()
+        if root_created:
+            root.destroy()
     except Exception as e:
         print(f"Error: Could not show dialog: {e}")
         print(f"{title}: {message}")
@@ -152,10 +167,15 @@ def ask_yes_no(title, message, default_yes=True):
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        # Reuse existing root if available to prevent multiple app instances
+        root_created = False
+        if tk._default_root is None:
+            root = tk.Tk()
+            root.withdraw()
+            root_created = True
         result = messagebox.askyesno(title, message, default='yes' if default_yes else 'no')
-        root.destroy()
+        if root_created:
+            root.destroy()
         return result
     except Exception as e:
         print(f"Error: Could not show dialog: {e}")
@@ -207,8 +227,14 @@ def ask_three_choice(title, message, button1, button2, button3, default_button=2
         import tkinter as tk
         from tkinter import messagebox
 
-        root = tk.Tk()
-        root.withdraw()
+        # Reuse existing root if available to prevent multiple app instances
+        root_created = False
+        if tk._default_root is None:
+            root = tk.Tk()
+            root.withdraw()
+            root_created = True
+        else:
+            root = tk._default_root
 
         # Create custom dialog window
         dialog = tk.Toplevel(root)
@@ -228,7 +254,8 @@ def ask_three_choice(title, message, button1, button2, button3, default_button=2
         def on_button(choice):
             result[0] = choice
             dialog.destroy()
-            root.destroy()
+            if root_created:
+                root.destroy()
 
         # Create buttons (left to right)
         btn1 = tk.Button(btn_frame, text=button1, command=lambda: on_button(1), width=15)

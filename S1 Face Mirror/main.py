@@ -2,37 +2,32 @@
 S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
-# Lightweight imports first
+# Lightweight imports - safe for multiprocessing child processes
 from pathlib import Path
-from splash_screen import SplashScreen
-
-# Show splash screen immediately before heavy imports
-splash = SplashScreen("Face Mirror", "2.0.0")
-splash.show()
-
-# Stage 1: Loading frameworks
-splash.update_status("Loading frameworks...")
 import tkinter as tk
 from tkinter import filedialog
 import native_dialogs
+import multiprocessing
 from multiprocessing import cpu_count
 import gc
 import psutil
 import time
-
-# Stage 2: Initializing PyTorch
-splash.update_status("Initializing PyTorch...")
 import torch
-
-# Stage 3: Loading OpenFace models
-splash.update_status("Loading OpenFace models...")
 import config_paths
+from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor
 from progress_window import ProcessingProgressWindow, ProgressUpdate
 
-# Close splash screen
-splash.close()
+# CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
+# This prevents splash screen and file dialogs from appearing in child processes
+# Must be done before any multiprocessing operations
+if __name__ == "__main__":
+    try:
+        multiprocessing.set_start_method('fork', force=True)
+    except RuntimeError:
+        # Already set, ignore
+        pass
 
 
 # Configuration Constants
@@ -577,8 +572,8 @@ def workflow_mirror_openface():
     summary += "\nGenerated Files:\n"
     summary += f"  • {total_mirrored} mirrored videos\n"
     summary += f"  • {total_csvs} AU CSV files\n\n"
-    summary += "Results saved to: Combined Data/\n\n"
-    summary += "Next step: Open 'Combined Data' folder to view your Action Unit CSV files."
+    summary += f"Results saved to:\n{openface_output_dir}\n\n"
+    summary += "Next step: Run the videos and CSV files through the Action Coder app."
 
     native_dialogs.show_info("Processing Complete", summary)
     root.destroy()
@@ -586,6 +581,25 @@ def workflow_mirror_openface():
 
 def main():
     """Main entry point - go straight to full pipeline workflow"""
+    # Show splash screen with loading stages (ONLY in main process, not in multiprocessing workers)
+    splash = SplashScreen("Face Mirror", "2.0.0")
+    splash.show()
+
+    # Stage 1: Loading frameworks
+    splash.update_status("Loading frameworks...")
+    # (imports already done at module level)
+
+    # Stage 2: Initializing PyTorch
+    splash.update_status("Initializing PyTorch...")
+    # (PyTorch already imported)
+
+    # Stage 3: Loading OpenFace models
+    splash.update_status("Loading OpenFace models...")
+    # (Models will be loaded when needed)
+
+    # Close splash screen
+    splash.close()
+
     print("\n" + "="*60)
     print(f"S1 FACE MIRROR v{config_paths.VERSION} - FULL PIPELINE")
     print("Face Mirroring + Action Unit Extraction")

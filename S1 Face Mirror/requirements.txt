@@ -5,7 +5,7 @@ scipy>=1.10.0
 tqdm>=4.65.0
 psutil>=5.9.0
 
-# OpenFace 3.0 for face detection and landmark tracking
+# OpenFace 3.0 for face detection and landmark tracki
 openface-test>=0.1.0
 torch>=2.0.0
 
