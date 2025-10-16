@@ -44,6 +44,11 @@ except:
 
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
+    'tkinter',
+    'tkinter.filedialog',
+    'tkinter.ttk',
+    'tkinter.font',
+    'tkinter.messagebox',
     'PIL._tkinter_finder',
     'cv2',
     'numpy',
@@ -77,15 +82,13 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'matplotlib',
-        'scipy',
-        'pandas',
+        # matplotlib, scipy, pandas are needed by OpenFace STAR module - DO NOT exclude
         'IPython',
         'jupyter',
         'notebook',
         'PyQt5',
         'PySide2',
-        'tkinter',
+        # tkinter is needed for S1 GUI - DO NOT exclude
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -108,7 +111,7 @@ exe = EXE(
     console=True,  # Show console for progress output
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='universal2',  # Build for both Intel and Apple Silicon
+    target_arch=None,  # Use current architecture (universal2 causes issues with Python.framework)
     codesign_identity=None,
     entitlements_file=None,
 )
