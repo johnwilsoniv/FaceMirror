@@ -7,14 +7,17 @@ Complete guide for building and distributing SplitFace applications.
 ### Build and Package for Distribution
 
 ```bash
-# 1. Build applications (ARM64 architecture for Apple Silicon)
+# Single command builds apps and creates DMG installers
 ./build_macos.sh
-
-# 2. Create DMG installers
-./create_installers.sh
 ```
 
-**Output:** Three distribution-ready DMG files in `DMG_Installers/`
+**What it does:**
+1. Builds all three `.app` bundles with PyInstaller (~5-15 min)
+2. Creates distribution-ready DMG installers (~2-5 min)
+
+**Output:**
+- `.app` bundles in each app's `dist/` folder
+- Three DMG files in `DMG_Installers/`
 
 **Note:** Currently building for ARM64 (Apple Silicon) only. Intel Mac support requires building on an Intel Mac or using a non-framework Python installation. Windows support is postponed until ARM Mac version is stable.
 
@@ -43,38 +46,36 @@ cd "../S2 Action Coder" && pip install -r requirements.txt
 cd "../S3 Data Analysis" && pip install -r requirements.txt
 ```
 
-### Step 2: Build Applications
+### Step 2: Build and Package
 
 ```bash
 ./build_macos.sh
 ```
 
-This creates ARM64 binaries (Apple Silicon) in:
+This single script:
+1. **Builds** ARM64 binaries (Apple Silicon) with PyInstaller
+2. **Creates** DMG installers for distribution
+
+**Output Locations:**
+
+Application bundles:
 - `S1 Face Mirror/dist/Face Mirror.app`
 - `S2 Action Coder/dist/Action Coder.app`
 - `S3 Data Analysis/dist/Data Analysis.app`
 
-**Build time:** ~5-15 minutes depending on your system
+DMG installers in `DMG_Installers/`:
+- `SplitFace-FaceMirror-v2.0.0.dmg` (~812 MB)
+- `SplitFace-ActionCoder-v2.0.0.dmg` (~280 MB)
+- `SplitFace-DataAnalysis-v2.0.0.dmg` (~160 MB)
+
+**Total time:** ~7-20 minutes depending on your system
 
 **Architecture Notes:**
 - Currently builds for ARM64 (Apple Silicon) only
 - Universal binary (Intel + ARM) support requires using conda or system Python instead of Python.framework
 - Intel-only builds can be made on Intel Macs
 
-### Step 3: Create Installers
-
-```bash
-./create_installers.sh
-```
-
-Creates DMG files in `DMG_Installers/`:
-- `SplitFace-FaceMirror-v2.0.0.dmg` (~750 MB)
-- `SplitFace-ActionCoder-v2.0.0.dmg` (~280 MB)
-- `SplitFace-DataAnalysis-v2.0.0.dmg` (~160 MB)
-
-**Creation time:** ~2-5 minutes
-
-### Step 4: Test Installers
+### Step 3: Test Installers
 
 Before distributing, test each DMG:
 
@@ -86,7 +87,7 @@ Before distributing, test each DMG:
 
 **Ideal test:** Use a Mac that has never had Python installed.
 
-### Step 5: Distribute
+### Step 4: Distribute
 
 #### Option A: GitHub Releases (Recommended)
 
@@ -318,8 +319,7 @@ pip install -r requirements.txt
 
 **Your workflow:**
 ```bash
-./build_macos.sh        # Build apps (5-15 min)
-./create_installers.sh  # Create DMGs (2-5 min)
+./build_macos.sh  # Single command: Build apps + Create DMGs (7-20 min)
 # Upload to GitHub Releases
 ```
 

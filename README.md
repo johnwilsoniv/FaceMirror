@@ -64,8 +64,7 @@ python main.py
 
 **Build standalone applications:**
 ```bash
-./build_macos.sh        # Build apps
-./create_installers.sh  # Create DMG installers
+./build_macos.sh  # Build apps and create DMG installers (single command)
 ```
 
 See [DISTRIBUTION.md](DISTRIBUTION.md) for complete build and distribution guide.
