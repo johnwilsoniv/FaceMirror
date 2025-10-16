@@ -78,17 +78,19 @@ See [GitHub Releases](../../releases) for downloads.
 
 ## System Requirements
 
-### Minimum Requirements
-- **OS**: macOS 10.13+ or Windows 10+
-- **CPU**: Intel i5 or equivalent (Apple Silicon supported)
+### For End Users (Bundled Apps)
+- **OS**: macOS 11.0+ (Big Sur or later)
+- **CPU**: Apple Silicon (M1, M2, M3, M4)
 - **RAM**: 8 GB (16 GB recommended for S1)
 - **Storage**: 10 GB free space
-- **Python**: 3.10 or 3.11 (for development/building)
+- **Python**: Not required (bundled in apps)
 
-### Recommended Hardware
-- **CPU**: Multi-core processor (8+ cores)
+### For Developers
+- **OS**: macOS 11.0+ (Apple Silicon recommended)
+- **CPU**: Apple Silicon preferred (Intel builds require Intel Mac)
 - **RAM**: 16+ GB
-- **GPU**: NVIDIA GPU with CUDA support (optional, for faster S1 processing)
+- **Python**: 3.10 or 3.11
+- **Note**: Windows and Intel Mac support postponed until ARM version is stable
 
 ## Installation
 
@@ -290,11 +292,13 @@ If you use SplitFace in your research, please cite:
 
 ### v2.0.0 (Current)
 - Upgraded to OpenFace 3.0
-- Cross-platform build support (Windows & macOS)
+- Native Apple Silicon (ARM64) support
 - Standardized output directory structure
 - Improved memory management
 - Enhanced GUI for S2
 - ML-based paralysis detection in S3
+- Fixed PyInstaller bundling (includes all required dependencies)
+- DMG installer for easy distribution
 
 ### v1.0.0 (Previous)
 - Initial release with OpenFace 2.2

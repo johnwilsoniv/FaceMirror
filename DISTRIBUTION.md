@@ -7,7 +7,7 @@ Complete guide for building and distributing SplitFace applications.
 ### Build and Package for Distribution
 
 ```bash
-# 1. Build applications (with universal binary support)
+# 1. Build applications (ARM64 architecture for Apple Silicon)
 ./build_macos.sh
 
 # 2. Create DMG installers
@@ -15,6 +15,8 @@ Complete guide for building and distributing SplitFace applications.
 ```
 
 **Output:** Three distribution-ready DMG files in `DMG_Installers/`
+
+**Note:** Currently building for ARM64 (Apple Silicon) only. Intel Mac support requires building on an Intel Mac or using a non-framework Python installation. Windows support is postponed until ARM Mac version is stable.
 
 ### Distribute to Users
 
@@ -47,12 +49,17 @@ cd "../S3 Data Analysis" && pip install -r requirements.txt
 ./build_macos.sh
 ```
 
-This creates universal binaries (Intel + Apple Silicon) in:
+This creates ARM64 binaries (Apple Silicon) in:
 - `S1 Face Mirror/dist/Face Mirror.app`
 - `S2 Action Coder/dist/Action Coder.app`
 - `S3 Data Analysis/dist/Data Analysis.app`
 
 **Build time:** ~5-15 minutes depending on your system
+
+**Architecture Notes:**
+- Currently builds for ARM64 (Apple Silicon) only
+- Universal binary (Intel + ARM) support requires using conda or system Python instead of Python.framework
+- Intel-only builds can be made on Intel Macs
 
 ### Step 3: Create Installers
 
@@ -119,15 +126,18 @@ Facial analysis suite with OpenFace 3.0 integration.
 
 ## Downloads
 
-### macOS (Universal Binary - Intel & Apple Silicon)
+### macOS (Apple Silicon / ARM64)
 - [S1 Face Mirror v2.0.0](link-to-dmg)
 - [S2 Action Coder v2.0.0](link-to-dmg)
 - [S3 Data Analysis v2.0.0](link-to-dmg)
 
 ### System Requirements
-- macOS 10.13 (High Sierra) or later
+- macOS 11.0 (Big Sur) or later
+- Apple Silicon (M1, M2, M3, M4) processor
 - 8 GB RAM minimum (16 GB recommended for S1)
 - 10 GB free disk space
+
+**Note:** Intel Mac and Windows versions are not yet available. ARM64 version works on all Apple Silicon Macs.
 
 ### Installation
 1. Download the DMG file for your desired application
@@ -139,11 +149,12 @@ No Python installation required!
 
 ### What's New in v2.0.0
 - OpenFace 3.0 integration
-- Universal binary support (Intel + Apple Silicon)
+- Native Apple Silicon (ARM64) support
 - Improved memory management
 - Enhanced GUI for S2
 - ML-based paralysis detection in S3
 - Standardized output directories
+- Fixed PyInstaller bundling for all required dependencies (tkinter, matplotlib, pandas, scipy)
 
 ### Applications
 
@@ -215,10 +226,11 @@ When releasing a new version:
 
 ## Technical Details
 
-### Universal Binary Support
-- Built with `target_arch='universal2'` in PyInstaller spec files
-- Single DMG works on both Intel and Apple Silicon Macs
-- Users don't need to know which chip they have
+### Architecture Support
+- Currently built for ARM64 (Apple Silicon) only with `target_arch=None`
+- Python.framework installation does not support universal2 builds reliably
+- Future universal binary support requires switching to conda or system Python
+- ARM64 DMG works on M1, M2, M3, M4 Macs
 
 ### What's Bundled
 Each application includes:
@@ -253,16 +265,17 @@ codesign --verify --verbose "Face Mirror.app"
 
 For macOS 10.15+, notarization is required for seamless installation.
 
-## Windows Distribution
+## Windows and Intel Mac Distribution
 
-For Windows users:
+**Status:** Postponed
 
-1. Build on Windows: `build_windows.bat`
-2. Zip each folder in `dist/`
-3. Distribute ZIP files
-4. Users extract and run `.exe`
+Windows and Intel Mac distributions are postponed until the ARM Mac version is stable and fully tested.
 
-No DMG files for Windows - use ZIP archives instead.
+**Future Plans:**
+- Windows: Will use PyInstaller to create `.exe` bundles distributed as ZIP files
+- Intel Mac: Will require building on an Intel Mac or switching to conda/system Python for universal2 support
+
+**Current Focus:** Ensuring robust ARM64 (Apple Silicon) builds first
 
 ## Troubleshooting
 
