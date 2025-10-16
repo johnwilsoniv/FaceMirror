@@ -1,26 +1,14 @@
 #!/bin/bash
-# Create DMG installers for SplitFace applications
-# Creates user-friendly disk images with drag-to-Applications interface
+# SplitFace Installer Creator for macOS
+# Creates distribution-ready DMG installers with drag-to-Applications interface
+# Uses built-in macOS tools (hdiutil) - no external dependencies required
 
 set -e  # Exit on error
 
 echo "=========================================="
-echo "SplitFace v2.0.0 - DMG Creator"
+echo "SplitFace v2.0.0 - Installer Creator"
 echo "=========================================="
 echo ""
-
-# Check if create-dmg is installed
-if ! command -v create-dmg &> /dev/null; then
-    echo "Installing create-dmg tool..."
-    if command -v brew &> /dev/null; then
-        brew install create-dmg
-    else
-        echo "ERROR: Homebrew not found. Please install create-dmg manually:"
-        echo "  brew install create-dmg"
-        echo "Or install Homebrew first: https://brew.sh"
-        exit 1
-    fi
-fi
 
 VERSION="2.0.0"
 OUTPUT_DIR="DMG_Installers"
@@ -28,12 +16,11 @@ OUTPUT_DIR="DMG_Installers"
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
 
-# Function to create DMG
-create_app_dmg() {
+# Function to create simple DMG
+create_simple_dmg() {
     local app_name="$1"
     local app_path="$2"
     local dmg_name="$3"
-    local volume_name="$4"
 
     echo "=========================================="
     echo "Creating DMG for: $app_name"
@@ -54,24 +41,26 @@ create_app_dmg() {
 
     # Create temporary directory for DMG contents
     TEMP_DIR=$(mktemp -d)
-    echo "Copying app to temporary directory..."
+    echo "Temporary directory: $TEMP_DIR"
+
+    # Copy app to temp directory
+    echo "Copying application..."
     cp -R "$app_path" "$TEMP_DIR/"
 
-    # Create DMG with create-dmg
-    echo "Creating disk image..."
-    create-dmg \
-        --volname "$volume_name" \
-        --window-pos 200 120 \
-        --window-size 600 400 \
-        --icon-size 100 \
-        --icon "$app_name.app" 175 190 \
-        --hide-extension "$app_name.app" \
-        --app-drop-link 425 185 \
-        --skip-jenkins \
-        "$OUTPUT_DIR/$dmg_name" \
-        "$TEMP_DIR"
+    # Create symbolic link to Applications folder
+    echo "Creating Applications link..."
+    ln -s /Applications "$TEMP_DIR/Applications"
 
-    # Clean up
+    # Create DMG using hdiutil
+    echo "Creating disk image..."
+    hdiutil create \
+        -volname "$app_name v$VERSION" \
+        -srcfolder "$TEMP_DIR" \
+        -ov \
+        -format UDZO \
+        "$OUTPUT_DIR/$dmg_name"
+
+    # Clean up temp directory
     rm -rf "$TEMP_DIR"
 
     if [ $? -eq 0 ]; then
@@ -87,35 +76,38 @@ create_app_dmg() {
 }
 
 # Create DMGs for all three applications
-create_app_dmg \
+create_simple_dmg \
     "Face Mirror" \
     "S1 Face Mirror/dist/Face Mirror.app" \
-    "SplitFace-FaceMirror-v$VERSION.dmg" \
-    "Face Mirror $VERSION"
+    "SplitFace-FaceMirror-v$VERSION.dmg"
 
-create_app_dmg \
+create_simple_dmg \
     "Action Coder" \
     "S2 Action Coder/dist/Action Coder.app" \
-    "SplitFace-ActionCoder-v$VERSION.dmg" \
-    "Action Coder $VERSION"
+    "SplitFace-ActionCoder-v$VERSION.dmg"
 
-create_app_dmg \
+create_simple_dmg \
     "Data Analysis" \
     "S3 Data Analysis/dist/Data Analysis.app" \
-    "SplitFace-DataAnalysis-v$VERSION.dmg" \
-    "Data Analysis $VERSION"
+    "SplitFace-DataAnalysis-v$VERSION.dmg"
 
 echo "=========================================="
-echo "DMG Creation Complete!"
+echo "✓ Installers Created Successfully!"
 echo "=========================================="
 echo ""
-echo "Installers created in: $OUTPUT_DIR/"
+echo "Distribution-ready DMG files:"
 ls -lh "$OUTPUT_DIR"/*.dmg 2>/dev/null || echo "No DMG files found"
 echo ""
-echo "Distribution files:"
-echo "  • $OUTPUT_DIR/SplitFace-FaceMirror-v$VERSION.dmg"
-echo "  • $OUTPUT_DIR/SplitFace-ActionCoder-v$VERSION.dmg"
-echo "  • $OUTPUT_DIR/SplitFace-DataAnalysis-v$VERSION.dmg"
+echo "Ready for distribution:"
+echo "  • Upload to GitHub Releases"
+echo "  • Share via file hosting service"
+echo "  • Distribute directly to users"
 echo ""
-echo "Users can now double-click the DMG, then drag the app to Applications!"
+echo "User installation (macOS):"
+echo "  1. Download DMG file"
+echo "  2. Double-click to mount"
+echo "  3. Drag app to Applications"
+echo "  4. Launch from Applications folder"
+echo ""
+echo "Files support both Intel and Apple Silicon Macs (Universal Binary)"
 echo ""

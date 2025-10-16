@@ -54,39 +54,27 @@ Batch analysis tool for facial paralysis detection using machine learning classi
 
 ## Quick Start
 
-### Running in Development Mode
+### For Developers
 
-Each application can be run directly with Python:
-
+**Run in development mode:**
 ```bash
-# S1 Face Mirror
-cd "S1 Face Mirror"
-python main.py
-
-# S2 Action Coder
-cd "S2 Action Coder"
-python main.py
-
-# S3 Data Analysis
-cd "S3 Data Analysis"
+cd "S1 Face Mirror"  # or S2, S3
 python main.py
 ```
 
-### Building Standalone Applications
-
-See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for detailed build instructions.
-
-**Quick build (all apps):**
-
-macOS:
+**Build standalone applications:**
 ```bash
-./build_macos.sh
+./build_macos.sh        # Build apps
+./create_installers.sh  # Create DMG installers
 ```
 
-Windows:
-```cmd
-build_windows.bat
-```
+See [DISTRIBUTION.md](DISTRIBUTION.md) for complete build and distribution guide.
+
+### For End Users
+
+Download the DMG installer, double-click, and drag to Applications. No Python required!
+
+See [GitHub Releases](../../releases) for downloads.
 
 ## System Requirements
 
@@ -136,21 +124,23 @@ build_windows.bat
    pip install -r requirements.txt
    ```
 
-### Building Standalone Applications
+### Building for Distribution
 
-To build standalone applications, you'll also need PyInstaller:
+To create distributable applications, install PyInstaller:
 
-**Using Conda (Recommended):**
 ```bash
-conda install -c conda-forge pyinstaller
-```
-
-**Using pip:**
-```bash
+conda install -c conda-forge pyinstaller  # Recommended
+# or
 pip install pyinstaller
 ```
 
-See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for complete build instructions.
+Then build and package:
+```bash
+./build_macos.sh        # Build applications
+./create_installers.sh  # Create DMG installers
+```
+
+See [DISTRIBUTION.md](DISTRIBUTION.md) for complete instructions.
 
 ### External Dependencies
 

@@ -17,6 +17,7 @@ output/
 *.avi
 *.csv
 *.txt
+!requirements.txt
 *.log
 logs/
 
