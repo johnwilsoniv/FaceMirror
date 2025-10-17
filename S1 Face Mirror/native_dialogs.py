@@ -26,7 +26,10 @@ def show_info(title, message):
     """
     if _is_macos():
         try:
-            script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon note'
+            # Escape quotes and backslashes in message for AppleScript
+            message_escaped = message.replace('\\', '\\\\').replace('"', '\\"')
+            title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
+            script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons {{"OK"}} default button "OK" with icon note'
             subprocess.run(['osascript', '-e', script], check=True, capture_output=True)
             return
         except Exception as e:
@@ -60,7 +63,10 @@ def show_warning(title, message):
     """
     if _is_macos():
         try:
-            script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon caution'
+            # Escape quotes and backslashes in message for AppleScript
+            message_escaped = message.replace('\\', '\\\\').replace('"', '\\"')
+            title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
+            script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons {{"OK"}} default button "OK" with icon caution'
             subprocess.run(['osascript', '-e', script], check=True, capture_output=True)
             return
         except Exception as e:
@@ -94,7 +100,10 @@ def show_error(title, message):
     """
     if _is_macos():
         try:
-            script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon stop'
+            # Escape quotes and backslashes in message for AppleScript
+            message_escaped = message.replace('\\', '\\\\').replace('"', '\\"')
+            title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
+            script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons {{"OK"}} default button "OK" with icon stop'
             subprocess.run(['osascript', '-e', script], check=True, capture_output=True)
             return
         except Exception as e:

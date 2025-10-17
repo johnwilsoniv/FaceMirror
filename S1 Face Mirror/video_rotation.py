@@ -3,7 +3,33 @@ import subprocess
 import shutil
 import os
 import json
+import re
+import time
 from pathlib import Path
+
+
+def get_video_frame_count(input_path):
+    """
+    Get total frame count of a video using ffprobe.
+
+    Args:
+        input_path: Path to video file
+
+    Returns:
+        int: Total number of frames, or 0 if unable to determine
+    """
+    try:
+        cmd = f'ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "{input_path}"'
+        output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+        return int(output)
+    except (subprocess.CalledProcessError, ValueError):
+        # Fallback: try using nb_frames
+        try:
+            cmd = f'ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
+            output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+            return int(output)
+        except (subprocess.CalledProcessError, ValueError):
+            return 0
 
 
 def get_video_rotation(input_path):
@@ -130,13 +156,23 @@ def normalize_rotation(rotation):
     return rotation
 
 
-def auto_rotate_video(input_path, output_path):
+def auto_rotate_video(input_path, output_path, progress_callback=None):
     """
-    Process video with ffmpeg's auto-rotation feature
+    Process video with ffmpeg's auto-rotation feature with real-time progress tracking
     This preserves original video quality and audio
+
+    Args:
+        input_path: Path to input video file
+        output_path: Path to output rotated video file
+        progress_callback: Optional callback function(stage, current, total, message, fps)
+                          for progress updates
+
+    Returns:
+        str: Path to output file (or original if rotation failed)
     """
+    rotation_start_time = time.time()
     print(f"Auto-rotating video {input_path} using ffmpeg's auto-rotation")
-    
+
     # Ensure output has proper extension
     output_path_obj = Path(output_path)
     input_path_obj = Path(input_path)
@@ -170,42 +206,147 @@ def auto_rotate_video(input_path, output_path):
         video_codec = "libx264"
         codec_options = "-pix_fmt yuv420p -preset medium -crf 23"
     
-    # Create FFmpeg command with auto rotation enabled
-    cmd = (f'ffmpeg -y -v info -i "{input_path}" -map 0 -map_metadata 0 '
-           f'-c:a copy -c:v {video_codec} {codec_options} "{output_path}"')
+    # Get total frame count for progress tracking
+    total_frames = get_video_frame_count(input_path)
+    if total_frames > 0:
+        print(f"Video has {total_frames} frames")
+        if progress_callback:
+            progress_callback('rotation', 0, total_frames, "Rotating video...", 0.0)
+    else:
+        print("Unable to determine frame count, progress tracking disabled")
+        if progress_callback:
+            progress_callback('rotation', 0, 0, "Rotating video...", 0.0)
 
-    print(f"Executing FFmpeg command: {cmd}")
+    # Create FFmpeg command with auto rotation enabled
+    # Use -progress pipe:1 to get frame-by-frame progress on stdout
+    cmd = (f'ffmpeg -y -i "{input_path}" -map 0 -map_metadata 0 '
+           f'-c:a copy -c:v {video_codec} {codec_options} '
+           f'-progress pipe:1 "{output_path}"')
+
+    print(f"Executing FFmpeg command with progress tracking...")
     try:
-        subprocess.check_call(cmd, shell=True)
-        print(f"Auto-rotation complete. Output saved to {output_path}")
-        return output_path
-    except subprocess.CalledProcessError as e:
+        # Use Popen to capture output in real-time
+        process = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            bufsize=1  # Line buffered
+        )
+
+        current_frame = 0
+        current_fps = 0.0
+        last_reported_frame = -1
+        ffmpeg_start_time = time.time()
+        last_progress_time = ffmpeg_start_time
+
+        # Parse FFmpeg progress output
+        # FFmpeg writes to stdout when using -progress pipe:1
+        for line in process.stdout:
+            line = line.strip()
+
+            # FFmpeg outputs "frame=N" to show progress
+            if line.startswith('frame='):
+                try:
+                    current_frame = int(line.split('=')[1])
+                except (ValueError, IndexError):
+                    pass
+
+            # FFmpeg outputs "fps=X" to show processing speed
+            elif line.startswith('fps='):
+                try:
+                    current_fps = float(line.split('=')[1])
+                except (ValueError, IndexError):
+                    pass
+
+            # FFmpeg also outputs "progress=end" when done
+            elif line.startswith('progress='):
+                progress_status = line.split('=')[1]
+                if progress_status == 'end' and progress_callback and total_frames > 0:
+                    progress_callback('rotation', total_frames, total_frames,
+                                    "Video rotated", current_fps)
+                elif progress_status == 'continue' and progress_callback and total_frames > 0:
+                    # Report progress (throttle updates - every 10 frames)
+                    if current_frame - last_reported_frame >= 10:
+                        current_time = time.time()
+                        time_since_last = current_time - last_progress_time
+                        frames_since_last = current_frame - last_reported_frame
+
+                        # Debug: Log performance every 50 frames
+                        if current_frame % 50 == 0:
+                            avg_fps = frames_since_last / time_since_last if time_since_last > 0 else 0
+                            print(f"  [Rotation Debug] Frame {current_frame}/{total_frames} | "
+                                  f"FFmpeg FPS: {current_fps:.1f} | "
+                                  f"Actual FPS: {avg_fps:.1f} | "
+                                  f"Time since last: {time_since_last:.2f}s")
+
+                        progress_callback('rotation', current_frame, total_frames,
+                                        "Rotating video...", current_fps)
+                        last_reported_frame = current_frame
+                        last_progress_time = current_time
+
+        # Wait for process to complete
+        return_code = process.wait()
+
+        if return_code == 0:
+            rotation_elapsed = time.time() - rotation_start_time
+            print(f"Auto-rotation complete in {rotation_elapsed:.2f}s. Output saved to {output_path}")
+            if total_frames > 0:
+                avg_fps = total_frames / rotation_elapsed
+                print(f"  Average FPS: {avg_fps:.1f} frames/sec")
+            return output_path
+        else:
+            # Get error output
+            stderr_output = process.stderr.read()
+            print(f"Error during auto-rotation (return code {return_code})")
+            print(f"FFmpeg error: {stderr_output}")
+            print("Unable to rotate video. Using original file.")
+            return input_path
+
+    except Exception as e:
         print(f"Error during auto-rotation: {e}")
-        # If rotation fails, return original path
         print("Unable to rotate video. Using original file.")
         return input_path
 
 
-def process_video_rotation(input_path, output_path):
+def process_video_rotation(input_path, output_path, progress_callback=None):
     """
-    Main entry point for video rotation
-    Uses original detection method but with ffmpeg auto-rotation
+    Main entry point for video rotation with progress tracking
+
+    Args:
+        input_path: Path to input video file
+        output_path: Path to output rotated video file
+        progress_callback: Optional callback function(stage, current, total, message, fps)
+                          for progress updates
+
+    Returns:
+        str: Path to output file
     """
     print(f"\nProcessing video rotation for {input_path}")
-    
+
+    # Send initial progress update
+    if progress_callback:
+        progress_callback('rotation', 0, 100, "Checking video orientation...", 0.0)
+
     # Get rotation from metadata using original detection method
     rotation = get_video_rotation(input_path)
-    
+
     # Normalize rotation
     normalized_rotation = normalize_rotation(rotation)
     print(f"Detected rotation: {rotation}°, Normalized to: {normalized_rotation}°")
-    
+
     # Only process the video if rotation is needed
     if normalized_rotation in [90, 180, 270]:
         print(f"Rotation needed: {normalized_rotation}°")
-        return auto_rotate_video(input_path, output_path)
+        return auto_rotate_video(input_path, output_path, progress_callback)
     else:
         print("No rotation needed, using original file")
+
+        # Send completion update (rotation not needed)
+        if progress_callback:
+            progress_callback('rotation', 100, 100, "Video ready (no rotation needed)", 0.0)
+
         # Just copy the file if it shouldn't be the same path
         if input_path != output_path:
             shutil.copy2(input_path, output_path)

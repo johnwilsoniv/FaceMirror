@@ -1,6 +1,8 @@
 from openface3_detector import OpenFace3LandmarkDetector
 from face_mirror import FaceMirror
 from video_processor import VideoProcessor
+import numpy as np
+import gc
 
 class StableFaceSplitter:
     """Main class that encapsulates face detection, mirroring, and video processing"""
@@ -35,6 +37,35 @@ class StableFaceSplitter:
 
         self.debug_mode = debug_mode
         self.progress_callback = progress_callback
+
+        # Warm up models and freeze for GC optimization
+        self._warmup_models()
+
+    def _warmup_models(self):
+        """
+        Warm up models with dummy inference to trigger PyTorch graph optimization.
+        Also freeze models from garbage collection to reduce GC overhead.
+        """
+        if self.debug_mode:
+            print("Warming up face detection models...")
+
+        # Create dummy frame (480p resolution)
+        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        # Warm up face detection
+        try:
+            _ = self.landmark_detector.get_face_mesh(dummy_frame)
+            if self.debug_mode:
+                print("  ✓ Face detector warmed up")
+        except Exception:
+            pass  # Ignore warm-up errors
+
+        # Run garbage collection once, then freeze model objects
+        gc.collect()
+        gc.freeze()
+
+        if self.debug_mode:
+            print("  ✓ Models frozen from garbage collection (reduces GC overhead)")
 
     def process_video(self, input_path, output_dir):
         """Process a video file and create mirrored outputs"""

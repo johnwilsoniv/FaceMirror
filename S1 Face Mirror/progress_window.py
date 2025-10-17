@@ -64,6 +64,11 @@ class ProcessingProgressWindow:
         self.last_update_time = datetime.now()
         self.last_frame_count = 0
 
+        # Completion tracking (for background thread communication)
+        self.completion_message = None
+        self.completion_error = False
+        self.processing_complete = False
+
         # Create main window
         self.root = tk.Toplevel()
         self.root.title("FaceMirror Processing Pipeline")
@@ -104,6 +109,9 @@ class ProcessingProgressWindow:
         # Progress update queue (thread-safe)
         self.progress_queue = queue.Queue()
 
+        # Throttling for GUI updates (only update every N frames)
+        self.last_gui_update_time = datetime.now()
+        self.gui_update_interval_ms = 100  # Update GUI max every 100ms
 
         # Setup UI
         self._setup_ui()
@@ -229,17 +237,15 @@ class ProcessingProgressWindow:
         self.stage_indicators = {}
         self.stage_base_text = {}  # Store base text for dynamic updates
 
-        # Build stages list based on mode
+        # Build stages list based on mode (3 semantic stages)
         stages = [
-            ('rotation', 'ROTATION'),
-            ('reading', 'READING'),
-            ('processing', 'PROCESSING'),
-            ('writing', 'WRITING')
+            ('rotation', 'Rotating Video'),
+            ('mirroring', 'Mirroring Face')
         ]
 
         # Only add OpenFace stage if enabled
         if self.include_openface:
-            stages.append(('openface', 'AU EXTRACTION'))
+            stages.append(('openface', 'Extracting AUs'))
 
         # Configure grid columns to be uniform width
         for col in range(len(stages)):
@@ -391,8 +397,25 @@ class ProcessingProgressWindow:
         except queue.Empty:
             pass
 
+        # Throttled GUI update to keep interface responsive
+        # Only update if enough time has passed since last update
+        current_time = datetime.now()
+        time_since_last_update = (current_time - self.last_gui_update_time).total_seconds() * 1000
+
+        if time_since_last_update >= self.gui_update_interval_ms:
+            try:
+                # Use update_idletasks() instead of update() to prevent blocking
+                # update_idletasks() only processes pending events, doesn't wait for new ones
+                self.root.update_idletasks()
+                self.last_gui_update_time = current_time
+            except Exception:
+                pass  # Ignore errors if window is closing
+
         # Schedule next check
-        self.root.after(100, self._monitor_queue)
+        try:
+            self.root.after(100, self._monitor_queue)
+        except Exception:
+            pass  # Ignore if window is closing
 
     def _apply_update(self, update: ProgressUpdate):
         """Apply a progress update to the UI"""
@@ -437,11 +460,9 @@ class ProcessingProgressWindow:
 
         # Update stage label
         stage_names = {
-            'rotation': 'Video Rotation',
-            'reading': 'Frame Acquisition',
-            'processing': 'Frame Processing',
-            'writing': 'Output Generation',
-            'openface': 'AU Extraction',
+            'rotation': 'Rotating Video',
+            'mirroring': 'Mirroring Face',
+            'openface': 'Extracting AUs',
             'complete': 'Complete',
             'error': 'Error'
         }
@@ -449,7 +470,7 @@ class ProcessingProgressWindow:
         self.stage_label.config(text=f"Stage: {stage_text} — {stage_pct:5.1f}%")
 
         # Update metrics using tqdm's FPS
-        if update.stage in ['reading', 'processing', 'writing', 'openface'] and update.total > 0:
+        if update.stage in ['mirroring', 'openface'] and update.total > 0:
             self.stage_details_label.config(
                 text=f"Frames Processed: {update.current:>6,} / {update.total:,}"
             )
@@ -476,8 +497,23 @@ class ProcessingProgressWindow:
                 self.stage_eta_label.config(text="Initializing...")
 
         elif update.stage == 'rotation':
-            self.stage_details_label.config(text="Analyzing and correcting video orientation...")
-            self.stage_eta_label.config(text="")
+            # Display frame count if available, otherwise generic message
+            if update.total > 0:
+                self.stage_details_label.config(
+                    text=f"Frames Processed: {update.current:>6,} / {update.total:,}"
+                )
+                # Show FPS and ETA if available
+                if update.fps > 0:
+                    remaining_frames = update.total - update.current
+                    eta_seconds = remaining_frames / update.fps if update.fps > 0 else 0
+                    self.stage_eta_label.config(
+                        text=f"Rate: {update.fps:>6.1f} fps  |  Est. Remaining: {self._format_seconds(eta_seconds)}"
+                    )
+                else:
+                    self.stage_eta_label.config(text="")
+            else:
+                self.stage_details_label.config(text="Checking video orientation...")
+                self.stage_eta_label.config(text="")
         else:
             self.stage_details_label.config(text="")
             self.stage_eta_label.config(text="")
@@ -499,12 +535,11 @@ class ProcessingProgressWindow:
                 bg=self.colors['success']
             )
 
-        # Force UI update
-        self.root.update()
+        # UI update handled by _monitor_queue() after processing all updates
 
     def _update_stage_indicators(self, current_stage, side_info=""):
         """Update the visual pipeline stage indicators"""
-        stage_order = ['rotation', 'reading', 'processing', 'writing', 'openface']
+        stage_order = ['rotation', 'mirroring', 'openface']
 
 
         # Reset all to default
@@ -572,14 +607,33 @@ class ProcessingProgressWindow:
         Args:
             update: ProgressUpdate object with current progress
         """
+        # Simply queue the update - don't call root.update() from worker thread!
+        # The GUI update loop (_monitor_queue) will process updates every 100ms
         self.progress_queue.put(update)
 
-        # CRITICAL FIX: Force the event loop to run so _monitor_queue can process the queue
-        # This is necessary because video processing blocks the main thread
-        try:
-            self.root.update()
-        except Exception as e:
-            pass  # Silently ignore update errors
+    def signal_completion(self, message, error=False):
+        """
+        Signal that processing is complete (called from worker thread).
+
+        Args:
+            message: Completion or error message to display
+            error: True if this is an error, False if successful completion
+        """
+        self.completion_message = message
+        self.completion_error = error
+        self.processing_complete = True
+
+        # Exit the mainloop after a brief delay to allow final UI updates to render
+        # This returns control to the main workflow which will show the dialog and close the window
+        self.root.after(500, self.root.quit)
+
+    def run(self):
+        """
+        Run the progress window event loop.
+        This keeps the GUI responsive while processing happens in background thread.
+        """
+        # Start the Tkinter event loop - this blocks until window is closed
+        self.root.mainloop()
 
     def close(self):
         """Close the progress window"""

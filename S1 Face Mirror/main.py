@@ -2,6 +2,17 @@
 S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
+# CRITICAL: Configure NumPy/MKL threading BEFORE importing numpy/torch
+# Allow 2 threads per worker for intra-op parallelism (balances parallelism vs contention)
+# With 4 Python workers × 2 threads each = 8 threads total (good for 10-core systems)
+# This must be set before any numpy/torch imports
+import os
+os.environ["OMP_NUM_THREADS"] = "2"  # OpenMP threads (PyTorch uses this)
+os.environ["MKL_NUM_THREADS"] = "2"  # Intel MKL threads
+os.environ["OPENBLAS_NUM_THREADS"] = "2"  # OpenBLAS threads
+os.environ["VECLIB_MAXIMUM_THREADS"] = "2"  # macOS Accelerate
+os.environ["NUMEXPR_NUM_THREADS"] = "2"  # NumExpr
+
 # Lightweight imports - safe for multiprocessing child processes
 from pathlib import Path
 import tkinter as tk
@@ -13,6 +24,7 @@ import gc
 import psutil
 import time
 import torch
+import threading
 import config_paths
 from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
@@ -31,7 +43,13 @@ if __name__ == "__main__":
 
 
 # Configuration Constants
-NUM_THREADS = 6  # Thread count for parallel processing
+# ============================================================================
+# OPTIMIZED: Restored 6 worker threads with balanced system threading
+# ============================================================================
+# With pre-loaded frames and optimized ONNX threading, we can safely use
+# 6 worker threads for maximum parallelization without contention.
+# ============================================================================
+NUM_THREADS = 6  # Thread count for parallel frame processing (optimized)
 MEMORY_CHECKPOINT_INTERVAL = 10  # Deep cleanup every N videos
 PROGRESS_UPDATE_INTERVAL = 50  # Terminal progress update every N frames
 
@@ -40,20 +58,22 @@ def auto_detect_device():
     """
     Auto-detect best available device for processing
 
-    Note: MPS is not supported by OpenFace 3.0 face detection models.
-    Falls back to CPU on Apple Silicon.
+    Attempts to use Apple MPS (Metal Performance Shaders) on Apple Silicon.
+    Falls back to CPU for unsupported operations.
 
     Returns:
-        str: 'cuda' or 'cpu'
+        str: 'cuda', 'mps', or 'cpu'
     """
     if torch.cuda.is_available():
         device_name = torch.cuda.get_device_name(0)
         print(f"GPU detected: {device_name}")
         return 'cuda'
     elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        print("Apple MPS detected, but not supported by face detection models")
-        print("Falling back to CPU for compatibility")
-        return 'cpu'
+        print("Apple MPS (Metal) detected - attempting to use GPU acceleration")
+        print("Note: Some operations may fall back to CPU if not supported by MPS")
+        # Enable CPU fallback for operations not yet implemented in MPS
+        os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+        return 'mps'
     else:
         print("Using CPU (no GPU detected)")
         return 'cpu'
@@ -206,12 +226,12 @@ def process_single_video(args):
 
     Args:
         args: tuple of (input_path, output_dir, debug_mode, video_name, video_num,
-                       total_videos, progress_window, run_openface, device)
+                       total_videos, progress_window, run_openface, device, openface_processor)
 
     Returns:
         dict with processing results
     """
-    input_path, output_dir, debug_mode, video_name, video_num, total_videos, progress_window, run_openface, device = args
+    input_path, output_dir, debug_mode, video_name, video_num, total_videos, progress_window, run_openface, device, openface_processor = args
 
     # Create progress callback function
     def progress_callback(stage, current, total, message, fps=0.0):
@@ -264,8 +284,9 @@ def process_single_video(args):
                 stage_name = stage_names.get(stage, stage.title())
                 print(f"  [{stage_name}] {current:>6}/{total:>6} frames (100.0%) - Complete          ")
 
+    # Note: openface_processor is passed in as an argument (already initialized)
+    # Do NOT set it to None here or it will break AU processing!
     splitter = None
-    openface_processor = None
 
     try:
         # Validate input file exists and is readable
@@ -290,9 +311,57 @@ def process_single_video(args):
         )
         outputs = splitter.process_video(input_path, output_dir)
 
+        # ====================================================================
+        # INFORM USER: Video encoding finalization is happening
+        # ====================================================================
+        # After mirroring completes, FFmpeg needs 1-5 seconds to finalize the
+        # video files (write MP4 metadata). Show this to the user so they know
+        # the system is still working.
+        # ====================================================================
+        if run_openface and outputs:
+            print("\nFinalizing mirrored videos (writing MP4 metadata)...")
+
+            if progress_window:
+                progress_window.update_progress(ProgressUpdate(
+                    video_name=video_name,
+                    video_num=video_num,
+                    total_videos=total_videos,
+                    stage='mirroring',
+                    current=100,
+                    total=100,
+                    message="Finalizing video files before AU extraction...",
+                    fps=0.0
+                ))
+
+        # ====================================================================
+        # DIAGNOSTIC: Check OpenFace transition conditions
+        # ====================================================================
+        print("\n" + "="*60)
+        print("DIAGNOSTIC: Checking OpenFace trigger conditions")
+        print("="*60)
+        print(f"  run_openface: {run_openface}")
+        print(f"  outputs: {outputs}")
+        print(f"  outputs is truthy: {bool(outputs)}")
+        print(f"  openface_processor: {openface_processor}")
+        print(f"  openface_processor is not None: {openface_processor is not None}")
+        print(f"  Combined condition: {run_openface and outputs and openface_processor is not None}")
+        print("="*60 + "\n")
+
         # Run OpenFace processing if requested (Mode 1: Mirror + OpenFace)
         openface_outputs = []
-        if run_openface and outputs:
+        if run_openface and outputs and openface_processor is not None:
+            print("✓ All conditions met - Starting AU extraction...")
+        else:
+            print("✗ AU extraction NOT starting - condition failed!")
+            print(f"  Which condition failed?")
+            if not run_openface:
+                print(f"    - run_openface is False")
+            if not outputs:
+                print(f"    - outputs is empty or None")
+            if openface_processor is None:
+                print(f"    - openface_processor is None")
+
+        if run_openface and outputs and openface_processor is not None:
             # Get S1O base directory for OpenFace output
             output_dir_path = Path(output_dir)
             s1o_base = output_dir_path.parent
@@ -302,13 +371,28 @@ def process_single_video(args):
             # Find mirrored video files (exclude debug videos)
             mirrored_videos = [f for f in outputs if 'mirrored' in f and 'debug' not in f]
 
+            # DIAGNOSTIC: Check mirrored videos
+            print(f"\nDIAGNOSTIC: Found {len(mirrored_videos)} mirrored videos:")
+            for v in mirrored_videos:
+                v_path = Path(v)
+                exists = v_path.exists()
+                size = v_path.stat().st_size if exists else 0
+                print(f"  - {v_path.name} (exists: {exists}, size: {size:,} bytes)")
+            print("")
+
             if mirrored_videos:
-                # Initialize OpenFace processor with same device as mirroring
-                openface_processor = OpenFace3Processor(
-                    device=device,
-                    calculate_landmarks=True,  # Required for AU45 (blink) calculation
-                    num_threads=NUM_THREADS
-                )
+                print(f"✓ Starting AU extraction for {len(mirrored_videos)} mirrored videos")
+            else:
+                print(f"✗ No mirrored videos found in outputs!")
+
+            if mirrored_videos:
+                # ====================================================================
+                # PIPELINE OPTIMIZATION: Reuse pre-initialized OpenFace processor
+                # ====================================================================
+                # The processor was already initialized and warmed up before the
+                # video loop started, so we can start processing immediately
+                # with NO stage transition delay!
+                # ====================================================================
 
                 # Process each mirrored video
                 total_mirrored = len(mirrored_videos)
@@ -367,23 +451,27 @@ def process_single_video(args):
                             output_csv_path,
                             progress_callback=openface_progress_callback
                         )
+
                         if frame_count > 0:
                             openface_outputs.append(str(output_csv_path))
                             print(f"\n✓ CSV saved: {output_csv_path.name}")
+                        else:
+                            print(f"\n✗ No frames processed for {mirrored_video.name}")
                     except Exception as e:
-                        print(f"  Warning: OpenFace processing failed for {mirrored_video.name}: {e}")
+                        print(f"\n  Warning: OpenFace processing failed for {mirrored_video.name}: {e}")
+                        import traceback
+                        traceback.print_exc()
 
                     # Memory cleanup after each mirrored video (important when processing left + right)
+                    # OPTIMIZATION: Reduced GC frequency (only every 20 batches in processor)
                     if idx < total_mirrored:  # Not the last video
-                        gc.collect()
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
+                        # Light cleanup only - deep cleanup happens in processor
+                        pass
 
-                # Cleanup OpenFace processor
-                del openface_processor
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                # NOTE: DO NOT delete openface_processor here - it's reused across videos!
+                # Only clear the priorbox cache to free some memory
+                if openface_processor is not None:
+                    openface_processor.clear_cache()
 
         # Send completion update
         if progress_window:
@@ -431,13 +519,14 @@ def process_single_video(args):
         except Exception as e:
             print(f"  Warning: Splitter cleanup failed: {e}")
 
+        # NOTE: DO NOT delete passed-in openface_processor - it's reused across videos!
+        # Only clear the cache
         try:
             if openface_processor is not None:
                 # Clear priorbox cache to prevent memory accumulation
                 openface_processor.clear_cache()
-                del openface_processor
         except Exception as e:
-            print(f"  Warning: OpenFace processor cleanup failed: {e}")
+            print(f"  Warning: OpenFace processor cache cleanup failed: {e}")
 
         # Force garbage collection (always runs regardless of above errors)
         try:
@@ -448,10 +537,164 @@ def process_single_video(args):
             pass
 
 
+def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_mode, device, progress_window):
+    """
+    Worker thread function that processes videos in the background.
+    This runs in a separate thread to keep the GUI responsive.
+
+    Args:
+        input_paths: List of video paths to process
+        output_dir: Mirror output directory
+        openface_output_dir: OpenFace CSV output directory
+        debug_mode: Enable debug logging
+        device: Processing device ('cpu', 'cuda', or 'mps')
+        progress_window: Progress window instance for updates
+    """
+    # MPS ERROR LOGGING - Print errors to terminal for debugging
+    import traceback
+
+    try:
+        # Start timing
+        start_time = time.time()
+
+        # ============================================================================
+        # PIPELINE OPTIMIZATION: Pre-initialize OpenFace processor ONCE
+        # ============================================================================
+        # Instead of creating a new processor for each video (causing 500ms-2s delays),
+        # create ONE processor and reuse it for all videos.
+        # The warm-up happens once at the start, eliminating stage transition delays.
+        # ============================================================================
+        print("\n" + "="*60)
+        print("INITIALIZING OPENFACE PROCESSOR (ONE-TIME SETUP)")
+        print("="*60)
+
+        # ============================================================================
+        # PERFORMANCE OPTIMIZATION: AU45 Landmark Detection Toggle
+        # ============================================================================
+        # AU45 (blink) calculation requires running the STAR landmark detector on
+        # every frame, which adds ~360-600ms per frame (reducing FPS from 14-28 to 2-3).
+        #
+        # Set to False to disable AU45 and get 5-7x speedup!
+        # Set to True only if you specifically need blink detection (AU45).
+        # ============================================================================
+        ENABLE_AU45_CALCULATION = False  # Change to True if you need blink detection
+
+        openface_processor = OpenFace3Processor(
+            device=device,
+            calculate_landmarks=ENABLE_AU45_CALCULATION,  # Toggle AU45 (blink) calculation
+            num_threads=NUM_THREADS,
+            debug_mode=debug_mode  # Enable debug summaries during processing
+        )
+        print("✓ OpenFace processor initialized and warmed up")
+        print("  This will be reused for all videos (eliminates stage delays)")
+        print("="*60 + "\n")
+
+        # Process videos sequentially with full pipeline
+        results = []
+        process = psutil.Process()
+        initial_memory_mb = process.memory_info().rss / 1024**2
+
+        for video_num, input_path in enumerate(input_paths, 1):
+            print(f"\n{'='*60}")
+            print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
+            print(f"{'='*60}")
+
+            video_name = Path(input_path).name
+            result = process_single_video((
+                input_path, output_dir, debug_mode,
+                video_name, video_num, len(input_paths), progress_window,
+                True,  # run_openface=True (full pipeline)
+                device,  # Use GPU for both mirroring and OpenFace
+                openface_processor  # Pass pre-initialized processor
+            ))
+            results.append(result)
+            print(f"\nCompleted {video_num}/{len(input_paths)} videos")
+
+            # OPTIMIZED: Light memory cleanup after each video (reduced overhead)
+            # Deep cleanup only at checkpoints
+            # Memory monitoring and deep cleanup
+            if video_num % MEMORY_CHECKPOINT_INTERVAL == 0:
+                # Deep cleanup only at checkpoints
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+
+                # Memory checkpoint
+                current_memory_mb = process.memory_info().rss / 1024**2
+                memory_growth_mb = current_memory_mb - initial_memory_mb
+                print(f"\nMemory checkpoint [{video_num}/{len(input_paths)}]: {current_memory_mb:.1f} MB (growth: +{memory_growth_mb:.1f} MB)")
+
+        # Cleanup OpenFace processor after all videos are done
+        try:
+            if openface_processor is not None:
+                del openface_processor
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+        except Exception:
+            pass
+
+        # End timing
+        end_time = time.time()
+        total_seconds = end_time - start_time
+
+        # Calculate summary statistics
+        successful_count = sum(1 for r in results if r['success'])
+        failed_count = len(results) - successful_count
+
+        total_mirrored = sum(len([f for f in r['outputs'] if 'mirrored' in f and 'debug' not in f])
+                             for r in results if r['success'])
+        total_csvs = sum(len(r.get('openface_outputs', [])) for r in results if r['success'])
+
+        # Format processing time
+        hours = int(total_seconds // 3600)
+        minutes = int((total_seconds % 3600) // 60)
+        seconds = int(total_seconds % 60)
+        if hours > 0:
+            time_str = f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            time_str = f"{minutes}m {seconds}s"
+        else:
+            time_str = f"{seconds}s"
+
+        # Create summary message
+        summary = "Processing Complete!\n\n"
+        summary += f"Successfully processed: {successful_count} video(s)\n"
+        if failed_count > 0:
+            summary += f"Failed: {failed_count} video(s)\n"
+        summary += f"\nProcessing time: {time_str}\n"
+        summary += "\nGenerated Files:\n"
+        summary += f"  • {total_mirrored} mirrored videos\n"
+        summary += f"  • {total_csvs} AU CSV files\n\n"
+        summary += f"Results saved to:\n{openface_output_dir}\n\n"
+        summary += "Next step: Run the videos and CSV files through the Action Coder app."
+
+        # Signal completion to progress window
+        progress_window.signal_completion(summary)
+
+    except Exception as e:
+        # DETAILED ERROR LOGGING for MPS debugging
+        print("\n" + "="*60)
+        print("FACE MIRROR ERROR - FULL DETAILS")
+        print("="*60)
+        print(f"Device: {device}")
+        print(f"Error: {str(e)}")
+        print("\nFull Traceback:")
+        print(traceback.format_exc())
+        print("="*60 + "\n")
+
+        error_msg = f"Processing failed with error:\n{str(e)}"
+
+        # Signal error to progress window
+        progress_window.signal_completion(error_msg, error=True)
+
+
 def workflow_mirror_openface():
     """
     Full pipeline: Process videos through complete workflow
     (rotate, split, mirror + AU extraction)
+
+    Now runs video processing in a background thread to keep GUI responsive!
     """
     # Select input videos
     root = tk.Tk()
@@ -498,84 +741,43 @@ def workflow_mirror_openface():
     # Create progress window with OpenFace stage enabled
     progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=True)
 
-    # Start timing
-    start_time = time.time()
+    # Start video processing in background thread
+    # NOTE: NOT a daemon thread - we need it to complete even if GUI closes
+    worker_thread = threading.Thread(
+        target=video_processing_worker,
+        args=(input_paths, output_dir, openface_output_dir, debug_mode, device, progress_window),
+        daemon=False,  # Thread must complete before process exits
+        name="VideoProcessingWorker"
+    )
+    worker_thread.start()
+    print("Background processing thread started...")
 
-    # Process videos sequentially with full pipeline
-    results = []
-    process = psutil.Process()
-    initial_memory_mb = process.memory_info().rss / 1024**2
+    # Run the GUI event loop - this keeps the window responsive!
+    # The worker thread will signal completion when done
+    # When processing completes, the progress window's mainloop will exit (via root.quit())
+    # but the window will remain visible until we explicitly close it
+    progress_window.run()
 
-    for video_num, input_path in enumerate(input_paths, 1):
-        print(f"\n{'='*60}")
-        print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
-        print(f"{'='*60}")
+    # Wait for worker thread to complete (with generous timeout)
+    print("Waiting for worker thread to complete...")
+    worker_thread.join(timeout=10.0)  # Give it 10 seconds to finish cleanup
 
-        video_name = Path(input_path).name
-        result = process_single_video((
-            input_path, output_dir, debug_mode,
-            video_name, video_num, len(input_paths), progress_window,
-            True,  # run_openface=True (full pipeline)
-            device  # Use GPU for both mirroring and OpenFace
-        ))
-        results.append(result)
-        print(f"\nCompleted {video_num}/{len(input_paths)} videos")
+    if worker_thread.is_alive():
+        print("Warning: Worker thread still running after timeout")
+    else:
+        print("Worker thread completed successfully")
 
-        # Aggressive memory cleanup after each video
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    # Show results summary dialog WHILE progress window is still visible
+    # This ensures the dialog appears on top and the user sees the final progress state
+    if progress_window.completion_message:
+        is_error = progress_window.completion_error
+        title = "Processing Error" if is_error else "Processing Complete"
+        native_dialogs.show_info(title, progress_window.completion_message)
 
-        # Memory monitoring and deep cleanup
-        if video_num % MEMORY_CHECKPOINT_INTERVAL == 0:
-            gc.collect()
-            gc.collect()  # Run twice for cyclic garbage
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-            # Memory checkpoint
-            current_memory_mb = process.memory_info().rss / 1024**2
-            memory_growth_mb = current_memory_mb - initial_memory_mb
-            print(f"Memory checkpoint [{video_num}/{len(input_paths)}]: {current_memory_mb:.1f} MB (growth: +{memory_growth_mb:.1f} MB)")
-
-    # End timing
-    end_time = time.time()
-    total_seconds = end_time - start_time
-
-    # Close progress window
+    # Now close the progress window after user dismisses the dialog
     progress_window.close()
 
-    # Show results summary (compact format for large batches)
-    successful_count = sum(1 for r in results if r['success'])
-    failed_count = len(results) - successful_count
-
-    total_mirrored = sum(len([f for f in r['outputs'] if 'mirrored' in f and 'debug' not in f])
-                         for r in results if r['success'])
-    total_csvs = sum(len(r.get('openface_outputs', [])) for r in results if r['success'])
-
-    # Format processing time
-    hours = int(total_seconds // 3600)
-    minutes = int((total_seconds % 3600) // 60)
-    seconds = int(total_seconds % 60)
-    if hours > 0:
-        time_str = f"{hours}h {minutes}m {seconds}s"
-    elif minutes > 0:
-        time_str = f"{minutes}m {seconds}s"
-    else:
-        time_str = f"{seconds}s"
-
-    summary = "Processing Complete!\n\n"
-    summary += f"Successfully processed: {successful_count} video(s)\n"
-    if failed_count > 0:
-        summary += f"Failed: {failed_count} video(s)\n"
-    summary += f"\nProcessing time: {time_str}\n"
-    summary += "\nGenerated Files:\n"
-    summary += f"  • {total_mirrored} mirrored videos\n"
-    summary += f"  • {total_csvs} AU CSV files\n\n"
-    summary += f"Results saved to:\n{openface_output_dir}\n\n"
-    summary += "Next step: Run the videos and CSV files through the Action Coder app."
-
-    native_dialogs.show_info("Processing Complete", summary)
+    # Clean up the tkinter root window
     root.destroy()
 
 

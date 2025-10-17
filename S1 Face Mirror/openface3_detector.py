@@ -1,8 +1,15 @@
 import numpy as np
 import cv2
 import os
+import sys
 import torch
+import threading
 from typing import Optional, Tuple, List
+
+# Configure PyTorch threading to match environment variables
+# This prevents PyTorch from spawning too many threads that compete with Python threading
+torch.set_num_threads(2)  # Allow 2 threads for intra-op parallelism
+torch.set_num_interop_threads(1)  # Prevent extra inter-op threads
 
 # Set environment variables to prevent read-only filesystem errors
 # OpenFace/PyTorch may try to write to /work or other restricted locations
@@ -16,8 +23,20 @@ temp_dir = os.path.expanduser('~/tmp')
 if not os.path.exists(temp_dir):
     os.makedirs(temp_dir, exist_ok=True)
 
-from openface.face_detection import FaceDetector
-from openface.landmark_detection import LandmarkDetector
+# Import optimized ONNX detectors with automatic fallback to PyTorch
+try:
+    from onnx_retinaface_detector import OptimizedFaceDetector as FaceDetector
+    USING_ONNX_FACE_DETECTION = True
+except ImportError:
+    from openface.face_detection import FaceDetector
+    USING_ONNX_FACE_DETECTION = False
+
+try:
+    from onnx_star_detector import OptimizedLandmarkDetector as LandmarkDetector
+    USING_ONNX_LANDMARK_DETECTION = True
+except ImportError:
+    from openface.landmark_detection import LandmarkDetector
+    USING_ONNX_LANDMARK_DETECTION = False
 from openface.Pytorch_Retinaface.layers.functions.prior_box import PriorBox
 from openface.Pytorch_Retinaface.utils.box_utils import decode, decode_landm
 
@@ -74,14 +93,17 @@ class OpenFace3LandmarkDetector:
             print(f"Changed working directory to: {weights_parent}")
             print(f"Weights accessible at: ./weights/mobilenetV1X0.25_pretrain.tar")
 
-        # Initialize OpenFace 3.0 models with correct parameters
+        # Initialize OpenFace 3.0 face detector with ONNX acceleration
+        # OptimizedFaceDetector auto-selects ONNX (fast) or PyTorch (slow)
         self.face_detector = FaceDetector(
             model_path=f'{model_dir}/Alignment_RetinaFace.pth',
+            onnx_model_path=f'{model_dir}/retinaface_mobilenet025_coreml.onnx',
             device=device,
             confidence_threshold=0.9
         )
 
         # Patch STAR config to use writable cache directory instead of /work
+        # Only needed for PyTorch backend, not ONNX
         import openface.STAR.conf.alignment as alignment_conf
         original_init = alignment_conf.Alignment.__init__
 
@@ -99,8 +121,11 @@ class OpenFace3LandmarkDetector:
         import os.path as osp
         alignment_conf.Alignment.__init__ = patched_init
 
+        # Use OptimizedLandmarkDetector which auto-selects ONNX (fast) or PyTorch (slow)
+        # ONNX model path: same directory as .pkl, named star_landmark_98_coreml.onnx
         self.landmark_detector = LandmarkDetector(
             model_path=f'{model_dir}/Landmark_98.pkl',
+            onnx_model_path=f'{model_dir}/star_landmark_98_coreml.onnx',
             device=device
         )
 
@@ -129,6 +154,55 @@ class OpenFace3LandmarkDetector:
                 return original_detect(self_inner, image, dets, confidence_threshold)
 
         lm_module.LandmarkDetector.detect_landmarks = silent_detect
+
+        # Print backend information for both detectors
+        print("\n" + "="*60)
+        print("OPENFACE 3.0 ACCELERATION STATUS")
+        print("="*60)
+
+        # Face Detection Backend
+        if hasattr(self.face_detector, 'backend'):
+            backend = self.face_detector.backend
+            if backend == 'onnx':
+                print("✓ Face Detection: ONNX-accelerated (CoreML/Neural Engine)")
+                print("  Expected: 5-10x speedup (~20-40ms per detection)")
+            else:
+                print("⚠ Face Detection: PyTorch (slower)")
+                print("  To enable acceleration, run: ./run_retinaface_conversion.sh")
+        elif USING_ONNX_FACE_DETECTION:
+            print("✓ Face Detection: ONNX acceleration module loaded")
+        else:
+            print("⚠ Face Detection: Standard PyTorch (ONNX module not found)")
+
+        # Landmark Detection Backend
+        if hasattr(self.landmark_detector, 'backend'):
+            backend = self.landmark_detector.backend
+            if backend == 'onnx':
+                print("✓ Landmark Detection: ONNX-accelerated (CoreML/Neural Engine)")
+                print("  Expected: 10-20x speedup (~90-180ms per frame)")
+            else:
+                print("⚠ Landmark Detection: PyTorch (slower)")
+                print("  To enable acceleration, run: ./run_onnx_conversion.sh")
+        elif USING_ONNX_LANDMARK_DETECTION:
+            print("✓ Landmark Detection: ONNX acceleration module loaded")
+        else:
+            print("⚠ Landmark Detection: Standard PyTorch (ONNX module not found)")
+
+        print("="*60 + "\n")
+
+        # Warm up the model with a dummy frame to trigger graph compilation
+        # This eliminates the first-frame delay seen in production
+        if debug_mode:
+            print("Warming up landmark detector...")
+        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        dummy_det = np.array([[100, 100, 200, 200, 0.99]])  # Fake face detection
+        try:
+            _ = self.landmark_detector.detect_landmarks(dummy_frame, dummy_det)
+            if debug_mode:
+                print("Model warmup complete")
+        except Exception as e:
+            if debug_mode:
+                print(f"Warning: Model warmup failed (non-critical): {e}")
 
         # Tracking history
         self.last_face = None
@@ -168,6 +242,10 @@ class OpenFace3LandmarkDetector:
 
         # Device setting (store for use in detection methods)
         self.device = torch.device(device)
+
+        # NOTE: Removed PyTorch lock - modern PyTorch (1.x+) is thread-safe for inference
+        # when using torch.no_grad(), which we already do. The lock was serializing all
+        # threads and defeating the purpose of multithreading.
 
     def reset_tracking_history(self):
         """Reset all tracking history between videos"""
@@ -336,6 +414,7 @@ class OpenFace3LandmarkDetector:
         img = img.transpose(2, 0, 1)
         img = torch.from_numpy(img).unsqueeze(0).to(self.device)
 
+        # Run face detection (PyTorch is thread-safe with no_grad)
         with torch.no_grad():
             loc, conf, landms = self.face_detector.model(img)
 
@@ -409,7 +488,14 @@ class OpenFace3LandmarkDetector:
                     x1, y1 = 0, 0
 
                 # OpenFace 3.0 face detection from numpy array
-                detections, img_raw = self._detect_faces_from_array(frame_crop)
+                # If using ONNX detector, call its native method (works with numpy, no PyTorch device issues)
+                # If using PyTorch detector, use the PyTorch-based method
+                if hasattr(self.face_detector, 'backend') and self.face_detector.backend == 'onnx':
+                    # ONNX path: use detector's native detect_faces method
+                    detections, img_raw = self.face_detector.detect_faces(frame_crop)
+                else:
+                    # PyTorch path: use legacy method with PyTorch tensors
+                    detections, img_raw = self._detect_faces_from_array(frame_crop)
 
                 if detections is None or len(detections) == 0:
                     # Lost face - reset ROI and try full frame next time
@@ -452,6 +538,7 @@ class OpenFace3LandmarkDetector:
             try:
                 # Detect landmarks using OpenFace 3.0
                 # The detector expects image and detections array with [x1, y1, x2, y2, confidence]
+                # PyTorch is thread-safe for inference with no_grad
                 landmarks_98 = self.landmark_detector.detect_landmarks(
                     frame,
                     np.array([self.last_face])
