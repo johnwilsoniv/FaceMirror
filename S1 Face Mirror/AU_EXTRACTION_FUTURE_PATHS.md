@@ -1,24 +1,57 @@
 # AU Extraction Future Paths
 
 **Date:** 2025-10-17
-**Status:** CPU-only test ready, awaiting results
+**Status:** ❌ CPU-only test FAILED - Proceeding with multiprocessing
+
+---
+
+## 🧪 CPU-Only Test Results (COMPLETED)
+
+**Test Configuration:**
+- ONNX Runtime: CPU Execution Provider only
+- Threads: 6 worker threads
+- Video: IMG_0435 (854 frames @ 59 fps)
+
+**Results:**
+- ✅ **CPU Utilization:** 600-650% (parallelization working correctly)
+- ❌ **FPS:** 11 fps (expected 50-80+ fps)
+- ❌ **Per-frame time:** ~555ms per frame (vs CoreML's 105ms)
+
+**Analysis:**
+```
+CoreML Neural Engine:
+- Per-frame: ~105ms (serialized)
+- Total: 9.5 fps with 6 threads (serialization bottleneck)
+
+CPU-only:
+- Per-frame: ~555ms (5x slower than CoreML!)
+- Total: 11 fps with 6 threads (good parallelization but too slow)
+```
+
+**Conclusion:**
+- ❌ **Hypothesis was WRONG:** CPU-only is 5x slower per-frame than CoreML Neural Engine
+- ✅ Threading/parallelization works correctly (600% CPU proves it)
+- 🎯 **Solution:** Need multiprocessing with CoreML for best of both worlds
+
+**Next Step:** Path 3 - Multiprocessing.Pool implementation
 
 ---
 
 ## 🎯 Current Situation
 
-**Problem:** AU extraction running at 9.5 fps (pathetic performance)
-**Root Cause:** CoreML Execution Provider serializes inference across threads
-**Current Test:** CPU-only ONNX to validate parallelization hypothesis
+**Problem:** AU extraction running at 9.5-11 fps (unacceptable performance)
+**Root Cause:** CoreML Execution Provider serializes inference across threads/processes
+**Solution:** Implement multiprocessing with CoreML (each process gets isolated CoreML session)
 
 ---
 
 ## 🔀 Decision Tree: Next Steps
 
-### **Path 1: CPU-Only Test Results ≥85 fps** ✅ IDEAL
+### **Path 1: CPU-Only Test Results ≥85 fps** ❌ DID NOT ACHIEVE
 **What it means:** CPU-only ONNX provides sufficient parallelization
 **Effort:** 0 hours (already done)
 **Risk:** None
+**Result:** Got 11 fps (CPU too slow compared to Neural Engine)
 
 **Next Steps:**
 1. ✅ Confirm CPU-only test achieves ≥85 fps
@@ -95,12 +128,12 @@ If marginal performance insufficient, implement multiprocessing
 
 ---
 
-### **Path 3: CPU-Only Test Results <60 fps** ❌ INSUFFICIENT
-**What it means:** CPU-only not sufficient, need process-based parallelism
+### **Path 3: Multiprocessing with CoreML** 🚀 ACTIVE PATH
+**What it means:** Use process-based parallelism + CoreML for best performance
 **Effort:** 2-3 days
 **Risk:** Medium-High
 
-**Required:** Implement multiprocessing.Pool solution
+**Status:** ✅ Implementing now (CPU-only test proved CoreML is essential)
 
 **Architecture:**
 ```
@@ -117,9 +150,19 @@ Main Process
 ```
 
 **Expected Performance:**
-- Single-process: 10-15 fps
-- 6 processes with 75% efficiency: 100-150 fps
-- **Guaranteed to exceed 85 fps target**
+```
+With CoreML per process:
+- Single-process: ~9.5 fps (105ms per frame, CoreML Neural Engine)
+- 6 processes with 75% efficiency: ~43 fps (conservative)
+- 6 processes with 85% efficiency: ~48 fps (optimistic)
+
+Reality Check:
+- CPU-only: 11 fps @ 555ms/frame (too slow)
+- CoreML threads: 9.5 fps @ 105ms/frame (serialized)
+- CoreML processes: Target 40-50+ fps (no serialization)
+
+**Target: 40+ fps (4-5x improvement over baseline)**
+```
 
 **Implementation Steps:**
 
@@ -235,62 +278,79 @@ Main Process
 
 ---
 
-## 📊 Performance Matrix
+## 📊 Performance Matrix (Updated with Test Results)
 
-| Path | Effort | Risk | Without AU45 | With AU45 | Complexity |
-|------|--------|------|--------------|-----------|------------|
-| **Path 1: CPU-Only** | 0h | None | 83-143 fps | 9-15 fps | Low |
-| **Path 2A: INT8 Quant** | 1d | Medium | 90-168 fps | 12-20 fps | Low |
-| **Path 2B: Batch Size** | 1h | None | 65-90 fps | 10-12 fps | None |
-| **Path 3: Multiprocessing** | 2-3d | Medium | 100-150 fps | 60-90 fps | High |
-| **Future A: STAR Opt** | 1-2w | High | 83-143 fps | 30-60 fps | Very High |
-| **Future B: GPU/MPS** | 2-3w | Very High | 150-300 fps | 60-120 fps | Very High |
+| Path | Effort | Risk | Actual FPS | Expected MP FPS | Complexity |
+|------|--------|------|------------|-----------------|------------|
+| **Baseline: CoreML threads** | 0h | None | 9.5 fps | N/A | Current |
+| **Path 1: CPU-Only** | 0h | None | ❌ 11 fps | N/A | ❌ Failed |
+| **Path 2A: INT8 Quant** | 1d | Medium | N/A | 15-20 fps | Low |
+| **Path 2B: Batch Size** | 1h | None | N/A | 10-12 fps | None |
+| **Path 3: MP + CoreML** | 2-3d | Medium | Testing | 40-50 fps | High |
+| **Future A: STAR Opt** | 1-2w | High | N/A | TBD | Very High |
+| **Future B: GPU/MPS** | 2-3w | Very High | N/A | TBD | Very High |
+
+**Note:** All estimates now based on actual measured CoreML performance (105ms/frame = 9.5 fps serialized)
 
 ---
 
-## 🎯 Recommended Strategy
+## 🎯 Recommended Strategy (UPDATED)
 
-### **Phase 1: Test CPU-Only (NOW)**
-Run the test and measure FPS:
-- ≥85 fps → **Stop here, success**
-- 60-84 fps → Phase 2A (INT8 quantization)
-- <60 fps → Phase 3 (multiprocessing)
+### **Phase 1: Test CPU-Only** ✅ COMPLETE
+Result: 11 fps (CPU too slow vs CoreML Neural Engine)
+- ❌ Did not achieve 85 fps target
+- ✅ Proved parallelization works (600% CPU)
+- ❌ Proved CPU is 5x slower than CoreML per-frame
+- 🎯 Conclusion: Must use multiprocessing + CoreML
 
-### **Phase 2: Quick Wins (if marginal)**
-1. Try INT8 quantization (1 day)
-2. If insufficient → Phase 3
+### **Phase 2: Implement Multiprocessing** 🚀 CURRENT
+Target: 40-50+ fps (4-5x improvement over baseline)
 
-### **Phase 3: Multiprocessing (if necessary)**
-1. Basic implementation (1 day)
-2. Production hardening (1 day)
-3. Testing and integration (0.5 day)
+**Tonight's Work (4-6 hours):**
+1. Basic multiprocessing.Pool implementation
+2. Revert to CoreML execution provider
+3. Process-level model initialization
+4. Test with small video
 
-### **Phase 4: AU45 Validation (after primary path)**
-Once base performance meets target:
+**Tomorrow:**
+1. Production hardening (error handling, cleanup)
+2. GUI integration (Queue-based IPC)
+3. Full testing and validation
+
+### **Phase 3: AU45 Validation (after multiprocessing)**
+Once base performance meets target (40+ fps):
 1. Test with AU45 enabled
-2. If AU45 ≥60 fps → **Done**
-3. If AU45 <60 fps → Consider STAR optimization (Future Option A)
+2. If AU45 ≥20 fps → **Acceptable**
+3. If AU45 <20 fps → Consider STAR optimization (Future Option A)
 
 ---
 
-## 🛌 Before You Sleep: What's Ready
+## 🚀 Implementation Plan: Multiprocessing with CoreML
 
-✅ **CPU-only test is implemented and ready to run**
-✅ **Documentation complete (this file + CPU_ONLY_TEST_RESULTS.md)**
-✅ **Multiprocessing solution documented (ready to implement if needed)**
-✅ **All paths have clear effort estimates and risk assessments**
+### **Step 1: Revert to CoreML** (5 minutes)
+Undo CPU-only test changes in `onnx_mtl_detector.py`:
+- Remove forced `CPUExecutionProvider`
+- Restore original CoreML configuration
+- Each process will get isolated CoreML session
+
+### **Step 2: Replace ThreadPoolExecutor with multiprocessing.Pool** (2 hours)
+Key changes in `openface_integration.py`:
+- Import `multiprocessing` instead of `threading`
+- Create process pool with 6 workers
+- Each worker loads models independently (isolated CoreML)
+- Use `multiprocessing.Queue` for results collection
+
+### **Step 3: Handle GUI Progress** (1 hour)
+- Use `multiprocessing.Queue` for IPC from workers to main
+- Main process polls queue and updates GUI callback
+- Workers send progress tuples: `(frame_idx, fps_estimate)`
+
+### **Step 4: Test and Validate** (1 hour)
+- Run on test video
+- Verify FPS improvement (target: 40-50+ fps)
+- Check AU output matches baseline
+- Monitor memory usage
 
 ---
 
-## 🌅 When You Wake Up: Test Checklist
-
-1. Run Face Mirror with test video (IMG_0437.MOV)
-2. Check initialization message (confirm CPU-only active)
-3. Record total processing time for 971 frames
-4. Calculate FPS: `971 / process_time`
-5. Check Activity Monitor CPU usage (should be 400-600%)
-6. Report results and choose path based on FPS achieved
-
----
-
-**Sleep well! The optimization strategy is documented and ready to execute.** 🚀
+**Ready to implement! Starting multiprocessing implementation now.** 🚀

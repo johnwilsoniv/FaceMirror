@@ -16,6 +16,8 @@ from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 import threading
 import gc
+import multiprocessing as mp
+from multiprocessing import Pool, Queue, Manager
 
 # Set environment variables before importing OpenFace
 os.environ.setdefault('TORCH_HOME', os.path.expanduser('~/.cache/torch'))

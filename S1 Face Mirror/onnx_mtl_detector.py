@@ -38,28 +38,23 @@ class ONNXMultitaskPredictor:
         self.std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
         # ============================================================================
-        # TESTING: CPU-ONLY TO VALIDATE PARALLELIZATION HYPOTHESIS
+        # COREML CONFIGURATION: Neural Engine acceleration
         # ============================================================================
-        # CoreML serializes inference across threads, preventing true parallelization.
-        # CPU-only ONNX allows true 6x parallel execution with ThreadPoolExecutor.
-        #
-        # Expected: 50-80 fps with 6 threads (vs 9.5 fps with CoreML serialized)
+        # Each process gets its own isolated CoreML session (no serialization).
+        # Multiprocessing allows true parallel execution with CoreML speed.
         # ============================================================================
 
-        # FORCE CPU-ONLY (ignore use_coreml parameter)
-        providers = ['CPUExecutionProvider']
-
-        # Original CoreML configuration (disabled for testing):
-        # if use_coreml:
-        #     providers = [
-        #         ('CoreMLExecutionProvider', {
-        #             'MLComputeUnits': 'ALL',
-        #             'ModelFormat': 'MLProgram',
-        #         }),
-        #         'CPUExecutionProvider'
-        #     ]
-        # else:
-        #     providers = ['CPUExecutionProvider']
+        # Configure execution providers based on use_coreml flag
+        if use_coreml:
+            providers = [
+                ('CoreMLExecutionProvider', {
+                    'MLComputeUnits': 'ALL',
+                    'ModelFormat': 'MLProgram',
+                }),
+                'CPUExecutionProvider'
+            ]
+        else:
+            providers = ['CPUExecutionProvider']
 
         # Load ONNX model
         print(f"Loading ONNX MTL model from: {onnx_model_path}")
@@ -94,12 +89,11 @@ class ONNXMultitaskPredictor:
 
         if 'CoreMLExecutionProvider' in active_providers:
             print("✓ Using CoreML Neural Engine acceleration for MTL")
-            print("  Expected: 3-5x speedup")
+            print("  Multiprocessing: Each process has isolated CoreML session")
             self.backend = 'coreml'
         else:
-            print("✓ TESTING: Using CPU-only ONNX for true 6x parallelization")
-            print("  Per-frame: ~30-50ms (slower than CoreML's 15-30ms)")
-            print("  With 6 threads: Expected 50-80+ fps total (vs 9.5 fps serialized)")
+            print("✓ Using CPU-only ONNX (CoreML not available)")
+            print("  Performance: CPU fallback mode")
             self.backend = 'onnx_cpu'
 
     def preprocess(self, face: np.ndarray) -> np.ndarray:
