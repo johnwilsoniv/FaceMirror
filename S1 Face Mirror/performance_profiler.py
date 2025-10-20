@@ -329,12 +329,22 @@ def get_profiler() -> PerformanceProfiler:
     """
     Get or create the global profiler instance.
 
+    Profiling is controlled by config.ENABLE_PROFILING (default: False).
+
     Returns:
         Global PerformanceProfiler instance
     """
     global _global_profiler
     if _global_profiler is None:
-        _global_profiler = PerformanceProfiler(enabled=True)
+        # Import config to check if profiling is enabled
+        try:
+            import config
+            enabled = config.ENABLE_PROFILING
+        except ImportError:
+            # Fallback if config not available
+            enabled = False
+
+        _global_profiler = PerformanceProfiler(enabled=enabled)
     return _global_profiler
 
 

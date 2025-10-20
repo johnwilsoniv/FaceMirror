@@ -280,12 +280,16 @@ class OptimizedLandmarkDetector:
 
     def __init__(self, model_path: str, onnx_model_path: Optional[str] = None, device: str = "cpu"):
         """
-        Initialize landmark detector with automatic ONNX/PyTorch selection
+        Initialize landmark detector with intelligent backend selection.
+
+        Selection logic:
+        - CUDA device: Use PyTorch (optimized for NVIDIA GPUs)
+        - CPU device: Use ONNX (CoreML on Apple Silicon, optimized CPU on Intel)
 
         Args:
             model_path: Path to PyTorch model (.pkl)
             onnx_model_path: Path to ONNX model (.onnx), defaults to same directory as model_path
-            device: Device for PyTorch fallback ('cpu' or 'cuda')
+            device: Device ('cpu' or 'cuda')
         """
         from pathlib import Path
 
@@ -294,24 +298,30 @@ class OptimizedLandmarkDetector:
             model_dir = Path(model_path).parent
             onnx_model_path = model_dir / 'star_landmark_98_coreml.onnx'
 
-        # Try ONNX first (fast path)
+        # CUDA: Use PyTorch directly (best for NVIDIA GPUs)
+        if device == 'cuda':
+            print("Using PyTorch STAR detector (CUDA-accelerated)")
+            from openface.landmark_detection import LandmarkDetector
+            self.detector = LandmarkDetector(model_path=model_path, device=device)
+            self.backend = 'pytorch_cuda'
+            return
+
+        # CPU: Try ONNX first (CoreML on Apple Silicon, optimized CPU on Intel)
         if Path(onnx_model_path).exists():
             try:
-                print(f"Using ONNX-accelerated STAR detector (CoreML/Neural Engine)")
+                print("Using ONNX-accelerated STAR detector")
                 self.detector = ONNXStarDetector(str(onnx_model_path), use_coreml=True)
                 self.backend = 'onnx'
                 return
             except Exception as e:
                 print(f"Failed to load ONNX model: {e}")
-                print(f"Falling back to PyTorch implementation...")
+                print("Falling back to PyTorch CPU")
 
-        # Fallback to PyTorch (slow path)
-        print(f"Using PyTorch STAR detector (CPU - slower)")
-        print(f"To enable acceleration, run: python convert_star_to_onnx.py")
-
+        # Fallback: PyTorch CPU
+        print("Using PyTorch STAR detector (CPU)")
         from openface.landmark_detection import LandmarkDetector
         self.detector = LandmarkDetector(model_path=model_path, device=device)
-        self.backend = 'pytorch'
+        self.backend = 'pytorch_cpu'
 
     def detect_landmarks(self, image: np.ndarray, dets: np.ndarray, confidence_threshold: float = 0.5):
         """

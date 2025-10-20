@@ -236,12 +236,16 @@ class OptimizedFaceDetector:
                  nms_threshold: float = 0.4,
                  vis_threshold: float = 0.5):
         """
-        Initialize face detector with automatic ONNX/PyTorch selection
+        Initialize face detector with intelligent backend selection.
+
+        Selection logic:
+        - CUDA device: Use PyTorch (optimized for NVIDIA GPUs)
+        - CPU device: Use ONNX (CoreML on Apple Silicon, optimized CPU on Intel)
 
         Args:
             model_path: Path to PyTorch model (.pth)
             onnx_model_path: Path to ONNX model (.onnx), defaults to same directory
-            device: Device for PyTorch fallback ('cpu' or 'cuda')
+            device: Device ('cpu' or 'cuda')
             confidence_threshold: Minimum confidence for detection
             nms_threshold: NMS threshold
             vis_threshold: Visibility threshold
@@ -259,10 +263,25 @@ class OptimizedFaceDetector:
             model_dir = Path(model_path).parent
             onnx_model_path = model_dir / 'retinaface_mobilenet025_coreml.onnx'
 
-        # Try ONNX first (fast path)
+        # CUDA: Use PyTorch directly (best for NVIDIA GPUs)
+        if device == 'cuda':
+            print("Using PyTorch RetinaFace detector (CUDA-accelerated)")
+            from openface.face_detection import FaceDetector
+            self.detector = FaceDetector(
+                model_path=model_path,
+                device=device,
+                confidence_threshold=confidence_threshold,
+                nms_threshold=nms_threshold,
+                vis_threshold=vis_threshold
+            )
+            self.backend = 'pytorch_cuda'
+            self.model = self.detector.model
+            return
+
+        # CPU: Try ONNX first (CoreML on Apple Silicon, optimized CPU on Intel)
         if Path(onnx_model_path).exists():
             try:
-                print(f"Using ONNX-accelerated RetinaFace detector (CoreML/Neural Engine)")
+                print("Using ONNX-accelerated RetinaFace detector")
                 self.detector = ONNXRetinaFaceDetector(
                     str(onnx_model_path),
                     use_coreml=True,
@@ -272,30 +291,24 @@ class OptimizedFaceDetector:
                 )
                 self.backend = 'onnx'
 
-                # Expose the model for compatibility
-                # Create a mock model object that just wraps ONNX inference
+                # Expose model wrapper for compatibility
                 class ONNXModelWrapper:
                     def __init__(self, detector):
                         self.detector = detector
 
                     def __call__(self, img):
-                        """Forward pass compatible with PyTorch usage"""
-                        # img is a torch tensor in NCHW format
                         img_np = img.cpu().numpy()
                         outputs = self.detector.session.run(None, {'input': img_np})
-                        # Convert back to torch tensors
                         return tuple(torch.from_numpy(o) for o in outputs)
 
                 self.model = ONNXModelWrapper(self.detector)
                 return
             except Exception as e:
                 print(f"Failed to load ONNX model: {e}")
-                print(f"Falling back to PyTorch implementation...")
+                print("Falling back to PyTorch CPU")
 
-        # Fallback to PyTorch (slow path)
-        print(f"Using PyTorch RetinaFace detector (slower)")
-        print(f"To enable acceleration, run: python convert_retinaface_to_onnx.py")
-
+        # Fallback: PyTorch CPU
+        print("Using PyTorch RetinaFace detector (CPU)")
         from openface.face_detection import FaceDetector
         self.detector = FaceDetector(
             model_path=model_path,
@@ -304,7 +317,7 @@ class OptimizedFaceDetector:
             nms_threshold=nms_threshold,
             vis_threshold=vis_threshold
         )
-        self.backend = 'pytorch'
+        self.backend = 'pytorch_cpu'
         self.model = self.detector.model
 
     def detect_faces(self, img_array: np.ndarray, resize: float = 1.0):

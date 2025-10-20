@@ -2,18 +2,11 @@
 S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
-# CRITICAL: Configure NumPy/MKL threading BEFORE importing numpy/torch
-# Allow 2 threads per worker for intra-op parallelism (balances parallelism vs contention)
-# With 4 Python workers × 2 threads each = 8 threads total (good for 10-core systems)
-# This must be set before any numpy/torch imports
-import os
-os.environ["OMP_NUM_THREADS"] = "2"  # OpenMP threads (PyTorch uses this)
-os.environ["MKL_NUM_THREADS"] = "2"  # Intel MKL threads
-os.environ["OPENBLAS_NUM_THREADS"] = "2"  # OpenBLAS threads
-os.environ["VECLIB_MAXIMUM_THREADS"] = "2"  # macOS Accelerate
-os.environ["NUMEXPR_NUM_THREADS"] = "2"  # NumExpr
+import config
+config.apply_environment_settings()
 
 # Lightweight imports - safe for multiprocessing child processes
+import os
 from pathlib import Path
 import sys
 import tkinter as tk
@@ -44,41 +37,49 @@ if __name__ == "__main__":
         pass
 
 
-# Configuration Constants
-# ============================================================================
-# OPTIMIZED: Restored 6 worker threads with balanced system threading
-# ============================================================================
-# With pre-loaded frames and optimized ONNX threading, we can safely use
-# 6 worker threads for maximum parallelization without contention.
-# ============================================================================
-NUM_THREADS = 6  # Thread count for parallel frame processing (optimized)
-MEMORY_CHECKPOINT_INTERVAL = 10  # Deep cleanup every N videos
-PROGRESS_UPDATE_INTERVAL = 50  # Terminal progress update every N frames
-
-
 def auto_detect_device():
     """
-    Auto-detect best available device for processing
+    Auto-detect best available device for processing.
 
-    Attempts to use Apple MPS (Metal Performance Shaders) on Apple Silicon.
-    Falls back to CPU for unsupported operations.
+    Device selection hierarchy:
+    1. CUDA (NVIDIA GPU) - Best for PyTorch models on NVIDIA hardware
+    2. CPU + ONNX CoreML (Apple Silicon) - Best for M1/M2/M3 Macs
+    3. CPU + ONNX (Intel) - Best for Intel Macs without GPU
 
     Returns:
-        str: 'cuda', 'mps', or 'cpu'
+        str: 'cuda' or 'cpu'
+
+    Note: ONNX models will automatically use CoreML on Apple Silicon
     """
+    import platform
+
+    # Check for forced device in config
+    if config.FORCE_DEVICE is not None:
+        print(f"Using forced device: {config.FORCE_DEVICE}")
+        return config.FORCE_DEVICE
+
+    # Priority 1: CUDA (NVIDIA GPU)
     if torch.cuda.is_available():
         device_name = torch.cuda.get_device_name(0)
-        print(f"GPU detected: {device_name}")
+        print(f"NVIDIA GPU detected: {device_name}")
+        print("Using CUDA acceleration with PyTorch models")
         return 'cuda'
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        print("Apple MPS (Metal) detected - attempting to use GPU acceleration")
-        print("Note: Some operations may fall back to CPU if not supported by MPS")
-        # Enable CPU fallback for operations not yet implemented in MPS
-        os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
-        return 'mps'
+
+    # Priority 2 & 3: CPU (with ONNX acceleration based on platform)
+    processor = platform.processor()
+    machine = platform.machine()
+
+    # Detect Apple Silicon
+    if processor == 'arm' or machine == 'arm64':
+        print("Apple Silicon detected (M1/M2/M3)")
+        print("Using CPU with ONNX + CoreML Neural Engine acceleration")
+        print("Expected performance: 5-20x faster than PyTorch CPU")
     else:
-        print("Using CPU (no GPU detected)")
-        return 'cpu'
+        print(f"Intel/AMD CPU detected ({processor or machine})")
+        print("Using CPU with ONNX optimization")
+        print("Expected performance: 2-5x faster than PyTorch CPU")
+
+    return 'cpu'
 
 
 def check_existing_outputs(input_path, output_dir, openface_output_dir=None):
@@ -579,22 +580,11 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         print(f"  - face_mirror_performance_{timestamp}.json")
         print()
 
-        # ============================================================================
-        # PERFORMANCE OPTIMIZATION: AU45 Landmark Detection Toggle
-        # ============================================================================
-        # AU45 (blink) calculation requires running the STAR landmark detector on
-        # every frame, which adds ~360-600ms per frame (reducing FPS from 14-28 to 2-3).
-        #
-        # Set to False to disable AU45 and get 5-7x speedup!
-        # Set to True only if you specifically need blink detection (AU45).
-        # ============================================================================
-        ENABLE_AU45_CALCULATION = True  # AU45 (blink detection) enabled
-
         openface_processor = OpenFace3Processor(
             device=device,
-            calculate_landmarks=ENABLE_AU45_CALCULATION,  # Toggle AU45 (blink) calculation
-            num_threads=NUM_THREADS,
-            debug_mode=debug_mode  # Enable debug summaries during processing
+            calculate_landmarks=config.ENABLE_AU45_CALCULATION,
+            num_threads=config.NUM_THREADS,
+            debug_mode=debug_mode
         )
         print("✓ OpenFace processor initialized and warmed up")
         print("  This will be reused for all videos (eliminates stage delays)")
@@ -621,10 +611,8 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
             results.append(result)
             print(f"\nCompleted {video_num}/{len(input_paths)} videos")
 
-            # OPTIMIZED: Light memory cleanup after each video (reduced overhead)
-            # Deep cleanup only at checkpoints
-            # Memory monitoring and deep cleanup
-            if video_num % MEMORY_CHECKPOINT_INTERVAL == 0:
+            # Memory monitoring and deep cleanup at checkpoints
+            if video_num % config.MEMORY_CHECKPOINT_INTERVAL == 0:
                 # Deep cleanup only at checkpoints
                 gc.collect()
                 if torch.cuda.is_available():

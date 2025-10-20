@@ -1,6 +1,8 @@
-# Face Mirror - Video Processing for Facial Asymmetry Analysis
+# S1 Face Mirror
 
-This application processes facial assessment videos to create mirror-image visualizations for analyzing facial symmetry, with integrated facial action unit (AU) extraction. It automatically detects facial landmarks, creates mirrored videos, and extracts quantitative AU data in a single streamlined workflow.
+**Automated facial action unit (AU) extraction tool for behavioral research.**
+
+S1 Face Mirror is a high-performance video processing tool that automatically detects faces, creates left/right hemisphere mirrored videos, and extracts 18 facial action units using OpenFace 3.0. Optimized for Apple Silicon, NVIDIA CUDA, and Intel CPUs.
 
 ## What Does This Do?
 

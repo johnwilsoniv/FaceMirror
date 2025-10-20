@@ -178,12 +178,16 @@ class OptimizedMultitaskPredictor:
     def __init__(self, model_path: str, onnx_model_path: Optional[str] = None,
                  device: str = "cpu"):
         """
-        Initialize multitask predictor with automatic ONNX/PyTorch selection
+        Initialize multitask predictor with intelligent backend selection.
+
+        Selection logic:
+        - CUDA device: Use PyTorch (optimized for NVIDIA GPUs)
+        - CPU device: Use ONNX (CoreML on Apple Silicon, optimized CPU on Intel)
 
         Args:
             model_path: Path to PyTorch model (.pth)
             onnx_model_path: Path to ONNX model (.onnx), defaults to same directory
-            device: Device for PyTorch fallback ('cpu' or 'cuda')
+            device: Device ('cpu' or 'cuda')
         """
         from pathlib import Path
 
@@ -192,24 +196,30 @@ class OptimizedMultitaskPredictor:
             model_dir = Path(model_path).parent
             onnx_model_path = model_dir / 'mtl_efficientnet_b0_coreml.onnx'
 
-        # Try ONNX first (fast path)
+        # CUDA: Use PyTorch directly (best for NVIDIA GPUs)
+        if device == 'cuda':
+            print("Using PyTorch MTL predictor (CUDA-accelerated)")
+            from openface.multitask_model import MultitaskPredictor
+            self.predictor = MultitaskPredictor(model_path=model_path, device=device)
+            self.backend = 'pytorch_cuda'
+            return
+
+        # CPU: Try ONNX first (CoreML on Apple Silicon, optimized CPU on Intel)
         if Path(onnx_model_path).exists():
             try:
-                print(f"Using ONNX-accelerated MTL predictor (CoreML/Neural Engine)")
+                print("Using ONNX-accelerated MTL predictor")
                 self.predictor = ONNXMultitaskPredictor(str(onnx_model_path), use_coreml=True)
                 self.backend = 'onnx'
                 return
             except Exception as e:
                 print(f"Failed to load ONNX model: {e}")
-                print(f"Falling back to PyTorch implementation...")
+                print("Falling back to PyTorch CPU")
 
-        # Fallback to PyTorch (slow path)
-        print(f"Using PyTorch MTL predictor (slower)")
-        print(f"To enable acceleration, run: python convert_mtl_to_onnx.py")
-
+        # Fallback: PyTorch CPU
+        print("Using PyTorch MTL predictor (CPU)")
         from openface.multitask_model import MultitaskPredictor
         self.predictor = MultitaskPredictor(model_path=model_path, device=device)
-        self.backend = 'pytorch'
+        self.backend = 'pytorch_cpu'
 
     def preprocess(self, face: np.ndarray):
         """Preprocess face image using the selected backend"""
