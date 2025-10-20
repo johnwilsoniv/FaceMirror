@@ -314,13 +314,7 @@ def process_single_video(args):
         )
         outputs = splitter.process_video(input_path, output_dir)
 
-        # ====================================================================
-        # INFORM USER: Video encoding finalization is happening
-        # ====================================================================
-        # After mirroring completes, FFmpeg needs 1-5 seconds to finalize the
-        # video files (write MP4 metadata). Show this to the user so they know
-        # the system is still working.
-        # ====================================================================
+        # Video encoding finalization: FFmpeg needs 1-5 seconds to write MP4 metadata
         if run_openface and outputs:
             print("\nFinalizing mirrored videos (writing MP4 metadata)...")
 
@@ -336,34 +330,8 @@ def process_single_video(args):
                     fps=0.0
                 ))
 
-        # ====================================================================
-        # DIAGNOSTIC: Check OpenFace transition conditions
-        # ====================================================================
-        print("\n" + "="*60)
-        print("DIAGNOSTIC: Checking OpenFace trigger conditions")
-        print("="*60)
-        print(f"  run_openface: {run_openface}")
-        print(f"  outputs: {outputs}")
-        print(f"  outputs is truthy: {bool(outputs)}")
-        print(f"  openface_processor: {openface_processor}")
-        print(f"  openface_processor is not None: {openface_processor is not None}")
-        print(f"  Combined condition: {run_openface and outputs and openface_processor is not None}")
-        print("="*60 + "\n")
-
         # Run OpenFace processing if requested (Mode 1: Mirror + OpenFace)
         openface_outputs = []
-        if run_openface and outputs and openface_processor is not None:
-            print("✓ All conditions met - Starting AU extraction...")
-        else:
-            print("✗ AU extraction NOT starting - condition failed!")
-            print(f"  Which condition failed?")
-            if not run_openface:
-                print(f"    - run_openface is False")
-            if not outputs:
-                print(f"    - outputs is empty or None")
-            if openface_processor is None:
-                print(f"    - openface_processor is None")
-
         if run_openface and outputs and openface_processor is not None:
             # Get S1O base directory for OpenFace output
             output_dir_path = Path(output_dir)
@@ -374,29 +342,8 @@ def process_single_video(args):
             # Find mirrored video files (exclude debug videos)
             mirrored_videos = [f for f in outputs if 'mirrored' in f and 'debug' not in f]
 
-            # DIAGNOSTIC: Check mirrored videos
-            print(f"\nDIAGNOSTIC: Found {len(mirrored_videos)} mirrored videos:")
-            for v in mirrored_videos:
-                v_path = Path(v)
-                exists = v_path.exists()
-                size = v_path.stat().st_size if exists else 0
-                print(f"  - {v_path.name} (exists: {exists}, size: {size:,} bytes)")
-            print("")
-
             if mirrored_videos:
-                print(f"✓ Starting AU extraction for {len(mirrored_videos)} mirrored videos")
-            else:
-                print(f"✗ No mirrored videos found in outputs!")
-
-            if mirrored_videos:
-                # ====================================================================
-                # PIPELINE OPTIMIZATION: Reuse pre-initialized OpenFace processor
-                # ====================================================================
-                # The processor was already initialized and warmed up before the
-                # video loop started, so we can start processing immediately
-                # with NO stage transition delay!
-                # ====================================================================
-
+                # Reuse pre-initialized OpenFace processor (no transition delay)
                 # Process each mirrored video
                 total_mirrored = len(mirrored_videos)
                 for idx, mirrored_video_path in enumerate(mirrored_videos, 1):
@@ -457,9 +404,9 @@ def process_single_video(args):
 
                         if frame_count > 0:
                             openface_outputs.append(str(output_csv_path))
-                            print(f"\n✓ CSV saved: {output_csv_path.name}", flush=True)
+                            print(f"\nCSV saved: {output_csv_path.name}", flush=True)
                         else:
-                            print(f"\n✗ No frames processed for {mirrored_video.name}", flush=True)
+                            print(f"\nNo frames processed for {mirrored_video.name}", flush=True)
                     except Exception as e:
                         print(f"\n  Warning: OpenFace processing failed for {mirrored_video.name}: {e}", flush=True)
 
@@ -555,21 +502,11 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
     import traceback
 
     try:
-        print("\n" + "="*80, flush=True)
-        print("DEBUG (worker thread): video_processing_worker() started", flush=True)
-        print(f"DEBUG (worker thread): Processing {len(input_paths)} video(s)", flush=True)
-        print("="*80, flush=True)
 
         # Start timing
         start_time = time.time()
 
-        # ============================================================================
-        # PIPELINE OPTIMIZATION: Pre-initialize OpenFace processor ONCE
-        # ============================================================================
-        # Instead of creating a new processor for each video (causing 500ms-2s delays),
-        # create ONE processor and reuse it for all videos.
-        # The warm-up happens once at the start, eliminating stage transition delays.
-        # ============================================================================
+        # Pre-initialize OpenFace processor once (reused for all videos)
         print("\n" + "="*60)
         print("INITIALIZING OPENFACE PROCESSOR (ONE-TIME SETUP)")
         print("="*60)
@@ -586,7 +523,7 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
             num_threads=config.NUM_THREADS,
             debug_mode=debug_mode
         )
-        print("✓ OpenFace processor initialized and warmed up")
+        print("OpenFace processor initialized and warmed up")
         print("  This will be reused for all videos (eliminates stage delays)")
         print("="*60 + "\n")
 
@@ -637,19 +574,8 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         end_time = time.time()
         total_seconds = end_time - start_time
 
-        # ============================================================================
-        # PERFORMANCE PROFILING REPORT
-        # ============================================================================
-        # Report is automatically saved to timestamped files on Desktop
-        # ============================================================================
+        # Export profiling data to Desktop (timestamped files)
         profiler = get_profiler()
-
-        # ============================================================================
-        # ALWAYS EXPORT PROFILING DATA TO FILES (in case terminal output is lost)
-        # ============================================================================
-        # Export both JSON (for programmatic analysis) and TXT (human-readable backup)
-        # Use timestamped filenames so each run creates a fresh file
-        # ============================================================================
         try:
             import os
 
@@ -670,10 +596,10 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
                 # Restore stdout
                 sys.stdout = old_stdout
 
-            print(f"\n✓ Profiling reports saved to Desktop (timestamped)", flush=True)
+            print(f"\nProfiling reports saved to Desktop (timestamped)", flush=True)
 
         except Exception as e:
-            print(f"\n⚠ Warning: Could not save profiling files: {e}", flush=True)
+            print(f"\nWarning: Could not save profiling files: {e}", flush=True)
 
         # Calculate summary statistics
         successful_count = sum(1 for r in results if r['success'])
@@ -706,35 +632,16 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         summary += f"Results saved to:\n{openface_output_dir}\n\n"
         summary += "Next step: Run the videos and CSV files through the Action Coder app."
 
-        # ============================================================================
         # Signal completion to progress window
-        # ============================================================================
-        # IMPORTANT: This call triggers root.quit() after 500ms, which exits the
-        # GUI event loop and allows the main thread to proceed. The profiling
-        # report MUST be printed before this call, otherwise Python may terminate
-        # before the output is flushed.
-        # ============================================================================
-        print("\nDEBUG: About to call signal_completion()", flush=True)
         progress_window.signal_completion(summary)
-        print("DEBUG: signal_completion() called, worker thread ending normally", flush=True)
 
     except Exception as e:
-        # DETAILED ERROR LOGGING for MPS debugging
-        print("\n" + "="*60, flush=True)
-        print("DEBUG: EXCEPTION CAUGHT IN WORKER THREAD", flush=True)
-        print("="*60, flush=True)
-        print("\n" + "="*60, flush=True)
-        print("FACE MIRROR ERROR - FULL DETAILS", flush=True)
-        print("="*60, flush=True)
-        print(f"Device: {device}")
-        print(f"Error: {str(e)}")
-        print("\nFull Traceback:")
+        # Error logging
+        print(f"\nProcessing error: {str(e)}", flush=True)
+        print("Full traceback:")
         print(traceback.format_exc())
-        print("="*60 + "\n")
 
-        error_msg = f"Processing failed with error:\n{str(e)}"
-
-        # Signal error to progress window
+        error_msg = f"Processing failed:\n{str(e)}"
         progress_window.signal_completion(error_msg, error=True)
 
 
@@ -803,15 +710,10 @@ def workflow_mirror_openface():
 
     # Run the GUI event loop - this keeps the window responsive!
     # The worker thread will signal completion when done
-    # When processing completes, the progress window's mainloop will exit (via root.quit())
-    # but the window will remain visible until we explicitly close it
-    print("DEBUG (main thread): About to start GUI event loop", flush=True)
+    # Run GUI event loop - worker thread will signal completion when done
     progress_window.run()
-    print("DEBUG (main thread): GUI event loop exited, control returned to main thread", flush=True)
 
-    # Wait for worker thread to complete (with generous timeout)
-    # IMPORTANT: Must wait for profiling report to be printed!
-    print("DEBUG (main thread): Waiting for worker thread to complete (including profiling report)...", flush=True)
+    # Wait for worker thread to complete
     worker_thread.join(timeout=60.0)  # Give it 60 seconds for cleanup + profiling
 
     if worker_thread.is_alive():

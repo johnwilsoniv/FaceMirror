@@ -136,7 +136,7 @@ class OpenFace3Processor:
         self.retinaface_model = retinaface_model.to(device)
         self.confidence_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
-        print("  ✓ RetinaFace model loaded (direct, no temp files)")
+        print("  RetinaFace model loaded (direct, no temp files)")
 
         # Conditionally initialize landmark detector
         if self.calculate_landmarks:
@@ -157,7 +157,7 @@ class OpenFace3Processor:
         if hasattr(self.multitask_model, 'backend'):
             backend = self.multitask_model.backend
             if backend == 'onnx':
-                print("  ✓ Multitask model loaded (ONNX-accelerated AU extraction)")
+                print("  Multitask model loaded (ONNX-accelerated AU extraction)")
                 if hasattr(self.multitask_model.predictor, 'backend'):
                     onnx_backend = self.multitask_model.predictor.backend
                     if onnx_backend == 'coreml':
@@ -165,14 +165,14 @@ class OpenFace3Processor:
                     else:
                         print("    Using ONNX CPU (optimized)")
             else:
-                print("  ✓ Multitask model loaded (PyTorch - slower)")
+                print("  Multitask model loaded (PyTorch - slower)")
                 print("    To enable acceleration, run: ./run_mtl_conversion.sh")
         else:
-            print("  ✓ Multitask model loaded (AU extraction)")
+            print("  Multitask model loaded (AU extraction)")
 
         # Initialize AU adapter (converts 8 AUs -> 18 AUs)
         self.au_adapter = OpenFace3To18AUAdapter()
-        print("  ✓ AU adapter initialized (8→18 conversion)")
+        print("  AU adapter initialized (8→18 conversion)")
 
         # Get AU availability report
         report = self.au_adapter.get_au_availability_report()
@@ -227,16 +227,16 @@ class OpenFace3Processor:
                         dummy_frame, fake_dets, confidence_threshold=0.5
                     )
 
-            print("  ✓ AU extraction models warmed up (CoreML/Neural Engine ready)")
+            print("  AU extraction models warmed up (CoreML/Neural Engine ready)")
         except Exception as e:
-            print(f"  ⚠ Warm-up completed with warnings (models will still work)")
+            print(f"  Warm-up completed with warnings (models will still work)")
 
         # Run garbage collection once
         # NOTE: We do NOT call gc.freeze() here because it can prevent proper cleanup of
         # ONNX Runtime / CoreML sessions, leading to process hanging on exit
         gc.collect()
 
-        print("  ✓ Models initialized and ready")
+        print("  Models initialized and ready")
 
     def _auto_detect_device(self):
         """
@@ -319,15 +319,15 @@ class OpenFace3Processor:
         if hasattr(self.landmark_detector, 'backend'):
             backend = self.landmark_detector.backend
             if backend == 'onnx':
-                print("  ✓ Landmark detector loaded (ONNX-accelerated for AU45)")
+                print("  Landmark detector loaded (ONNX-accelerated for AU45)")
                 print("    Expected: 10-20x speedup (~90-180ms per frame)")
             else:
-                print("  ⚠ Landmark detector loaded (PyTorch - slower)")
+                print("  Landmark detector loaded (PyTorch - slower)")
                 print("    To enable acceleration, run: ./run_onnx_conversion.sh")
         elif USING_ONNX_LANDMARK_DETECTION:
-            print("  ✓ Landmark detector loaded (ONNX acceleration module loaded)")
+            print("  Landmark detector loaded (ONNX acceleration module loaded)")
         else:
-            print("  ✓ Landmark detector loaded (98 points for AU45)")
+            print("  Landmark detector loaded (98 points for AU45)")
 
     def preprocess_image(self, frame, resize=1.0):
         """
@@ -532,9 +532,9 @@ class OpenFace3Processor:
         if 'mirrored' in video_path.name.lower() and 'debug' not in video_path.name.lower():
             self.skip_face_detection = True
             print(f"Processing: {video_path.name}")
-            print(f"  ✓ Detected pre-cropped mirrored video")
-            print(f"  ✓ Skipping face detection (already aligned)")
-            print(f"  ✓ Expected speedup: 3-4x faster AU extraction")
+            print(f"  Detected pre-cropped mirrored video")
+            print(f"  Skipping face detection (already aligned)")
+            print(f"  Expected speedup: 3-4x faster AU extraction")
         else:
             self.skip_face_detection = False
             print(f"Processing: {video_path.name}")
@@ -749,7 +749,7 @@ class OpenFace3Processor:
 
                 # DIAGNOSTIC: Check if GC is the bottleneck
                 if gc_elapsed > 0.5:
-                    print(f"\n  ⚠ WARNING: Batch {batch_num} GC took {gc_elapsed:.2f}s!")
+                    print(f"\n  WARNING: Batch {batch_num} GC took {gc_elapsed:.2f}s!")
 
                 cleanup_elapsed = time.time() - cleanup_start
                 total_cleanup_time += cleanup_elapsed
@@ -810,13 +810,13 @@ class OpenFace3Processor:
             self._write_csv(csv_rows, output_csv_path)
 
             # Always print completion (even with GUI)
-            print(f"  ✓ Processed {len(csv_rows) - failed_count} frames successfully")
+            print(f"  Processed {len(csv_rows) - failed_count} frames successfully")
             if failed_count > 0:
-                print(f"  ⚠ {failed_count} frames failed (no face detected)")
+                print(f"  {failed_count} frames failed (no face detected)")
             print(f"  Output: {output_csv_path}")
             success_count = len(csv_rows) - failed_count
         else:
-            print(f"  ✗ No frames were processed")
+            print(f"  No frames were processed")
             success_count = 0
 
         # Final memory cleanup
@@ -963,12 +963,12 @@ def process_videos(directory_path, specific_files=None, output_dir=None):
 
                 if frame_count > 0:
                     processed_count += 1
-                    print(f"✓ Successfully processed: {filename}\n")
+                    print(f"Successfully processed: {filename}\n")
                 else:
-                    print(f"✗ Failed to process: {filename}\n")
+                    print(f"Failed to process: {filename}\n")
 
             except Exception as e:
-                print(f"✗ Error processing {filename}: {e}\n")
+                print(f"Error processing {filename}: {e}\n")
 
     print(f"\nProcessing complete. {processed_count} files were processed.")
     return processed_count

@@ -70,11 +70,11 @@ class ONNXStarDetector:
         active_providers = self.session.get_providers()
 
         if 'CoreMLExecutionProvider' in active_providers:
-            print("✓ Using CoreML Neural Engine acceleration")
+            print("Using CoreML Neural Engine acceleration")
             print("  Expected: 10-20x speedup")
             self.backend = 'coreml'
         else:
-            print("✓ Using ONNX Runtime with optimized CPU execution")
+            print("Using ONNX Runtime with optimized CPU execution")
             print("  Expected: 3-5x speedup over PyTorch")
             print("  (CoreML not available for this model - some operations unsupported)")
             self.backend = 'onnx_cpu'

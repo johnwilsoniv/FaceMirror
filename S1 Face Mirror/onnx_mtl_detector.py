@@ -91,11 +91,11 @@ class ONNXMultitaskPredictor:
         active_providers = self.session.get_providers()
 
         if 'CoreMLExecutionProvider' in active_providers:
-            print("✓ Using CoreML Neural Engine acceleration for MTL")
+            print("Using CoreML Neural Engine acceleration for MTL")
             print("  Multiprocessing: Each process has isolated CoreML session")
             self.backend = 'coreml'
         else:
-            print("✓ Using CPU-only ONNX (CoreML not available)")
+            print("Using CPU-only ONNX (CoreML not available)")
             print("  Performance: CPU fallback mode")
             self.backend = 'onnx_cpu'
 

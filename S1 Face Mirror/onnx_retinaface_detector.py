@@ -83,11 +83,11 @@ class ONNXRetinaFaceDetector:
         active_providers = self.session.get_providers()
 
         if 'CoreMLExecutionProvider' in active_providers:
-            print("✓ Using CoreML Neural Engine acceleration for face detection")
+            print("Using CoreML Neural Engine acceleration for face detection")
             print("  Expected: 5-10x speedup")
             self.backend = 'coreml'
         else:
-            print("✓ Using ONNX Runtime with optimized CPU execution for face detection")
+            print("Using ONNX Runtime with optimized CPU execution for face detection")
             print("  Expected: 2-4x speedup over PyTorch")
             print("  (CoreML not available for this model - some operations unsupported)")
             self.backend = 'onnx_cpu'

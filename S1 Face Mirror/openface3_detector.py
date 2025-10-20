@@ -165,29 +165,29 @@ class OpenFace3LandmarkDetector:
         if hasattr(self.face_detector, 'backend'):
             backend = self.face_detector.backend
             if backend == 'onnx':
-                print("✓ Face Detection: ONNX-accelerated (CoreML/Neural Engine)")
+                print("Face Detection: ONNX-accelerated (CoreML/Neural Engine)")
                 print("  Expected: 5-10x speedup (~20-40ms per detection)")
             else:
-                print("⚠ Face Detection: PyTorch (slower)")
+                print("Face Detection: PyTorch (slower)")
                 print("  To enable acceleration, run: ./run_retinaface_conversion.sh")
         elif USING_ONNX_FACE_DETECTION:
-            print("✓ Face Detection: ONNX acceleration module loaded")
+            print("Face Detection: ONNX acceleration module loaded")
         else:
-            print("⚠ Face Detection: Standard PyTorch (ONNX module not found)")
+            print("Face Detection: Standard PyTorch (ONNX module not found)")
 
         # Landmark Detection Backend
         if hasattr(self.landmark_detector, 'backend'):
             backend = self.landmark_detector.backend
             if backend == 'onnx':
-                print("✓ Landmark Detection: ONNX-accelerated (CoreML/Neural Engine)")
+                print("Landmark Detection: ONNX-accelerated (CoreML/Neural Engine)")
                 print("  Expected: 10-20x speedup (~90-180ms per frame)")
             else:
-                print("⚠ Landmark Detection: PyTorch (slower)")
+                print("Landmark Detection: PyTorch (slower)")
                 print("  To enable acceleration, run: ./run_onnx_conversion.sh")
         elif USING_ONNX_LANDMARK_DETECTION:
-            print("✓ Landmark Detection: ONNX acceleration module loaded")
+            print("Landmark Detection: ONNX acceleration module loaded")
         else:
-            print("⚠ Landmark Detection: Standard PyTorch (ONNX module not found)")
+            print("Landmark Detection: Standard PyTorch (ONNX module not found)")
 
         print("="*60 + "\n")
 

@@ -1,13 +1,29 @@
+# S1 Face Mirror - Python Dependencies
+# Install with: pip install -r requirements.txt
+
 # Core dependencies
-opencv-python>=4.7.0
-numpy>=1.24.0
-scipy>=1.10.0
+numpy>=1.21.0
+opencv-python>=4.5.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# ONNX Runtime (with CoreML support for Apple Silicon)
+onnxruntime>=1.15.0
+
+# OpenFace 3.0 for AU extraction
+openface-test>=0.3.0
+
+# Video processing
 tqdm>=4.65.0
+
+# System utilities
 psutil>=5.9.0
 
-# OpenFace 3.0 for face detection and landmark tracki
-openface-test>=0.1.0
-torch>=2.0.0
+# Optional: CUDA support (uncomment if using NVIDIA GPU)
+# torch==2.0.1+cu118 -f https://download.pytorch.org/whl/torch_stable.html
+# torchvision==0.15.2+cu118 -f https://download.pytorch.org/whl/torch_stable.html
 
-# UI (usually included with Python, but listed for completeness)
-# tkinter comes with Python by default on most systems
+# Notes:
+# - OpenFace models will be downloaded automatically on first run
+# - For Apple Silicon (M1/M2/M3), ONNX Runtime will use CoreML acceleration
+# - For NVIDIA GPUs, install CUDA-enabled PyTorch from pytorch.org

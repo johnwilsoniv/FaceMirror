@@ -471,7 +471,7 @@ class VideoProcessor:
 
                     # DIAGNOSTIC: Check if we're waiting for read
                     if wait_elapsed > 0.5:
-                        print(f"\n  ⚠ WARNING: Batch {batch_num} waited {wait_elapsed:.2f}s for async read!")
+                        print(f"\n  WARNING: Batch {batch_num} waited {wait_elapsed:.2f}s for async read!")
                         print(f"    Processing is faster than reading - this is unusual.")
 
                     total_read_time += wait_elapsed
@@ -496,7 +496,7 @@ class VideoProcessor:
 
                 # DIAGNOSTIC: Check if GC is the bottleneck
                 if gc_elapsed > 0.5:
-                    print(f"\n  ⚠ WARNING: Batch {batch_num} GC took {gc_elapsed:.2f}s!")
+                    print(f"\n  WARNING: Batch {batch_num} GC took {gc_elapsed:.2f}s!")
 
                 cleanup_elapsed = time.time() - cleanup_start
                 total_cleanup_time += cleanup_elapsed
@@ -556,7 +556,7 @@ class VideoProcessor:
             """Finalize a single writer in a thread"""
             print(f"  Finalizing {name} video...")
             writer.release()
-            print(f"  ✓ {name} video finalized")
+            print(f"  {name} video finalized")
 
         # Create threads for parallel finalization
         finalize_threads = [
@@ -574,7 +574,7 @@ class VideoProcessor:
             thread.join(timeout=30.0)
 
         finalize_elapsed = time.time() - finalize_start
-        print(f"✓ Video encoding finalized in {finalize_elapsed:.1f}s")
+        print(f"Video encoding finalized in {finalize_elapsed:.1f}s")
 
         if flush_elapsed > 1.0:
             print(f"Frame flush completed in {flush_elapsed:.2f}s")

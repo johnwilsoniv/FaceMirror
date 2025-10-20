@@ -58,7 +58,7 @@ class StableFaceSplitter:
         try:
             _ = self.landmark_detector.get_face_mesh(dummy_frame)
             if self.debug_mode:
-                print("  ✓ Face detector warmed up")
+                print("  Face detector warmed up")
         except Exception:
             pass  # Ignore warm-up errors
 
@@ -67,7 +67,7 @@ class StableFaceSplitter:
         gc.freeze()
 
         if self.debug_mode:
-            print("  ✓ Models frozen from garbage collection (reduces GC overhead)")
+            print("  Models frozen from garbage collection (reduces GC overhead)")
 
     def process_video(self, input_path, output_dir):
         """Process a video file and create mirrored outputs"""
