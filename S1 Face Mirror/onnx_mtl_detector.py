@@ -14,6 +14,9 @@ import torch
 from typing import Tuple, Optional
 import onnxruntime as ort
 
+# Import performance profiler
+from performance_profiler import get_profiler
+
 
 class ONNXMultitaskPredictor:
     """
@@ -140,21 +143,26 @@ class ONNXMultitaskPredictor:
             - gaze_output: (1, 2) gaze direction (yaw, pitch)
             - au_output: (1, 8) AU intensities for 8 AUs
         """
+        profiler = get_profiler()
+
         # Preprocess
-        face_tensor = self.preprocess(face)
+        with profiler.time_block("preprocessing", f"MTL_preprocess"):
+            face_tensor = self.preprocess(face)
 
         # Run ONNX inference
-        outputs = self.session.run(None, {'input_face': face_tensor})
+        with profiler.time_block("model_inference", f"MTL_{self.backend}"):
+            outputs = self.session.run(None, {'input_face': face_tensor})
 
         # Unpack outputs: emotion, gaze, au
-        emotion_np = outputs[0]  # (1, 8)
-        gaze_np = outputs[1]     # (1, 2)
-        au_np = outputs[2]       # (1, 8)
+        with profiler.time_block("postprocessing", f"MTL_postprocess"):
+            emotion_np = outputs[0]  # (1, 8)
+            gaze_np = outputs[1]     # (1, 2)
+            au_np = outputs[2]       # (1, 8)
 
-        # Convert to torch tensors for compatibility with existing code
-        emotion_tensor = torch.from_numpy(emotion_np)
-        gaze_tensor = torch.from_numpy(gaze_np)
-        au_tensor = torch.from_numpy(au_np)
+            # Convert to torch tensors for compatibility with existing code
+            emotion_tensor = torch.from_numpy(emotion_np)
+            gaze_tensor = torch.from_numpy(gaze_np)
+            au_tensor = torch.from_numpy(au_np)
 
         return emotion_tensor, gaze_tensor, au_tensor
 

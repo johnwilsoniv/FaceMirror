@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 # Version information
-VERSION = "2.0.0"
+VERSION = "1.0.0"
 APP_NAME = "Face Mirror"
 
 def get_app_dir():

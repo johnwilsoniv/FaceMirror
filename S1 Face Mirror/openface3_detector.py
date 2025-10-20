@@ -49,7 +49,7 @@ class OpenFace3LandmarkDetector:
     efficient RetinaFace and STAR models.
     """
 
-    def __init__(self, debug_mode=False, device='cpu', model_dir=None):
+    def __init__(self, debug_mode=False, device='cpu', model_dir=None, skip_redetection=False):
         """
         Initialize OpenFace 3.0 face detector and landmark predictor
 
@@ -57,6 +57,7 @@ class OpenFace3LandmarkDetector:
             debug_mode: Enable debug output
             device: 'cpu' or 'cuda' for GPU acceleration
             model_dir: Directory containing OpenFace 3.0 model weights (defaults to script directory/weights)
+            skip_redetection: Skip RetinaFace after first frame (mirroring mode optimization)
         """
         import os
 
@@ -231,6 +232,9 @@ class OpenFace3LandmarkDetector:
         self.min_detection_interval = 1
         self.max_detection_interval = 8
         self.current_detection_interval = 2
+
+        # Mirroring mode optimization: skip redetection after first frame
+        self.skip_redetection = skip_redetection
 
         # Performance tracking
         self.perf_detection_time = []
@@ -470,8 +474,12 @@ class OpenFace3LandmarkDetector:
         if detection_interval is None:
             detection_interval = self.current_detection_interval
 
-        # Run face detection at intervals or if no face is tracked
-        should_detect = (self.frame_count % detection_interval == 0) or (self.last_face is None)
+        # Mirroring mode optimization: only detect on first frame (when last_face is None)
+        # Normal mode: detect at intervals or when no face is tracked
+        if self.skip_redetection:
+            should_detect = (self.last_face is None)
+        else:
+            should_detect = (self.frame_count % detection_interval == 0) or (self.last_face is None)
 
         if should_detect:
             detect_start = time.time()

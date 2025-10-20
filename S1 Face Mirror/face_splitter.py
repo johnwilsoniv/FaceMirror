@@ -17,10 +17,12 @@ class StableFaceSplitter:
             num_threads: Number of threads for parallel frame processing (default: 6)
             progress_callback: Optional callback function for progress updates (stage, current, total, message)
         """
-        # Create OpenFace 3.0 landmark detector
+        # Create OpenFace 3.0 landmark detector with mirroring mode optimization
+        # skip_redetection=True: Only run RetinaFace once (first frame), then track
         self.landmark_detector = OpenFace3LandmarkDetector(
             debug_mode=debug_mode,
-            device=device
+            device=device,
+            skip_redetection=True  # Mirroring optimization: skip detection after first frame
         )
         if debug_mode:
             print("Using OpenFace 3.0 detector")

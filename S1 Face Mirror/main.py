@@ -15,6 +15,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "2"  # NumExpr
 
 # Lightweight imports - safe for multiprocessing child processes
 from pathlib import Path
+import sys
 import tkinter as tk
 from tkinter import filedialog
 import native_dialogs
@@ -30,6 +31,7 @@ from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor
 from progress_window import ProcessingProgressWindow, ProgressUpdate
+from performance_profiler import get_profiler
 
 # CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
 # This prevents splash screen and file dialogs from appearing in child processes
@@ -454,13 +456,11 @@ def process_single_video(args):
 
                         if frame_count > 0:
                             openface_outputs.append(str(output_csv_path))
-                            print(f"\n✓ CSV saved: {output_csv_path.name}")
+                            print(f"\n✓ CSV saved: {output_csv_path.name}", flush=True)
                         else:
-                            print(f"\n✗ No frames processed for {mirrored_video.name}")
+                            print(f"\n✗ No frames processed for {mirrored_video.name}", flush=True)
                     except Exception as e:
-                        print(f"\n  Warning: OpenFace processing failed for {mirrored_video.name}: {e}")
-                        import traceback
-                        traceback.print_exc()
+                        print(f"\n  Warning: OpenFace processing failed for {mirrored_video.name}: {e}", flush=True)
 
                     # Memory cleanup after each mirrored video (important when processing left + right)
                     # OPTIMIZATION: Reduced GC frequency (only every 20 batches in processor)
@@ -554,6 +554,11 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
     import traceback
 
     try:
+        print("\n" + "="*80, flush=True)
+        print("DEBUG (worker thread): video_processing_worker() started", flush=True)
+        print(f"DEBUG (worker thread): Processing {len(input_paths)} video(s)", flush=True)
+        print("="*80, flush=True)
+
         # Start timing
         start_time = time.time()
 
@@ -567,6 +572,12 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         print("\n" + "="*60)
         print("INITIALIZING OPENFACE PROCESSOR (ONE-TIME SETUP)")
         print("="*60)
+        print("\nPerformance profiling enabled - reports will be saved to Desktop:")
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        print(f"  - face_mirror_performance_{timestamp}.txt")
+        print(f"  - face_mirror_performance_{timestamp}.json")
+        print()
 
         # ============================================================================
         # PERFORMANCE OPTIMIZATION: AU45 Landmark Detection Toggle
@@ -577,7 +588,7 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         # Set to False to disable AU45 and get 5-7x speedup!
         # Set to True only if you specifically need blink detection (AU45).
         # ============================================================================
-        ENABLE_AU45_CALCULATION = False  # Change to True if you need blink detection
+        ENABLE_AU45_CALCULATION = True  # AU45 (blink detection) enabled
 
         openface_processor = OpenFace3Processor(
             device=device,
@@ -638,6 +649,44 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         end_time = time.time()
         total_seconds = end_time - start_time
 
+        # ============================================================================
+        # PERFORMANCE PROFILING REPORT
+        # ============================================================================
+        # Report is automatically saved to timestamped files on Desktop
+        # ============================================================================
+        profiler = get_profiler()
+
+        # ============================================================================
+        # ALWAYS EXPORT PROFILING DATA TO FILES (in case terminal output is lost)
+        # ============================================================================
+        # Export both JSON (for programmatic analysis) and TXT (human-readable backup)
+        # Use timestamped filenames so each run creates a fresh file
+        # ============================================================================
+        try:
+            import os
+
+            # Export JSON with timestamp
+            json_path = os.path.join(os.path.expanduser("~"), "Desktop", f"face_mirror_performance_{timestamp}.json")
+            profiler.export_json(json_path)
+
+            # Export TXT with timestamp (human-readable backup)
+            txt_path = os.path.join(os.path.expanduser("~"), "Desktop", f"face_mirror_performance_{timestamp}.txt")
+            with open(txt_path, 'w') as f:
+                # Temporarily redirect stdout to file
+                old_stdout = sys.stdout
+                sys.stdout = f
+
+                # Print report to file
+                profiler.print_report(detailed=True)
+
+                # Restore stdout
+                sys.stdout = old_stdout
+
+            print(f"\n✓ Profiling reports saved to Desktop (timestamped)", flush=True)
+
+        except Exception as e:
+            print(f"\n⚠ Warning: Could not save profiling files: {e}", flush=True)
+
         # Calculate summary statistics
         successful_count = sum(1 for r in results if r['success'])
         failed_count = len(results) - successful_count
@@ -669,14 +718,26 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         summary += f"Results saved to:\n{openface_output_dir}\n\n"
         summary += "Next step: Run the videos and CSV files through the Action Coder app."
 
+        # ============================================================================
         # Signal completion to progress window
+        # ============================================================================
+        # IMPORTANT: This call triggers root.quit() after 500ms, which exits the
+        # GUI event loop and allows the main thread to proceed. The profiling
+        # report MUST be printed before this call, otherwise Python may terminate
+        # before the output is flushed.
+        # ============================================================================
+        print("\nDEBUG: About to call signal_completion()", flush=True)
         progress_window.signal_completion(summary)
+        print("DEBUG: signal_completion() called, worker thread ending normally", flush=True)
 
     except Exception as e:
         # DETAILED ERROR LOGGING for MPS debugging
-        print("\n" + "="*60)
-        print("FACE MIRROR ERROR - FULL DETAILS")
-        print("="*60)
+        print("\n" + "="*60, flush=True)
+        print("DEBUG: EXCEPTION CAUGHT IN WORKER THREAD", flush=True)
+        print("="*60, flush=True)
+        print("\n" + "="*60, flush=True)
+        print("FACE MIRROR ERROR - FULL DETAILS", flush=True)
+        print("="*60, flush=True)
         print(f"Device: {device}")
         print(f"Error: {str(e)}")
         print("\nFull Traceback:")
@@ -756,11 +817,14 @@ def workflow_mirror_openface():
     # The worker thread will signal completion when done
     # When processing completes, the progress window's mainloop will exit (via root.quit())
     # but the window will remain visible until we explicitly close it
+    print("DEBUG (main thread): About to start GUI event loop", flush=True)
     progress_window.run()
+    print("DEBUG (main thread): GUI event loop exited, control returned to main thread", flush=True)
 
     # Wait for worker thread to complete (with generous timeout)
-    print("Waiting for worker thread to complete...")
-    worker_thread.join(timeout=10.0)  # Give it 10 seconds to finish cleanup
+    # IMPORTANT: Must wait for profiling report to be printed!
+    print("DEBUG (main thread): Waiting for worker thread to complete (including profiling report)...", flush=True)
+    worker_thread.join(timeout=60.0)  # Give it 60 seconds for cleanup + profiling
 
     if worker_thread.is_alive():
         print("Warning: Worker thread still running after timeout")
@@ -784,7 +848,7 @@ def workflow_mirror_openface():
 def main():
     """Main entry point - go straight to full pipeline workflow"""
     # Show splash screen with loading stages (ONLY in main process, not in multiprocessing workers)
-    splash = SplashScreen("Face Mirror", "2.0.0")
+    splash = SplashScreen("Face Mirror", "1.0.0")
     splash.show()
 
     # Stage 1: Loading frameworks

@@ -19,6 +19,9 @@ from openface.Pytorch_Retinaface.utils.box_utils import decode, decode_landm
 from openface.Pytorch_Retinaface.utils.nms.py_cpu_nms import py_cpu_nms
 from openface.Pytorch_Retinaface.data import cfg_mnet
 
+# Import performance profiler
+from performance_profiler import get_profiler
+
 
 class ONNXRetinaFaceDetector:
     """
@@ -129,11 +132,15 @@ class ONNXRetinaFaceDetector:
             Tuple of (detections, original_image)
             detections format: [x1, y1, x2, y2, confidence, landmark_x1, landmark_y1, ...]
         """
+        profiler = get_profiler()
+
         # Preprocess
-        img, img_raw = self.preprocess_image(img_array, resize)
+        with profiler.time_block("preprocessing", f"RetinaFace_preprocess"):
+            img, img_raw = self.preprocess_image(img_array, resize)
 
         # Run ONNX inference on Neural Engine (or optimized CPU)
-        outputs = self.session.run(None, {'input': img})
+        with profiler.time_block("model_inference", f"RetinaFace_{self.backend}"):
+            outputs = self.session.run(None, {'input': img})
 
         # Unpack outputs: loc, conf, landms
         loc = outputs[0]  # Bounding box predictions
@@ -142,47 +149,48 @@ class ONNXRetinaFaceDetector:
 
         # Post-processing (same as PyTorch version)
         # This part stays in Python as it's fast and complex to export
-        im_height, im_width, _ = img_raw.shape
+        with profiler.time_block("postprocessing", f"RetinaFace_postprocess"):
+            im_height, im_width, _ = img_raw.shape
 
-        # Convert outputs to torch tensors for compatibility with existing utilities
-        loc = torch.from_numpy(loc)
-        conf = torch.from_numpy(conf)
-        landms = torch.from_numpy(landms)
+            # Convert outputs to torch tensors for compatibility with existing utilities
+            loc = torch.from_numpy(loc)
+            conf = torch.from_numpy(conf)
+            landms = torch.from_numpy(landms)
 
-        # Create scale tensor
-        scale = torch.Tensor([img.shape[3], img.shape[2], img.shape[3], img.shape[2]])
+            # Create scale tensor
+            scale = torch.Tensor([img.shape[3], img.shape[2], img.shape[3], img.shape[2]])
 
-        # Generate prior boxes for decoding
-        priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
-        priors = priorbox.forward()
-        prior_data = priors.data
+            # Generate prior boxes for decoding
+            priorbox = PriorBox(self.cfg, image_size=(im_height, im_width))
+            priors = priorbox.forward()
+            prior_data = priors.data
 
-        # Decode boxes
-        boxes = decode(loc.data.squeeze(0), prior_data, self.cfg['variance'])
-        boxes = boxes * scale / resize
-        boxes = boxes.cpu().numpy()
+            # Decode boxes
+            boxes = decode(loc.data.squeeze(0), prior_data, self.cfg['variance'])
+            boxes = boxes * scale / resize
+            boxes = boxes.cpu().numpy()
 
-        # Extract scores
-        scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
+            # Extract scores
+            scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
 
-        # Decode landmarks
-        landms_decoded = decode_landm(landms.data.squeeze(0), prior_data, self.cfg['variance'])
-        scale1 = torch.Tensor([img.shape[3], img.shape[2]] * 5)
-        landms_decoded = landms_decoded * scale1 / resize
-        landms_decoded = landms_decoded.cpu().numpy()
+            # Decode landmarks
+            landms_decoded = decode_landm(landms.data.squeeze(0), prior_data, self.cfg['variance'])
+            scale1 = torch.Tensor([img.shape[3], img.shape[2]] * 5)
+            landms_decoded = landms_decoded * scale1 / resize
+            landms_decoded = landms_decoded.cpu().numpy()
 
-        # Filter by confidence threshold
-        inds = np.where(scores > self.confidence_threshold)[0]
-        boxes, landms_decoded, scores = boxes[inds], landms_decoded[inds], scores[inds]
+            # Filter by confidence threshold
+            inds = np.where(scores > self.confidence_threshold)[0]
+            boxes, landms_decoded, scores = boxes[inds], landms_decoded[inds], scores[inds]
 
-        # Apply NMS
-        dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
-        keep = py_cpu_nms(dets, self.nms_threshold)
-        dets = dets[keep]
-        landms_decoded = landms_decoded[keep]
+            # Apply NMS
+            dets = np.hstack((boxes, scores[:, np.newaxis])).astype(np.float32, copy=False)
+            keep = py_cpu_nms(dets, self.nms_threshold)
+            dets = dets[keep]
+            landms_decoded = landms_decoded[keep]
 
-        # Concatenate boxes and landmarks
-        dets = np.concatenate((dets, landms_decoded), axis=1)
+            # Concatenate boxes and landmarks
+            dets = np.concatenate((dets, landms_decoded), axis=1)
 
         return dets, img_raw
 

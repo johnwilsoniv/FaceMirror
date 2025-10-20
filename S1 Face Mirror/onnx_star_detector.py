@@ -14,6 +14,9 @@ import math
 from typing import Optional, Tuple
 import onnxruntime as ort
 
+# Import performance profiler
+from performance_profiler import get_profiler
+
 
 class ONNXStarDetector:
     """
@@ -229,6 +232,7 @@ class ONNXStarDetector:
         Returns:
             List of 98-point landmark arrays (one per face)
         """
+        profiler = get_profiler()
         results = []
 
         for det in dets:
@@ -245,20 +249,23 @@ class ONNXStarDetector:
             scale = min(x2 - x1, y2 - y1) / 200 * 1.05
 
             # Preprocess image
-            input_tensor, matrix = self._preprocess(image, float(scale), float(center_w), float(center_h))
+            with profiler.time_block("preprocessing", f"STAR_preprocess"):
+                input_tensor, matrix = self._preprocess(image, float(scale), float(center_w), float(center_h))
 
             # Run ONNX inference on Neural Engine
-            outputs = self.session.run(None, {'input_image': input_tensor})
+            with profiler.time_block("model_inference", f"STAR_{self.backend}"):
+                outputs = self.session.run(None, {'input_image': input_tensor})
 
             # Extract landmarks from output
             # STAR model returns (output, heatmap, landmarks)
             # We want the last output (landmarks)
-            landmarks_normalized = outputs[-1][0]  # Shape: (98, 2)
+            with profiler.time_block("postprocessing", f"STAR_postprocess"):
+                landmarks_normalized = outputs[-1][0]  # Shape: (98, 2)
 
-            # Postprocess to original image coordinates
-            landmarks = self._postprocess(landmarks_normalized, matrix)
+                # Postprocess to original image coordinates
+                landmarks = self._postprocess(landmarks_normalized, matrix)
 
-            results.append(landmarks)
+                results.append(landmarks)
 
         return results
 
