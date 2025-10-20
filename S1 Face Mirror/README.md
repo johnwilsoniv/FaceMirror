@@ -2,7 +2,7 @@
 
 **Automated facial action unit (AU) extraction tool for behavioral research.**
 
-S1 Face Mirror is a high-performance video processing tool that automatically detects faces, creates left/right hemisphere mirrored videos, and extracts 18 facial action units using OpenFace 3.0. Optimized for Apple Silicon, NVIDIA CUDA, and Intel CPUs.
+S1 Face Mirror is a high-performance video processing tool that automatically detects faces, creates left/right hemisphere mirrored videos, and extracts 9 facial action units using OpenFace 3.0. Optimized for Apple Silicon, NVIDIA CUDA, and Intel CPUs.
 
 ## What Does This Do?
 
@@ -84,8 +84,7 @@ Each CSV contains frame-by-frame AU intensity values, timestamps, and detection 
 ### Debug Information
 - The application uses facial landmarks to calculate an anatomical midline
 - Mirroring is performed perpendicular to this midline with gradient blending
-- Head rotation (yaw) is monitored but doesn't prevent processing
-- For best results, have patients point their nose directly at the camera 
+- Head rotation (yaw) is monitored
 
 ## Video Requirements
 
@@ -100,13 +99,8 @@ For best results:
 
 The application automatically detects and uses GPU acceleration if available (CUDA). Processing consists of two stages:
 
-**Stage 1: Face Mirroring** (2-4 fps on CPU, 5-10 fps on GPU)
-**Stage 2: AU Extraction** (2-4 fps on CPU with 6 parallel threads, 8-12 fps on GPU)
-
-Expected total processing times per video:
-- 10 second video (300 frames) = ~2-4 minutes
-- 30 second video (900 frames) = ~6-12 minutes
-- 60 second video (1800 frames) = ~12-24 minutes
+**Stage 1: Face Mirroring**
+**Stage 2: AU Extraction**
 
 The progress window displays real-time updates for each video:
 - Current stage (Reading, Processing, Writing, AU Extraction)
@@ -162,7 +156,7 @@ SplitFace Open3/
 GPU acceleration is **automatically detected and enabled** if available:
 
 - **NVIDIA GPUs:** CUDA is automatically used if detected (3-5x speedup)
-- **Apple Silicon (M1/M2/M3):** Falls back to CPU (OpenFace doesn't support MPS)
+- **Apple Silicon (M1/M2/M3):** The Neural Engine chip will be used.
 - **No GPU:** Uses optimized multi-threaded CPU processing (6 threads)
 
 To manually install CUDA support for PyTorch:
@@ -194,7 +188,6 @@ The application automatically detects existing outputs:
 
 ### Action Unit Extraction
 - **Multitask neural network** extracts 8 base AUs from facial appearance
-- **AU adapter** expands to 18 AUs using geometric calculations
 - AU45 (Blink) calculated from eye landmark geometry when enabled
 - Frame-by-frame CSV output with timestamps and confidence scores
 - OpenFace 2.0-compatible CSV format
