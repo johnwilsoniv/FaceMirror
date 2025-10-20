@@ -75,7 +75,7 @@ NUMEXPR_NUM_THREADS = 2      # NumExpr threads
 # ============================================================================
 
 # Enable detailed performance profiling
-# When enabled, creates timestamped reports on Desktop with:
+# When enabled, creates timestamped reports with:
 #   - Per-operation timing breakdown
 #   - FPS statistics
 #   - Bottleneck identification
@@ -83,7 +83,8 @@ NUMEXPR_NUM_THREADS = 2      # NumExpr threads
 ENABLE_PROFILING = False
 
 # Directory for profiling reports (None = Desktop)
-PROFILING_OUTPUT_DIR = None  # Will use ~/Desktop if None
+# Uses same output directory as processed videos
+PROFILING_OUTPUT_DIR = "/Users/johnwilsoniv/Documents/SplitFace/logs"
 
 # ============================================================================
 # Logging Configuration

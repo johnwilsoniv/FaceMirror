@@ -375,14 +375,17 @@ class VideoProcessor:
             self.progress_callback('mirroring', 0, total_frames, "Mirroring faces...")
 
         # ============================================================================
-        # ADVANCED OPTIMIZATION: Double Buffering with Asynchronous Frame Reading
+        # TRIPLE BUFFERING: Read, Process, Write all overlapped
         # ============================================================================
-        # Read next batch in background while processing current batch
-        # This overlaps I/O with computation for near-zero transition delays
+        # Uses threading.Thread for consistent implementation (matches AU extraction)
+        # Three concurrent operations eliminate all pauses:
+        #   - Background read thread: Loads batch N+1 from disk
+        #   - Main thread: Processes batch N with parallel frame processing
+        #   - Background write thread: Writes batch N-1 to video files
         # ============================================================================
 
         def read_batch_async(cap_obj, start_frame_idx, max_frames):
-            """Read a batch of frames asynchronously"""
+            """Read a batch of frames in background thread"""
             batch = []
             for _ in range(max_frames):
                 ret, frame = cap_obj.read()
@@ -391,8 +394,16 @@ class VideoProcessor:
                 batch.append((start_frame_idx + len(batch), frame.copy()))
             return batch
 
-        # Create persistent executor for async reading (avoid creating new one each batch)
-        executor_read = ThreadPoolExecutor(max_workers=1, thread_name_prefix="FrameReader")
+        # Shared result storage for background reading (matches AU extraction pattern)
+        next_batch_result = {'batch': None, 'time': 0.0}
+
+        def read_next_batch_background(start_frame_idx):
+            """Background thread function to read next batch"""
+            read_start = time.time()
+            batch = read_batch_async(cap, start_frame_idx, BATCH_SIZE)
+            read_elapsed = time.time() - read_start
+            next_batch_result['batch'] = batch
+            next_batch_result['time'] = read_elapsed
 
         # Main processing loop with tqdm for terminal output
         with tqdm(total=total_frames, desc="Mirroring", unit="frame",
@@ -407,16 +418,20 @@ class VideoProcessor:
             read_elapsed = time.time() - read_start
             total_read_time += read_elapsed
 
+            # Start reading next batch immediately (before processing first batch)
+            next_batch_thread = None
+            if global_frame_count < total_frames:
+                next_batch_thread = threading.Thread(
+                    target=read_next_batch_background,
+                    args=(global_frame_count,),
+                    daemon=True,
+                    name="BatchReader"
+                )
+                next_batch_thread.start()
+
             while current_batch:
                 batch_num += 1
                 batch_transition_start = time.time()  # DIAGNOSTIC: Time entire batch transition
-
-                # Start reading NEXT batch asynchronously while we process current batch
-                next_batch_future = None
-                if global_frame_count < total_frames:
-                    next_batch_future = executor_read.submit(
-                        read_batch_async, cap, global_frame_count, BATCH_SIZE
-                    )
 
                 # ============ STEP 2: Process current batch with threading ============
                 process_start = time.time()
@@ -458,23 +473,22 @@ class VideoProcessor:
 
                 # Queue depth monitoring (removed - causes console clutter)
 
-                # ============ STEP 4: Clear batch and get next batch ============
-                # While we write, the next batch is already being read!
+                # ============ STEP 4: Get pre-read batch from background thread ============
                 cleanup_start = time.time()
 
-                # Get next batch from async reader (this should be ready or nearly ready)
-                wait_for_read_start = time.time()
-                if next_batch_future is not None:
-                    next_batch = next_batch_future.result()  # Wait for async read to complete
-                    global_frame_count += len(next_batch)
-                    wait_elapsed = time.time() - wait_for_read_start
-
-                    # DIAGNOSTIC: Check if we're waiting for read
-                    if wait_elapsed > 0.5:
-                        print(f"\n  WARNING: Batch {batch_num} waited {wait_elapsed:.2f}s for async read!")
-                        print(f"    Processing is faster than reading - this is unusual.")
-
-                    total_read_time += wait_elapsed
+                # ============================================================================
+                # TRIPLE BUFFERING: Wait for background read to complete
+                # ============================================================================
+                # The background thread has been reading the next batch while we processed.
+                # Usually this join() returns instantly because reading finished during processing.
+                # Meanwhile, the writer thread is writing the previous batch in parallel!
+                # ============================================================================
+                if next_batch_thread is not None:
+                    next_batch_thread.join()  # Wait for background read (usually instant)
+                    next_batch = next_batch_result['batch']
+                    if next_batch:
+                        global_frame_count += len(next_batch)
+                        total_read_time += next_batch_result['time']
                 else:
                     next_batch = []
 
@@ -486,6 +500,24 @@ class VideoProcessor:
 
                 # Move next batch to current
                 current_batch = next_batch
+
+                # ============================================================================
+                # TRIPLE BUFFERING: Start reading NEXT batch in background (batch N+2)
+                # ============================================================================
+                # While we process batch N+1, start reading batch N+2 in the background.
+                # This maintains the overlap for continuous zero-pause processing.
+                # ============================================================================
+                next_batch_result = {'batch': None, 'time': 0.0}  # Reset result dict
+                if global_frame_count < total_frames:
+                    next_batch_thread = threading.Thread(
+                        target=read_next_batch_background,
+                        args=(global_frame_count,),
+                        daemon=True,
+                        name="BatchReader"
+                    )
+                    next_batch_thread.start()
+                else:
+                    next_batch_thread = None
 
                 # OPTIMIZED GC: Only run full collection every 20 batches (reduced from 5)
                 # This reduces GC overhead from ~3% to ~0.5% while maintaining memory efficiency
@@ -518,9 +550,6 @@ class VideoProcessor:
                               f"Process {total_process_time/total_time*100:.1f}% | "
                               f"Write {total_write_time/total_time*100:.1f}% | "
                               f"Cleanup {total_cleanup_time/total_time*100:.1f}%")
-
-        # Clean up async reader
-        executor_read.shutdown(wait=True)
 
         # Clean up video capture
         cap.release()

@@ -7,7 +7,7 @@ import gc
 class StableFaceSplitter:
     """Main class that encapsulates face detection, mirroring, and video processing"""
 
-    def __init__(self, debug_mode=False, device='cpu', num_threads=6, progress_callback=None):
+    def __init__(self, debug_mode=False, device='cpu', num_threads=6, progress_callback=None, skip_face_detection=False):
         """
         Initialize with OpenFace 3.0 detector
 
@@ -16,13 +16,16 @@ class StableFaceSplitter:
             device: 'cpu' or 'cuda' for GPU acceleration
             num_threads: Number of threads for parallel frame processing (default: 6)
             progress_callback: Optional callback function for progress updates (stage, current, total, message)
+            skip_face_detection: Skip RetinaFace entirely, use default bbox (experimental)
         """
         # Create OpenFace 3.0 landmark detector with mirroring mode optimization
         # skip_redetection=True: Only run RetinaFace once (first frame), then track
+        # skip_face_detection=True: Skip RetinaFace entirely (experimental, uses default bbox)
         self.landmark_detector = OpenFace3LandmarkDetector(
             debug_mode=debug_mode,
             device=device,
-            skip_redetection=True  # Mirroring optimization: skip detection after first frame
+            skip_redetection=not skip_face_detection,  # If skipping detection, also skip redetection
+            skip_face_detection=skip_face_detection
         )
         if debug_mode:
             print("Using OpenFace 3.0 detector")

@@ -49,7 +49,7 @@ class OpenFace3LandmarkDetector:
     efficient RetinaFace and STAR models.
     """
 
-    def __init__(self, debug_mode=False, device='cpu', model_dir=None, skip_redetection=False):
+    def __init__(self, debug_mode=False, device='cpu', model_dir=None, skip_redetection=False, skip_face_detection=False):
         """
         Initialize OpenFace 3.0 face detector and landmark predictor
 
@@ -58,7 +58,9 @@ class OpenFace3LandmarkDetector:
             device: 'cpu' or 'cuda' for GPU acceleration
             model_dir: Directory containing OpenFace 3.0 model weights (defaults to script directory/weights)
             skip_redetection: Skip RetinaFace after first frame (mirroring mode optimization)
+            skip_face_detection: Skip RetinaFace entirely, use default bbox (experimental)
         """
+        self.skip_face_detection = skip_face_detection
         import os
 
         # Determine model directory - use config_paths for cross-platform support
@@ -95,13 +97,19 @@ class OpenFace3LandmarkDetector:
             print(f"Weights accessible at: ./weights/mobilenetV1X0.25_pretrain.tar")
 
         # Initialize OpenFace 3.0 face detector with ONNX acceleration
-        # OptimizedFaceDetector auto-selects ONNX (fast) or PyTorch (slow)
-        self.face_detector = FaceDetector(
-            model_path=f'{model_dir}/Alignment_RetinaFace.pth',
-            onnx_model_path=f'{model_dir}/retinaface_mobilenet025_coreml.onnx',
-            device=device,
-            confidence_threshold=0.9
-        )
+        # Skip if skip_face_detection is enabled (use default bbox instead)
+        if skip_face_detection:
+            self.face_detector = None
+            if debug_mode:
+                print("  ⊘ RetinaFace detection skipped (using default bbox)")
+        else:
+            # OptimizedFaceDetector auto-selects ONNX (fast) or PyTorch (slow)
+            self.face_detector = FaceDetector(
+                model_path=f'{model_dir}/Alignment_RetinaFace.pth',
+                onnx_model_path=f'{model_dir}/retinaface_mobilenet025_coreml.onnx',
+                device=device,
+                confidence_threshold=0.9
+            )
 
         # Patch STAR config to use writable cache directory instead of /work
         # Only needed for PyTorch backend, not ONNX
@@ -214,7 +222,7 @@ class OpenFace3LandmarkDetector:
         self.landmarks_history = []
         self.glabella_history = []
         self.chin_history = []
-        self.history_size = 3
+        self.history_size = 5  # 5-frame temporal smoothing as per manuscript
 
         # Face ROI tracking
         self.face_roi = None
@@ -474,14 +482,30 @@ class OpenFace3LandmarkDetector:
         if detection_interval is None:
             detection_interval = self.current_detection_interval
 
-        # Mirroring mode optimization: only detect on first frame (when last_face is None)
-        # Normal mode: detect at intervals or when no face is tracked
-        if self.skip_redetection:
-            should_detect = (self.last_face is None)
-        else:
-            should_detect = (self.frame_count % detection_interval == 0) or (self.last_face is None)
+        # Handle skip_face_detection mode: use default centered bbox
+        if self.skip_face_detection:
+            if self.last_face is None:
+                # Create default centered bbox (assumes face is centered in frame)
+                h, w = frame.shape[:2]
+                # Use center 80% of frame as default face region
+                margin = 0.1
+                x1 = int(w * margin)
+                y1 = int(h * margin)
+                x2 = int(w * (1 - margin))
+                y2 = int(h * (1 - margin))
+                confidence = 1.0
+                self.last_face = np.array([x1, y1, x2, y2, confidence])
 
-        if should_detect:
+                if self.debug_mode:
+                    print(f"  [No Detection Mode] Using default centered bbox: {x1},{y1},{x2},{y2}")
+
+        # "Detect on failure" strategy: Only run RetinaFace when needed
+        # - First frame: Always detect (no cached bbox yet)
+        # - Subsequent frames: Only detect if STAR fails to find landmarks
+        # This is efficient (saves ~160ms per frame) and robust (recovers from face loss)
+        should_detect_initially = (self.last_face is None) and not self.skip_face_detection
+
+        if should_detect_initially:
             detect_start = time.time()
             try:
                 # Get ROI for detection (None = full frame)
@@ -544,16 +568,93 @@ class OpenFace3LandmarkDetector:
         if self.last_face is not None:
             landmark_start = time.time()
             try:
-                # Detect landmarks using OpenFace 3.0
-                # The detector expects image and detections array with [x1, y1, x2, y2, confidence]
-                # PyTorch is thread-safe for inference with no_grad
+                # ============================================================================
+                # DETECT ON FAILURE: Try STAR first, re-run RetinaFace only if STAR fails
+                # ============================================================================
+                # Attempt 1: Try STAR with cached bbox (fast, ~90ms)
                 landmarks_98 = self.landmark_detector.detect_landmarks(
                     frame,
                     np.array([self.last_face])
                 )
 
+                # If STAR failed, re-run RetinaFace to get new bbox (unless skip_face_detection is enabled)
                 if landmarks_98 is None or len(landmarks_98) == 0:
-                    return None, None
+                    if self.skip_face_detection:
+                        # Graceful degradation: Reuse previous frame's landmarks
+                        # This maintains temporal continuity and prevents frame loss
+                        if self.last_landmarks is not None:
+                            if self.debug_mode:
+                                print(f"  [No Detection Mode] STAR failed, reusing previous landmarks")
+                            # Return previous landmarks - temporal smoothing already makes them stable
+                            return self.last_landmarks.copy(), frame
+                        else:
+                            # No previous landmarks available - fail this frame
+                            if self.debug_mode:
+                                print(f"  [No Detection Mode] STAR failed on first frame, no recovery possible")
+                            self.last_face = None
+                            self.last_landmarks = None
+                            return None, None
+
+                    if self.debug_mode:
+                        print(f"  [Detect on Failure] STAR failed on frame {self.frame_count}, re-running RetinaFace...")
+
+                    # Re-run face detection
+                    try:
+                        roi = self.get_detection_roi(frame.shape)
+                        if roi is not None:
+                            x1, y1, x2, y2 = roi
+                            frame_crop = frame[y1:y2, x1:x2].copy()
+                        else:
+                            frame_crop = frame
+                            x1, y1 = 0, 0
+
+                        # Run RetinaFace detection
+                        if hasattr(self.face_detector, 'backend') and self.face_detector.backend == 'onnx':
+                            detections, img_raw = self.face_detector.detect_faces(frame_crop)
+                        else:
+                            detections, img_raw = self._detect_faces_from_array(frame_crop)
+
+                        if detections is not None and len(detections) > 0:
+                            # Update cached bbox with new detection
+                            face_det = detections[0][:5].copy()
+                            if roi is not None:
+                                face_det[0] += x1
+                                face_det[1] += y1
+                                face_det[2] += x1
+                                face_det[3] += y1
+                            self.last_face = face_det
+                            self.update_face_roi(face_det, frame.shape)
+
+                            # Attempt 2: Try STAR again with new bbox
+                            landmarks_98 = self.landmark_detector.detect_landmarks(
+                                frame,
+                                np.array([self.last_face])
+                            )
+
+                            if self.debug_mode:
+                                success = "SUCCESS" if (landmarks_98 is not None and len(landmarks_98) > 0) else "FAILED"
+                                print(f"  [Detect on Failure] RetinaFace found face, STAR retry: {success}")
+                        else:
+                            # RetinaFace also failed - skip frame
+                            if self.debug_mode:
+                                print(f"  [Detect on Failure] RetinaFace also failed - skipping frame")
+                            return None, None
+                    except Exception as e:
+                        if self.debug_mode:
+                            print(f"  [Detect on Failure] Re-detection failed: {e}")
+                        return None, None
+
+                # Check final result
+                if landmarks_98 is None or len(landmarks_98) == 0:
+                    # Even after RetinaFace recovery, STAR still failed
+                    # Graceful degradation: Reuse previous landmarks if available
+                    if self.last_landmarks is not None:
+                        if self.debug_mode:
+                            print(f"  [Graceful Degradation] All recovery failed, reusing previous landmarks")
+                        return self.last_landmarks.copy(), frame
+                    else:
+                        # No previous landmarks - fail the frame
+                        return None, None
 
                 # Get first face's landmarks
                 landmarks_98 = landmarks_98[0]

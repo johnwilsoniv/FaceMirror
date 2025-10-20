@@ -65,8 +65,12 @@ class PerformanceProfiler:
         # Count data: {category: {operation: count}}
         self.counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
-        # Thread-local storage for nested timers
+        # Thread-local storage for nested timers and pipeline context
         self._thread_local = threading.local()
+
+        # Pipeline context prefix (e.g., "FaceMirror" or "AU")
+        # This allows differentiating operations from different pipelines
+        self.pipeline_prefix = None
 
         # Process handle for memory tracking (if psutil available)
         if PSUTIL_AVAILABLE:
@@ -98,6 +102,10 @@ class PerformanceProfiler:
         if not self.enabled:
             yield
             return
+
+        # Add pipeline prefix if set (e.g., "FaceMirror_STAR" or "AU_STAR")
+        if self.pipeline_prefix:
+            operation = f"{self.pipeline_prefix}_{operation}"
 
         # Record start state
         start_time = time.perf_counter()
@@ -357,6 +365,30 @@ def set_profiler_enabled(enabled: bool):
     """
     profiler = get_profiler()
     profiler.enabled = enabled
+
+
+def set_pipeline_context(pipeline_name: Optional[str]):
+    """
+    Set the pipeline context for profiling operations.
+
+    This prefixes all operation names with the pipeline name to differentiate
+    between operations from different pipelines (e.g., "FaceMirror" vs "AU").
+
+    Args:
+        pipeline_name: Name of the pipeline (e.g., "FaceMirror", "AU"), or None to clear
+
+    Example:
+        set_pipeline_context("FaceMirror")
+        # Operations will be logged as "FaceMirror_STAR", "FaceMirror_RetinaFace", etc.
+
+        set_pipeline_context("AU")
+        # Operations will be logged as "AU_STAR", "AU_RetinaFace", etc.
+
+        set_pipeline_context(None)
+        # Operations will be logged without prefix
+    """
+    profiler = get_profiler()
+    profiler.pipeline_prefix = pipeline_name
 
 
 # Convenience functions for common timing operations

@@ -24,7 +24,7 @@ from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor
 from progress_window import ProcessingProgressWindow, ProgressUpdate
-from performance_profiler import get_profiler
+from performance_profiler import get_profiler, set_pipeline_context
 
 # CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
 # This prevents splash screen and file dialogs from appearing in child processes
@@ -305,12 +305,16 @@ def process_single_video(args):
         if file_size < 1000:  # Less than 1KB
             raise ValueError(f"Input video file appears to be empty or corrupted (size: {file_size} bytes)")
 
+        # Set profiler context for face mirroring operations
+        set_pipeline_context("FaceMirror")
+
         # Create a new splitter instance for this worker with progress callback
         # Use GPU for face detection/landmark tracking if available
         splitter = StableFaceSplitter(
             debug_mode=debug_mode,
             device=device,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            skip_face_detection=False  # Run RetinaFace on first frame + on STAR failure
         )
         outputs = splitter.process_video(input_path, output_dir)
 
@@ -333,6 +337,9 @@ def process_single_video(args):
         # Run OpenFace processing if requested (Mode 1: Mirror + OpenFace)
         openface_outputs = []
         if run_openface and outputs and openface_processor is not None:
+            # Set profiler context for AU extraction operations
+            set_pipeline_context("AU")
+
             # Get S1O base directory for OpenFace output
             output_dir_path = Path(output_dir)
             s1o_base = output_dir_path.parent
@@ -433,6 +440,9 @@ def process_single_video(args):
                 message="Video processing complete"
             ))
 
+        # Clear pipeline context now that processing is complete
+        set_pipeline_context(None)
+
         return {
             'input': input_path,
             'success': True,
@@ -440,6 +450,9 @@ def process_single_video(args):
             'openface_outputs': openface_outputs
         }
     except Exception as e:
+        # Clear pipeline context on error
+        set_pipeline_context(None)
+
         # Send error update
         if progress_window:
             progress_window.update_progress(ProgressUpdate(
@@ -521,7 +534,8 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
             device=device,
             calculate_landmarks=config.ENABLE_AU45_CALCULATION,
             num_threads=config.NUM_THREADS,
-            debug_mode=debug_mode
+            debug_mode=debug_mode,
+            skip_face_detection=True  # Mirrored videos are pre-aligned (skip RetinaFace)
         )
         print("OpenFace processor initialized and warmed up")
         print("  This will be reused for all videos (eliminates stage delays)")
@@ -574,17 +588,22 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         end_time = time.time()
         total_seconds = end_time - start_time
 
-        # Export profiling data to Desktop (timestamped files)
+        # Export profiling data to configured directory (timestamped files)
         profiler = get_profiler()
         try:
             import os
+            from config import get_profiling_output_dir
+
+            # Get output directory from config
+            output_dir = get_profiling_output_dir()
+            os.makedirs(output_dir, exist_ok=True)
 
             # Export JSON with timestamp
-            json_path = os.path.join(os.path.expanduser("~"), "Desktop", f"face_mirror_performance_{timestamp}.json")
+            json_path = os.path.join(output_dir, f"face_mirror_performance_{timestamp}.json")
             profiler.export_json(json_path)
 
             # Export TXT with timestamp (human-readable backup)
-            txt_path = os.path.join(os.path.expanduser("~"), "Desktop", f"face_mirror_performance_{timestamp}.txt")
+            txt_path = os.path.join(output_dir, f"face_mirror_performance_{timestamp}.txt")
             with open(txt_path, 'w') as f:
                 # Temporarily redirect stdout to file
                 old_stdout = sys.stdout
@@ -596,7 +615,7 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
                 # Restore stdout
                 sys.stdout = old_stdout
 
-            print(f"\nProfiling reports saved to Desktop (timestamped)", flush=True)
+            print(f"\nProfiling reports saved to: {output_dir}", flush=True)
 
         except Exception as e:
             print(f"\nWarning: Could not save profiling files: {e}", flush=True)
