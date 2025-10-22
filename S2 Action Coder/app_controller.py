@@ -31,13 +31,14 @@ import time
 import sys
 
 class ApplicationController(QObject):
-    def __init__(self, app_instance):
+    def __init__(self, app_instance, whisper_model=None):
         # Display version information
         print(f"\n{'='*60}")
         print(f"{config_paths.APP_NAME} v{config_paths.VERSION}")
         print(f"{'='*60}\n")
         super().__init__()
         self.app = app_instance
+        self.preloaded_whisper_model = whisper_model  # Store pre-loaded model
         self.window = None
         self.video_player = QTMediaPlayer()
         self.action_tracker = ActionTracker()
@@ -203,7 +204,7 @@ class ApplicationController(QObject):
         try: self.playback_manager = PlaybackManager(self.video_player, self); print(f"Controller: PlaybackManager initialized: {self.playback_manager is not None}")
         except Exception as e: print(f"ERROR Initializing PlaybackManager: {e}"); self.playback_manager = None
         print("Controller: Initializing ProcessingManager...")
-        try: self.processing_manager = ProcessingManager(self.timeline_processor, self.ffmpeg_path, self); print(f"Controller: ProcessingManager initialized: {self.processing_manager is not None}")
+        try: self.processing_manager = ProcessingManager(self.timeline_processor, self.ffmpeg_path, self, whisper_model=self.preloaded_whisper_model); print(f"Controller: ProcessingManager initialized: {self.processing_manager is not None}")
         except Exception as e: print(f"ERROR Initializing ProcessingManager: {e}"); self.processing_manager = None
         if not all([self.ui_manager, self.playback_manager, self.processing_manager]): print("ERROR: One or more managers failed to initialize properly!")
         else: print("Controller: All Managers initialized successfully.")
