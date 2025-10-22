@@ -7,7 +7,6 @@ import config
 import math
 import copy
 import time  # For performance timing logging
-from perf_logger import log_perf_warning, log_perf_info  # Centralized performance logging
 
 class TimelineWidget(QOpenGLWidget):
     ranges_edited = pyqtSignal(list, int, str) # list: new ranges, int: dragged_index (-1 if create), str: drag_type
@@ -274,10 +273,11 @@ class TimelineWidget(QOpenGLWidget):
         if self._dragging_mode == "create" and self._temp_drag_rect: painter.setPen(QPen(Qt.blue, 1, Qt.DashLine)); painter.setBrush(QColor(0, 0, 255, 30)); painter.drawRect(self._temp_drag_rect)
 
         # === PERFORMANCE LOGGING: Report if paint event was slow ===
-        _total_time = time.time() - _start_time
-        if _total_time > 0.016:  # > 16ms (60 FPS threshold)
-            log_perf_warning(f"Timeline paintEvent took {_total_time*1000:.1f}ms "
-                  f"(RangeDrawing:{(_t2-_t1)*1000:.1f}ms for {_range_count} ranges)")
+        # (Disabled for production - enable during development if needed)
+        # _total_time = time.time() - _start_time
+        # if _total_time > 0.016:  # > 16ms (60 FPS threshold)
+        #     print(f"PERF: Timeline paintEvent took {_total_time*1000:.1f}ms "
+        #           f"(RangeDrawing:{(_t2-_t1)*1000:.1f}ms for {_range_count} ranges)")
         # === END PERFORMANCE LOGGING ===
     def mousePressEvent(self, event):
         """

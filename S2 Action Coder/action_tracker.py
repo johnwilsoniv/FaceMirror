@@ -2,7 +2,6 @@
 from PyQt5.QtCore import QObject, pyqtSignal
 import copy # Import copy for deepcopy
 import time # For performance timing logging
-from perf_logger import log_perf_warning, log_perf_info  # Centralized performance logging
 
 class ActionTracker(QObject):
     action_ranges_changed = pyqtSignal()
@@ -171,10 +170,11 @@ class ActionTracker(QObject):
             self.action_ranges_changed.emit()
 
         # === PERFORMANCE LOGGING: Report if validation was slow ===
-        _total_time = time.time() - _start_time
-        if _total_time > 0.010:  # > 10ms
-            log_perf_warning(f"validate_ranges took {_total_time*1000:.1f}ms "
-                  f"(Processing {len(original_ranges_before_validation)} ranges)")
+        # (Disabled for production - enable during development if needed)
+        # _total_time = time.time() - _start_time
+        # if _total_time > 0.010:  # > 10ms
+        #     print(f"PERF: validate_ranges took {_total_time*1000:.1f}ms "
+        #           f"(Processing {len(original_ranges_before_validation)} ranges)")
         # === END PERFORMANCE LOGGING ===
 
         return made_changes_during_validation
