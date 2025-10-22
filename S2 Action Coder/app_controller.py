@@ -223,10 +223,10 @@ class ApplicationController(QObject):
         self.window.clear_manual_annotations_signal.connect(self._handle_clear_manual_annotations)
         self.window.main_action_button_clicked.connect(self._handle_main_action_button_clicked)
         self.window.delete_selected_range_signal.connect(self._handle_delete_selected_range_button)
-        if self.window and self.window.discard_confirmation_button:
+        if self.window and hasattr(self.window, 'discard_confirmation_button') and self.window.discard_confirmation_button:
             self.window.discard_confirmation_button.clicked.connect(self._handle_discard_confirmation_prompt)
             print("Controller: Connected discard_confirmation_button")
-        if self.window and self.window.discard_near_miss_button:
+        if self.window and hasattr(self.window, 'discard_near_miss_button') and self.window.discard_near_miss_button:
             self.window.discard_near_miss_button.clicked.connect(self._handle_discard_near_miss_prompt)
             print("Controller: Connected discard_near_miss_button")
         self.playback_manager.playback_state_changed.connect(self.ui_manager.set_play_button_state)
@@ -248,12 +248,12 @@ class ApplicationController(QObject):
             self.window.timeline_widget.range_selected.connect(self._handle_timeline_range_selected)
         self.history_manager.state_restored.connect(self._apply_restored_state)
         self.history_manager.history_changed.connect(self._update_undo_redo_buttons)
-        if self.window and self.window.undo_button:
+        if self.window and hasattr(self.window, 'undo_button') and self.window.undo_button:
             self.window.undo_button.clicked.connect(self._do_undo)
             print("Controller: Connected undo_button")
         else:
             print("Controller WARN: Undo button not found in window.")
-        if self.window and self.window.redo_button:
+        if self.window and hasattr(self.window, 'redo_button') and self.window.redo_button:
             self.window.redo_button.clicked.connect(self._do_redo)
             print("Controller: Connected redo_button")
         else:
