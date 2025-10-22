@@ -164,4 +164,16 @@ class UIManager(QObject):
         elif level == "critical": QMessageBox.critical(self.window, title, message)
         else: QMessageBox.information(self.window, title, message)
 
+    def show_discard_confirmation_button(self, show):
+        """Show/hide discard confirmation button (if it exists)"""
+        if not self.window: return
+        if hasattr(self.window, 'discard_confirmation_button') and self.window.discard_confirmation_button:
+            self.window.discard_confirmation_button.setVisible(show)
+
+    def show_discard_near_miss_button(self, show):
+        """Show/hide discard near miss button (if it exists)"""
+        if not self.window: return
+        if hasattr(self.window, 'discard_near_miss_button') and self.window.discard_near_miss_button:
+            self.window.discard_near_miss_button.setVisible(show)
+
 # --- END OF ui_manager.py ---
