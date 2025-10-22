@@ -82,6 +82,10 @@ class ApplicationController(QObject):
     # (_run_startup_sequence, _initialize_managers, _connect_signals - unchanged)
     def _run_startup_sequence(self): # (Unchanged)
         file_dialog=QFileDialog(None,"Select Video Files or a Directory"); file_dialog.setFileMode(QFileDialog.ExistingFiles); file_dialog.setOption(QFileDialog.DontUseNativeDialog,False); file_dialog.setNameFilter("Video Files (*.mp4 *.avi *.mov *.mkv)")
+        # Set default directory to S1 output folder
+        default_dir = config_paths.get_s1_processed_dir()
+        if default_dir.exists():
+            file_dialog.setDirectory(str(default_dir))
         processed_suffixes = ["_annotated", "_coded"];
         if file_dialog.exec_():
             selected_files=file_dialog.selectedFiles(); selected_dir=file_dialog.directory().absolutePath(); valid_files = []; rejected_files = []
