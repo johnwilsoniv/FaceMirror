@@ -6,8 +6,8 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QUrl, Qt, QTimer, QThrea
 from PyQt5.QtGui import QImage
 import cv2
 import os
-import time # For potential debugging delays
-import config  # For display refresh rate settings
+import time
+import config
 from collections import OrderedDict  # For proper LRU cache implementation
 import threading  # For thread-safe cache access
 
