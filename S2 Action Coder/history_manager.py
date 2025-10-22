@@ -1,5 +1,4 @@
 # history_manager.py
-# --- START OF FILE history_manager.py ---
 
 from PyQt5.QtCore import QObject, pyqtSignal
 import copy
@@ -130,4 +129,3 @@ class HistoryManager(QObject):
         """Check if there are states to redo."""
         return bool(self.redo_stack)
 
-# --- END OF FILE history_manager.py ---

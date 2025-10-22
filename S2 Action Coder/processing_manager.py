@@ -1,5 +1,4 @@
 # processing_manager.py
-# --- START OF FILE processing_manager.py ---
 
 import os
 import subprocess
@@ -94,7 +93,7 @@ class ProcessingManager(QObject):
     save_complete = pyqtSignal(bool) # True if successful (even with warnings), False if critical error occurred
     processing_error = pyqtSignal(str, str) # Type ("whisper", "save", "audio"), Message
 
-    def __init__(self, timeline_processor, ffmpeg_path, parent=None):
+    def __init__(self, timeline_processor, ffmpeg_path, parent=None, whisper_model=None):
         super().__init__(parent)
         self.timeline_processor = timeline_processor
         self.ffmpeg_path = ffmpeg_path
@@ -103,6 +102,7 @@ class ProcessingManager(QObject):
         self.current_whisper_handler = None
         self.current_temp_audio_dir = None
         self.previous_whisper_handler = None # Keep track for cleanup
+        self.preloaded_whisper_model = whisper_model # Store pre-loaded Whisper model
 
     def cleanup_previous_whisper_files(self):
         """Cleans up temp files from the *previous* Whisper run."""
@@ -250,7 +250,7 @@ class ProcessingManager(QObject):
         print(f"ProcessingManager: Using dynamically determined VAD Params: {dynamic_vad_params}")
         self.processing_status_update.emit("Audio analyzed. Starting Whisper...")
         try:
-            self.whisper_thread = WhisperHandler(audio_path=temp_audio_path, temp_dir_for_cleanup=self.current_temp_audio_dir, vad_parameters=dynamic_vad_params, model_name="large-v3", debug_keep_audio=False)
+            self.whisper_thread = WhisperHandler(audio_path=temp_audio_path, temp_dir_for_cleanup=self.current_temp_audio_dir, vad_parameters=dynamic_vad_params, model_name="large-v3", debug_keep_audio=False, preloaded_model=self.preloaded_whisper_model)
             self.current_whisper_handler = self.whisper_thread
             self.whisper_thread.progress_update.connect(self._handle_whisper_progress)
             self.whisper_thread.processing_error.connect(self._handle_whisper_error)
@@ -362,4 +362,3 @@ class ProcessingManager(QObject):
         elif self.current_temp_audio_dir: print(f"ProcessingManager: Cleaning up orphaned temp audio directory: {self.current_temp_audio_dir}"); self._cleanup_temp_dir(self.current_temp_audio_dir); self.current_temp_audio_dir = None
         if self.save_thread and self.save_thread.isRunning(): print("ProcessingManager: Waiting for save thread on exit..."); self.save_thread.wait()
 
-# --- END OF FILE processing_manager.py ---

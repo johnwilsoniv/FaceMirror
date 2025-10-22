@@ -1,4 +1,3 @@
-# --- START OF FILE whisper_handler.py ---
 
 # whisper_handler.py - Handles audio extraction and Whisper transcription/alignment in a separate thread
 import os
@@ -61,8 +60,8 @@ class WhisperHandler(QThread):
     audio_path = None
     temp_dir_for_cleanup = None
 
-    # --- MODIFIED __init__ to accept vad_parameters ---
-    def __init__(self, audio_path, temp_dir_for_cleanup, vad_parameters, model_name="large-v3", parent=None, debug_keep_audio=False):
+    # --- MODIFIED __init__ to accept vad_parameters and pre-loaded model ---
+    def __init__(self, audio_path, temp_dir_for_cleanup, vad_parameters, model_name="large-v3", parent=None, debug_keep_audio=False, preloaded_model=None):
         super().__init__(parent)
         if not audio_path or not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio path does not exist or not provided: {audio_path}")
@@ -77,12 +76,14 @@ class WhisperHandler(QThread):
         self.model_size_or_path = model_name
         self.vad_parameters = vad_parameters # Store the passed VAD parameters
         self._is_cancelled = False
-        self.whisper_model = None
+        self.whisper_model = preloaded_model # Use pre-loaded model if provided
         self.align_model = None
         self.align_metadata = None
         self.debug_keep_audio = debug_keep_audio
         # print(f"WhisperHandler Initialized with audio: {self.audio_path}, temp_dir: {self.temp_dir_for_cleanup}") # Less verbose
         print(f"WhisperHandler Using VAD Parameters: {self.vad_parameters}") # Log params used
+        if preloaded_model:
+            print("WhisperHandler: Using pre-loaded Whisper model from splash screen")
 
     # --- MODIFIED run method to use self.vad_parameters ---
     def run(self):
@@ -108,9 +109,15 @@ class WhisperHandler(QThread):
             if device == "cpu": print("FasterWhisper Warning: Running on CPU.")
             print(f"FasterWhisper Thread: Using device: {device}, compute_type: {compute_type}")
 
-            self.emit_progress(15, f"Loading FasterWhisper model ({self.model_size_or_path})...")
-            self.whisper_model = WhisperModel(self.model_size_or_path, device=device, compute_type=compute_type)
-            # print(f"FasterWhisper Thread: Model loaded. Type: {type(self.whisper_model)}") # Less verbose
+            # Only load model if not already pre-loaded
+            if self.whisper_model is None:
+                self.emit_progress(15, f"Loading FasterWhisper model ({self.model_size_or_path})...")
+                self.whisper_model = WhisperModel(self.model_size_or_path, device=device, compute_type=compute_type)
+                # print(f"FasterWhisper Thread: Model loaded. Type: {type(self.whisper_model)}") # Less verbose
+            else:
+                self.emit_progress(15, f"Using pre-loaded FasterWhisper model...")
+                print("FasterWhisper Thread: Using pre-loaded model")
+
             if self._is_cancelled: raise InterruptedError("Processing cancelled")
 
             self.emit_progress(25, "Starting transcription (with VAD)...")
@@ -285,4 +292,3 @@ class WhisperHandler(QThread):
         print(f"FasterWhisper Thread [{self.currentThreadId()}]: Received stop signal.")
         self._is_cancelled = True
 
-# --- END OF FILE whisper_handler.py ---

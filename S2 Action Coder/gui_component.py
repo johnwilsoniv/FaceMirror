@@ -1,4 +1,3 @@
-# --- START OF FILE gui_component.py ---
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QPushButton, QLabel, QSlider, QGroupBox, # Removed QFileDialog
@@ -39,10 +38,7 @@ class MainWindow(QMainWindow):
         self.utility_buttons_panel = None; self.clear_all_button = None;
         self.undo_button = None; self.redo_button = None
         self.delete_button = None
-        # --- ADD NEW DISCARD BUTTON REFS ---
-        self.discard_confirmation_button = None
-        self.discard_near_miss_button = None
-        # --- END ADD ---
+        # Discard Confirmation and Discard Near Miss buttons removed - Delete Range button serves same purpose
         self.setup_ui()
         self._setup_menu_actions() # Call setup for menu actions
         self.progress_update_signal.connect(self.update_progress)
@@ -179,17 +175,7 @@ class MainWindow(QMainWindow):
         self.delete_button.setEnabled(False) # Initially disabled
         layout.addWidget(self.delete_button)
 
-        self.discard_confirmation_button = QPushButton("Discard Confirmation")
-        self.discard_confirmation_button.setToolTip("Discard the pending uncertain command suggestion")
-        self.discard_confirmation_button.setStyleSheet(config.DISCARD_BUTTON_STYLE)
-        self.discard_confirmation_button.setVisible(False) # Initially hidden
-        layout.addWidget(self.discard_confirmation_button)
-
-        self.discard_near_miss_button = QPushButton("Discard Near Miss")
-        self.discard_near_miss_button.setToolTip("Discard the suggested near miss command")
-        self.discard_near_miss_button.setStyleSheet(config.DISCARD_BUTTON_STYLE)
-        self.discard_near_miss_button.setVisible(False) # Initially hidden
-        layout.addWidget(self.discard_near_miss_button)
+        # Discard Confirmation and Discard Near Miss buttons removed - Delete Range button serves same purpose
 
         layout.addStretch(1) # Push buttons up
 
@@ -227,7 +213,7 @@ class MainWindow(QMainWindow):
     def set_batch_navigation(self,en,ci,tf): # (Unchanged)
          if tf<=0: self.batch_status_label.setText("No Files"); self.prev_file_btn.setEnabled(False); self.next_file_btn.setEnabled(False); self.save_btn.setText("Generate Output"); return
          self.batch_status_label.setText(f"File {ci+1} of {tf}"); self.prev_file_btn.setEnabled(en and ci>0); self.next_file_btn.setEnabled(en and ci<tf-1)
-         if en: self.save_btn.setText("Save & Complete" if ci>=tf-1 else "Save & Continue")
+         if en: self.save_btn.setText("Save and Complete" if ci>=tf-1 else "Save and Continue")
          else: self.save_btn.setText("Generate Output Files")
     @pyqtSlot(bool)
     def enable_play_pause_button(self,en): # (Unchanged)
@@ -256,11 +242,21 @@ class MainWindow(QMainWindow):
         pass # Handled by UIManager now
     def set_total_frames(self,tf): # (Unchanged)
         mfi=max(0,tf-1); self.frame_slider.setMaximum(mfi); cf=self.frame_slider.value(); self.frame_label.setText(f"Frame: {cf}/{mfi}")
-    def toggle_play_pause(self): # (Unchanged)
-        self.play_pause_signal.emit(self.play_pause_btn.text()=="Play")
+    def toggle_play_pause(self):
+        # Optimistic UI update for instant feedback
+        should_play = (self.play_pause_btn.text() == "Play")
+        # Immediately update button text and disable to prevent double-clicks
+        self.play_pause_btn.setText("Pause" if should_play else "Play")
+        self.play_pause_btn.setEnabled(False)
+        # Emit signal to controller
+        self.play_pause_signal.emit(should_play)
+
     @pyqtSlot(bool)
-    def set_play_button_state(self,isp): # (Unchanged)
+    def set_play_button_state(self, isp):
+        # Update button text (in case state was reverted due to error)
         self.play_pause_btn.setText("Pause" if isp else "Play")
+        # Re-enable button now that state change is confirmed
+        self.play_pause_btn.setEnabled(True)
     def slider_changed(self,v): # (Unchanged)
         self.frame_changed_signal.emit(v)
     @pyqtSlot(int)
@@ -281,7 +277,38 @@ class MainWindow(QMainWindow):
            if not os.path.exists(ap): print(f"Warn: Snippet path not found: {ap}"); return
            try: self.snippet_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.path.abspath(ap)))); self.snippet_player.setVolume(80); self.snippet_player.play()
            except Exception as e: print(f"Error playing snippet: {e}")
+
+    def keyPressEvent(self, event):
+        """Handle keyboard shortcuts for main window"""
+        # Check modifiers
+        modifiers = event.modifiers()
+
+        if event.key() == Qt.Key_Space:
+            # Spacebar triggers play/pause
+            if self.play_pause_btn and self.play_pause_btn.isEnabled():
+                self.toggle_play_pause()
+                event.accept()
+                return
+        elif event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            # Enter key triggers save
+            if self.save_btn and self.save_btn.isEnabled():
+                self.save_outputs()
+                event.accept()
+                return
+        elif event.key() == Qt.Key_Z and modifiers == Qt.ControlModifier:
+            # Ctrl+Z triggers undo
+            if self.undo_button and self.undo_button.isEnabled():
+                self.undo_button.click()
+                event.accept()
+                return
+        elif event.key() == Qt.Key_Z and modifiers == (Qt.ControlModifier | Qt.ShiftModifier):
+            # Ctrl+Shift+Z triggers redo
+            if self.redo_button and self.redo_button.isEnabled():
+                self.redo_button.click()
+                event.accept()
+                return
+        # Pass other keys to parent
+        super().keyPressEvent(event)
     def closeEvent(self,evt): # (Unchanged)
         print("Closing..."); self.snippet_player.stop(); evt.accept()
 
-# --- END OF FILE gui_component.py ---

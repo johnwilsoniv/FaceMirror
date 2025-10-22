@@ -1,5 +1,4 @@
 # timeline_processor.py
-# --- START OF FILE timeline_processor.py ---
 
 import string
 # Removed unused import: import config
@@ -483,4 +482,3 @@ class TimelineProcessor:
         print(f"--- Generated {len(merged_ranges)} Final Action Ranges (after post-merge) ---")
         return merged_ranges
 
-# --- END OF FILE timeline_processor.py ---

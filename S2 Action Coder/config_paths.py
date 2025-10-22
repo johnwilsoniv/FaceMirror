@@ -9,7 +9,7 @@ import shutil
 from pathlib import Path
 
 # Version information
-VERSION = "2.0.0"
+VERSION = "1.0.0"
 APP_NAME = "Action Coder"
 
 def get_app_dir():
@@ -67,6 +67,21 @@ def get_output_base_dir():
     output_base = docs / "SplitFace" / "S2O Coded Files"
     output_base.mkdir(parents=True, exist_ok=True)
     return output_base
+
+
+def get_s1_processed_dir():
+    """
+    Get S1 (Face Mirror) Combined Data directory for file selection default
+    This is where S1 outputs CSV files and source videos that S2 uses as input
+
+    Returns:
+        Path: ~/Documents/SplitFace/S1O Processed Files/Combined Data/
+    """
+    docs = get_documents_dir()
+    s1_combined_data = docs / "SplitFace" / "S1O Processed Files" / "Combined Data"
+    # Note: Don't create this directory - it should already exist from S1
+    # Just return the path for file dialog default
+    return s1_combined_data
 
 
 def get_resource_path(relative_path):

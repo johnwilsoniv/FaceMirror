@@ -1,0 +1,5 @@
+# Performance reports
+performance_report_*.json
+diagnostic_report_*.json
+*.prof
+cprofile_report_*.txt

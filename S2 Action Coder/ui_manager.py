@@ -1,4 +1,3 @@
-# --- START OF FILE ui_manager.py ---
 
 from PyQt5.QtCore import QObject, pyqtSlot, QUrl
 from PyQt5.QtWidgets import QMessageBox, QAction # Added QAction
@@ -26,7 +25,7 @@ class UIManager(QObject):
         if not self.window: return;
         if total_files <= 0: self.window.batch_status_label.setText("No Files"); self.window.prev_file_btn.setEnabled(False); self.window.next_file_btn.setEnabled(False); self.window.save_btn.setText("Generate Output"); return
         self.window.batch_status_label.setText(f"File {current_index + 1} of {total_files}"); self.window.prev_file_btn.setEnabled(enabled and current_index > 0); self.window.next_file_btn.setEnabled(enabled and current_index < total_files - 1)
-        if enabled: self.window.save_btn.setText("Save & Complete" if current_index >= total_files - 1 else "Save & Continue")
+        if enabled: self.window.save_btn.setText("Save and Complete" if current_index >= total_files - 1 else "Save and Continue")
         else: self.window.save_btn.setText("Generate Output Files")
 
     # --- MODIFIED update_action_display for pending state styling ---
@@ -76,7 +75,7 @@ class UIManager(QObject):
         if current_text != dt or current_style != stylesheet:
             self.window.shared_action_display_label.setText(dt); self.window.shared_action_display_label.setStyleSheet(stylesheet)
 
-    # (update_frame_info, update_progress, show_progress_bar, enable_play_pause_button, set_play_button_state, enable_action_buttons, set_pending_action_button, clear_pending_action_button, enable_clear_button, enable_undo_button, enable_redo_button, enable_delete_button, show_discard_confirmation_button, show_discard_near_miss_button, play_audio_snippet, show_batch_complete_message, show_message_box - unchanged)
+    # (update_frame_info, update_progress, show_progress_bar, enable_play_pause_button, set_play_button_state, enable_action_buttons, set_pending_action_button, clear_pending_action_button, enable_clear_button, enable_undo_button, enable_redo_button, enable_delete_button, show_discard_confirmation_button, play_audio_snippet, show_batch_complete_message, show_message_box - unchanged)
     @pyqtSlot(int, int)
     def update_frame_info(self, current_frame, total_frames): # (Unchanged)
         if not self.window or not self.window.frame_label or not self.window.frame_slider: return
@@ -99,8 +98,12 @@ class UIManager(QObject):
     def enable_play_pause_button(self, enable): # (Unchanged)
         if self.window and self.window.play_pause_btn: self.window.play_pause_btn.setEnabled(enable)
     @pyqtSlot(bool)
-    def set_play_button_state(self, is_playing): # (Unchanged)
-        if self.window and self.window.play_pause_btn: self.window.play_pause_btn.setText("Pause" if is_playing else "Play")
+    def set_play_button_state(self, is_playing):
+        if self.window and self.window.play_pause_btn:
+            # Update button text (in case state was reverted due to error)
+            self.window.play_pause_btn.setText("Pause" if is_playing else "Play")
+            # Re-enable button now that state change is confirmed
+            self.window.play_pause_btn.setEnabled(True)
     @pyqtSlot(bool, object, str)
     def enable_action_buttons(self, enable, current_action=None, context='idle'): # (Unchanged)
         if not self.window or not self.window.main_action_buttons: return
@@ -142,14 +145,7 @@ class UIManager(QObject):
     def enable_delete_button(self, enable): # (Unchanged)
         if self.window and self.window.delete_button:
             self.window.delete_button.setEnabled(enable)
-    @pyqtSlot(bool)
-    def show_discard_confirmation_button(self, show): # (Unchanged)
-        if self.window and self.window.discard_confirmation_button:
-            self.window.discard_confirmation_button.setVisible(show)
-    @pyqtSlot(bool)
-    def show_discard_near_miss_button(self, show): # (Unchanged)
-        if self.window and self.window.discard_near_miss_button:
-            self.window.discard_near_miss_button.setVisible(show)
+    # show_discard_confirmation_button removed - Discard Confirmation button removed (Delete Range button serves same purpose)
     @pyqtSlot(str)
     def play_audio_snippet(self, audio_path): # (Unchanged)
         if not self.window or not self.window.snippet_player: return

@@ -1,7 +1,14 @@
-# --- START OF FILE config.py ---
 
 # config.py - Configuration values and constants
 from PyQt5.QtGui import QFont, QColor # Added QColor
+
+# Display and Performance Settings
+DISPLAY_REFRESH_RATE = 60  # Hz - Set to your display's refresh rate (60, 120, 144, etc.)
+UI_UPDATE_INTERVAL_MS = int(1000 / DISPLAY_REFRESH_RATE)  # Timer interval for smooth UI updates
+POSITION_RESYNC_INTERVAL_MS = 500  # How often to re-sync with actual QMediaPlayer position to prevent drift
+
+# Diagnostic Profiling (set in main.py, accessed by other modules)
+ENABLE_DIAGNOSTIC_PROFILING = False  # Default: disabled (will be overridden by main.py)
 
 # Standard GUI styling
 SECTION_TITLE_FONT = ('Arial', 9); SECTION_TITLE_WEIGHT = QFont.Bold; STANDARD_MARGIN = 8; STANDARD_SPACING = 5

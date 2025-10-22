@@ -11,7 +11,7 @@ import threading
 class SplashScreen:
     """Lightweight splash screen shown during app initialization"""
 
-    def __init__(self, app_name, version="2.0.0"):
+    def __init__(self, app_name, version="1.0.0"):
         self.app_name = app_name
         self.version = version
         self.window = None

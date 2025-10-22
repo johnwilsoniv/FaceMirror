@@ -1,5 +1,4 @@
 # csv_handler.py
-# --- START OF FILE csv_handler.py ---
 
 # csv_handler.py - Handles CSV file operations
 import pandas as pd
@@ -150,4 +149,3 @@ class CSVHandler:
 
         return overall_success
 
-# --- END OF FILE csv_handler.py ---

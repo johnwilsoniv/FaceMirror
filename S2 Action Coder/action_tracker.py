@@ -1,7 +1,8 @@
-# --- START OF FILE action_tracker.py ---
 
 from PyQt5.QtCore import QObject, pyqtSignal
 import copy # Import copy for deepcopy
+import time # For performance timing logging
+from perf_logger import log_perf_warning, log_perf_info  # Centralized performance logging
 
 class ActionTracker(QObject):
     action_ranges_changed = pyqtSignal()
@@ -101,6 +102,9 @@ class ActionTracker(QObject):
             if initial_ranges: print("ActionTracker: Emitting signal after load error (cleared ranges)."); self.action_ranges_changed.emit()
             return False
     def validate_ranges(self, force_signal_check=False, original_state_before_load=None, drag_info=None): # (Unchanged)
+        # === PERFORMANCE LOGGING: Track validation time ===
+        _start_time = time.time()
+
         original_ranges_before_validation = copy.deepcopy(self.action_ranges); made_changes_during_validation = False
         valid_ranges = []
         for i, r in enumerate(self.action_ranges):
@@ -165,6 +169,14 @@ class ActionTracker(QObject):
             if self.action_ranges != state_before_operation: print("ActionTracker: Emitting signal due to state change detected via force_signal_check."); emit_signal = True
         if emit_signal:
             self.action_ranges_changed.emit()
+
+        # === PERFORMANCE LOGGING: Report if validation was slow ===
+        _total_time = time.time() - _start_time
+        if _total_time > 0.010:  # > 10ms
+            log_perf_warning(f"validate_ranges took {_total_time*1000:.1f}ms "
+                  f"(Processing {len(original_ranges_before_validation)} ranges)")
+        # === END PERFORMANCE LOGGING ===
+
         return made_changes_during_validation
     def _update_timeline_widget_ranges(self): # (Unchanged)
         print("ActionTracker: Explicitly emitting action_ranges_changed for timeline update.")

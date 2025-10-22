@@ -1,4 +1,3 @@
-# --- START OF FILE player_integration.py ---
 
 # player_integration.py - Handles integration between the QTMediaPlayer and the MainWindow UI
 from PyQt5.QtWidgets import QVBoxLayout, QWidget, QLayout, QLabel, QSizePolicy # Added QLabel, QSizePolicy
@@ -55,4 +54,3 @@ def integrate_qt_player(window, player):
         print(f"Error integrating video player: {str(e)}")
         import traceback
         traceback.print_exc()
-# --- END OF FILE player_integration.py ---

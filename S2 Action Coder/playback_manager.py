@@ -1,4 +1,3 @@
-# --- START OF FILE playback_manager.py ---
 
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QTimer
 from PyQt5.QtGui import QImage
@@ -125,4 +124,3 @@ class PlaybackManager(QObject):
         if state == QMediaPlayer.StoppedState:
              self._is_paused_for_prompt = False
 
-# --- END OF FILE playback_manager.py ---

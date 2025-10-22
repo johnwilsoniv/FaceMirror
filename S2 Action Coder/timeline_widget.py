@@ -1,14 +1,15 @@
-# --- START OF FILE timeline_widget.py ---
 
-from PyQt5.QtWidgets import QWidget, QApplication, QMenu, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QOpenGLWidget, QApplication, QMenu, QVBoxLayout
 from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QRect, QPoint, QSize, QTimer
 from PyQt5.QtGui import QPainter, QColor, QPen, QBrush, QFontMetrics, QFont, QCursor, QKeySequence # Added QKeySequence
 
 import config
 import math
 import copy
+import time  # For performance timing logging
+from perf_logger import log_perf_warning, log_perf_info  # Centralized performance logging
 
-class TimelineWidget(QWidget):
+class TimelineWidget(QOpenGLWidget):
     ranges_edited = pyqtSignal(list, int, str) # list: new ranges, int: dragged_index (-1 if create), str: drag_type
     delete_range_requested = pyqtSignal(object) # object: range_data dict to delete
     seek_requested = pyqtSignal(int) # int: frame_number
@@ -18,7 +19,8 @@ class TimelineWidget(QWidget):
         # (Initialization unchanged)
         super().__init__(parent); self.setMinimumHeight(120); self.setFocusPolicy(Qt.StrongFocus); self.setMouseTracking(True)
         self._action_ranges = []; self._total_frames = 1; self._fps = 30.0; self._current_frame = 0
-        self._zoom_factor = 1.0; self._scroll_offset_frames = 0; self._padding = 10; self._track_height = 50
+        self._previous_playhead_x = -1  # Track previous playhead position for partial updates
+        self._padding = 10; self._track_height = 50
         self._axis_height = 30; self._playhead_color = QColor(Qt.red)
         self._background_color = QColor(config.UI_COLORS.get('section_bg', Qt.white))
         self._track_background_color = QColor(config.UI_COLORS.get('timeline_track_bg', Qt.white))
@@ -32,6 +34,14 @@ class TimelineWidget(QWidget):
         self._hovered_range_index = -1; self._hovered_edge = None; self._original_ranges_during_drag = None
         self._temp_ranges_for_visual_feedback = None
         self._editing_enabled = False
+        self._playing_range_index = -1  # NEW: Track which range is currently playing for visual feedback
+
+        # === PERFORMANCE OPTIMIZATION: Cache font objects to avoid recreating per range ===
+        self._label_font = QFont("Arial", 9)
+        self._label_font_metrics = QFontMetrics(self._label_font)
+        self._tick_font = QFont("Arial", 8)
+        self._tick_font_metrics = QFontMetrics(self._tick_font)
+        # === END OPTIMIZATION ===
 
     # (_generate_action_colors - unchanged)
     def _generate_action_colors(self): # (Unchanged)
@@ -78,18 +88,27 @@ class TimelineWidget(QWidget):
          self.update()
 
 
-    # (set_video_properties, set_current_frame, set_editing_enabled, _get_view_width, _get_visible_frames, _get_pixels_per_frame, frame_to_x, x_to_frame, _get_range_rect, _draw_single_range, paintEvent, mousePressEvent, mouseMoveEvent, mouseReleaseEvent, wheelEvent, keyPressEvent, _ensure_frame_visible, contextMenuEvent, set_selected_range_by_index - unchanged)
+    # Video and frame navigation methods (optimized for performance)
     @pyqtSlot(int, int, float)
-    def set_video_properties(self, total_frames, width, fps): # (Unchanged)
+    def set_video_properties(self, total_frames, width, fps):
          self._total_frames = max(1, total_frames); self._fps = fps if fps > 0 else 30.0
-         visible_frames = self._get_visible_frames()
-         if visible_frames > 0: self._scroll_offset_frames = max(0, min(self._scroll_offset_frames, self._total_frames - visible_frames))
-         else: self._scroll_offset_frames = 0
          self.update()
     @pyqtSlot(int)
-    def set_current_frame(self, frame_number): # (Unchanged)
+    def set_current_frame(self, frame_number):
         new_frame = max(0, min(frame_number, self._total_frames - 1))
-        if new_frame != self._current_frame: self._current_frame = new_frame; self._ensure_frame_visible(self._current_frame); self.update()
+        if new_frame != self._current_frame:
+            self._current_frame = new_frame
+            # Partial update: only repaint playhead regions
+            playhead_width = 5  # Playhead line width + margin
+            # Clear old playhead position
+            if self._previous_playhead_x >= 0:
+                old_rect = QRect(self._previous_playhead_x - playhead_width, 0, playhead_width * 2, self.height())
+                self.update(old_rect)
+            # Draw new playhead position
+            new_playhead_x = self.frame_to_x(new_frame)
+            new_rect = QRect(new_playhead_x - playhead_width, 0, playhead_width * 2, self.height())
+            self.update(new_rect)
+            self._previous_playhead_x = new_playhead_x
     @pyqtSlot(bool)
     def set_editing_enabled(self, enabled): # (Unchanged)
         self._editing_enabled = enabled; print(f"TimelineWidget: Editing {'enabled' if enabled else 'disabled'}.")
@@ -97,34 +116,37 @@ class TimelineWidget(QWidget):
         current_data = None
         if self._selected_range_index != -1 and 0 <= self._selected_range_index < len(self._action_ranges): current_data = self._action_ranges[self._selected_range_index]
         self.range_selected.emit(self._selected_range_index != -1, current_data)
-    def _get_view_width(self): return self.width() - 2 * self._padding # (Unchanged)
-    def _get_visible_frames(self): # (Unchanged)
-        view_width = self._get_view_width();
-        if view_width <=0 or self._zoom_factor <= 0: return 1
-        pixels_per_frame_at_zoom_1 = self._get_pixels_per_frame(zoom=1.0)
-        if pixels_per_frame_at_zoom_1 <= 0: return 1
-        frames_at_zoom_1 = view_width / pixels_per_frame_at_zoom_1
-        return max(1, int(frames_at_zoom_1 / self._zoom_factor))
-    def _get_pixels_per_frame(self, zoom=None): # (Unchanged)
-         current_zoom = zoom if zoom is not None else self._zoom_factor
-         view_width = self._get_view_width()
-         if view_width <= 0 or current_zoom <= 0: return 1
-         if self._total_frames <= 0: self._total_frames = 1
-         total_visible_range_frames = self._total_frames / current_zoom
-         if total_visible_range_frames < 1: total_visible_range_frames = 1
-         if total_visible_range_frames <= 0: return 0.01 # Avoid division by zero
-         return max(0.01, view_width / total_visible_range_frames)
-    def frame_to_x(self, frame): # (Unchanged)
+
+    # NEW: Set playing range for visual feedback
+    def set_playing_range(self, range_index):
+        """Set which range is currently playing (for visual feedback)"""
+        if self._playing_range_index != range_index:
+            self._playing_range_index = range_index
+            self.update()  # Trigger repaint to show visual feedback
+
+    def _get_view_width(self):
+        return self.width() - 2 * self._padding
+
+    def _get_pixels_per_frame(self):
+        """Calculate pixels per frame to fit entire timeline in view"""
+        view_width = self._get_view_width()
+        if view_width <= 0: return 1
+        if self._total_frames <= 0: return 1
+        return max(0.01, view_width / self._total_frames)
+
+    def frame_to_x(self, frame):
+        """Convert frame number to x-coordinate"""
         pixels_per_frame = self._get_pixels_per_frame()
-        adjusted_frame = frame - self._scroll_offset_frames
-        return self._padding + int(adjusted_frame * pixels_per_frame)
-    def x_to_frame(self, x_pos): # (Unchanged)
+        return self._padding + int(frame * pixels_per_frame)
+
+    def x_to_frame(self, x_pos):
+        """Convert x-coordinate to frame number"""
         view_width = self._get_view_width()
         if view_width <= 0: return 0
         pixels_per_frame = self._get_pixels_per_frame()
         if pixels_per_frame <= 0: return 0
         adjusted_x = max(0, x_pos - self._padding)
-        frame = int(adjusted_x / pixels_per_frame) + self._scroll_offset_frames
+        frame = int(adjusted_x / pixels_per_frame)
         return max(0, min(frame, self._total_frames - 1))
     def _get_range_rect(self, range_index, use_temp_ranges=False): # (Unchanged)
         ranges_to_use = self._temp_ranges_for_visual_feedback if use_temp_ranges and self._temp_ranges_for_visual_feedback is not None else self._action_ranges
@@ -149,24 +171,70 @@ class TimelineWidget(QWidget):
         if action_code in ["TBC", "NM"]: display_text = "??"; text_color = self._tbc_nm_text_color
         elif status == 'confirm_needed': display_text = f"{action_code}?"; pen_color = self._confirm_needed_border_color; pen_width = 2; brush_color = base_color.lighter(110); text_color = self._confirm_needed_border_color
         is_selected = (range_index == self._selected_range_index)
-        if is_selected: pen_color = self._selected_range_color; pen_width = 2; pen_style = Qt.SolidLine; brush_color = base_color.lighter(110)
+        is_playing = (range_index == self._playing_range_index)  # NEW: Check if this range is currently playing
+
+        # Apply visual styling based on state
+        if is_playing:  # NEW: Playing range gets green thick border
+            pen_color = QColor(Qt.green); pen_width = 3; pen_style = Qt.SolidLine; brush_color = base_color.lighter(120)
+        elif is_selected:  # Selected range gets yellow border
+            pen_color = self._selected_range_color; pen_width = 2; pen_style = Qt.SolidLine; brush_color = base_color.lighter(110)
+
         painter.setPen(QPen(pen_color, pen_width, pen_style)); painter.setBrush(brush_color); painter.drawRect(visible_rect)
-        label_font = QFont("Arial", 9); font_metrics = QFontMetrics(label_font); painter.setFont(label_font); painter.setPen(text_color)
+
+        # === OPTIMIZATION: Use cached font instead of creating new one ===
+        painter.setFont(self._label_font)
+        painter.setPen(text_color)
         text_rect = QRect(visible_rect.left() + 3, visible_rect.top(), visible_rect.width() - 6, visible_rect.height())
-        elided_text = font_metrics.elidedText(display_text or "", Qt.ElideRight, text_rect.width())
-        if elided_text: painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, elided_text)
-    def paintEvent(self, event): # (Unchanged)
-        painter = QPainter(self); painter.setRenderHint(QPainter.Antialiasing); painter.fillRect(self.rect(), self._background_color)
+        elided_text = self._label_font_metrics.elidedText(display_text or "", Qt.ElideRight, text_rect.width())
+        if elided_text:
+            painter.drawText(text_rect, Qt.AlignVCenter | Qt.AlignLeft, elided_text)
+        # === END OPTIMIZATION ===
+    def paintEvent(self, event):
+        # === PERFORMANCE LOGGING: Track paint event duration ===
+        _start_time = time.time()
+
+        painter = QPainter(self)
+        # Disable antialiasing for performance (OpenGL handles smooth rendering)
+        painter.setRenderHint(QPainter.Antialiasing, False)
+        painter.fillRect(self.rect(), self._background_color)
         track_y = self._padding + self._axis_height; view_width = self._get_view_width()
         painter.fillRect(self._padding, track_y, view_width, self._track_height, self._track_background_color); painter.setPen(self._tick_color); painter.drawRect(self._padding, track_y, view_width, self._track_height)
+
+        _t1 = time.time()
         ranges_to_draw = self._temp_ranges_for_visual_feedback if self._dragging_mode and self._temp_ranges_for_visual_feedback else self._action_ranges
         is_dragging_range = self._dragging_mode in ["start_edge", "end_edge", "move"] and self._selected_range_index != -1
+
+        # === OPTIMIZATION: Viewport culling - only draw visible ranges ===
+        # Calculate visible frame range
+        first_visible_frame = self.x_to_frame(self._padding)
+        last_visible_frame = self.x_to_frame(self.width() - self._padding)
+
+        # Filter to only visible ranges
+        visible_range_indices = []
+        for i, r in enumerate(ranges_to_draw):
+            start_f = r.get('start')
+            end_f = r.get('end')
+            if start_f is not None and end_f is not None:
+                # Check if range overlaps visible viewport
+                if end_f >= first_visible_frame and start_f <= last_visible_frame:
+                    visible_range_indices.append(i)
+
+        _range_count = len(visible_range_indices)  # Count only visible ranges
+
+        # Draw visible ranges only
         if is_dragging_range:
-            for i, r in enumerate(ranges_to_draw):
-                if i != self._selected_range_index: self._draw_single_range(painter, i, ranges_to_draw)
-            if 0 <= self._selected_range_index < len(ranges_to_draw): self._draw_single_range(painter, self._selected_range_index, ranges_to_draw)
+            # Draw non-selected ranges first
+            for i in visible_range_indices:
+                if i != self._selected_range_index:
+                    self._draw_single_range(painter, i, ranges_to_draw)
+            # Draw selected range last (on top)
+            if self._selected_range_index in visible_range_indices:
+                self._draw_single_range(painter, self._selected_range_index, ranges_to_draw)
         else:
-            for i, r in enumerate(ranges_to_draw): self._draw_single_range(painter, i, ranges_to_draw)
+            for i in visible_range_indices:
+                self._draw_single_range(painter, i, ranges_to_draw)
+        # === END OPTIMIZATION ===
+        _t2 = time.time()
         axis_y = self._padding + self._axis_height - 1
         painter.setPen(QPen(self._axis_color, 1)); painter.drawLine(self._padding, axis_y, self.width() - self._padding, axis_y)
         pixels_per_frame = self._get_pixels_per_frame(); major_tick_interval_frames = 1
@@ -180,23 +248,59 @@ class TimelineWidget(QWidget):
         major_tick_interval_frames = max(1, major_tick_interval_frames)
         first_visible_frame = self.x_to_frame(self._padding); last_visible_frame = self.x_to_frame(self.width() - self._padding)
         start_tick_frame = math.ceil(first_visible_frame / major_tick_interval_frames) * major_tick_interval_frames if major_tick_interval_frames > 0 else first_visible_frame
-        tick_font = QFont("Arial", 8); painter.setFont(tick_font); font_metrics = QFontMetrics(tick_font); last_label_end_x = -1
+
+        # === OPTIMIZATION: Use cached tick font instead of creating new one ===
+        painter.setFont(self._tick_font)
+        last_label_end_x = -1
+        # === END OPTIMIZATION ===
         if major_tick_interval_frames > 0:
             for frame in range(start_tick_frame, last_visible_frame + 1, major_tick_interval_frames):
                  x = self.frame_to_x(frame)
                  if x < self._padding or x > self.width() - self._padding: continue
                  painter.setPen(self._tick_color); painter.drawLine(x, axis_y - 5, x, axis_y + 5)
                  if self._fps > 0:
-                     time_sec = frame / self._fps; label = f"{time_sec:.1f}s"; label_width = font_metrics.horizontalAdvance(label)
+                     time_sec = frame / self._fps; label = f"{time_sec:.1f}s"
+                     # === OPTIMIZATION: Use cached font metrics ===
+                     label_width = self._tick_font_metrics.horizontalAdvance(label)
                      label_x = x - label_width // 2
-                     if label_x > last_label_end_x + 5: label_rect = QRect(label_x, self._padding, label_width, font_metrics.height()); painter.setPen(self._axis_color); painter.drawText(label_rect, Qt.AlignCenter, label); last_label_end_x = label_x + label_width
+                     if label_x > last_label_end_x + 5:
+                         label_rect = QRect(label_x, self._padding, label_width, self._tick_font_metrics.height())
+                         painter.setPen(self._axis_color)
+                         painter.drawText(label_rect, Qt.AlignCenter, label)
+                         last_label_end_x = label_x + label_width
+                     # === END OPTIMIZATION ===
         playhead_x = self.frame_to_x(self._current_frame)
         if self._padding <= playhead_x <= self.width() - self._padding: painter.setPen(QPen(self._playhead_color, 2)); painter.drawLine(playhead_x, self._padding, playhead_x, self.height() - self._padding)
         if self._dragging_mode == "create" and self._temp_drag_rect: painter.setPen(QPen(Qt.blue, 1, Qt.DashLine)); painter.setBrush(QColor(0, 0, 255, 30)); painter.drawRect(self._temp_drag_rect)
-    def mousePressEvent(self, event): # (Unchanged)
+
+        # === PERFORMANCE LOGGING: Report if paint event was slow ===
+        _total_time = time.time() - _start_time
+        if _total_time > 0.016:  # > 16ms (60 FPS threshold)
+            log_perf_warning(f"Timeline paintEvent took {_total_time*1000:.1f}ms "
+                  f"(RangeDrawing:{(_t2-_t1)*1000:.1f}ms for {_range_count} ranges)")
+        # === END PERFORMANCE LOGGING ===
+    def mousePressEvent(self, event):
+        """
+        Handle mouse press events.
+        FIXED: Check seek area FIRST to prevent range selection from blocking seeks.
+        """
         pos = event.pos(); frame = self.x_to_frame(pos.x()); can_edit = self._editing_enabled; can_seek = True
         self._drag_start_pos = pos; self._drag_start_frame = frame; self._original_ranges_during_drag = None; self._temp_ranges_for_visual_feedback = None
         self._dragging_mode = None; self._drag_start_frame_offset = 0; drag_initiated = False; selection_changed = False
+
+        # === FIX: Check if clicking in SEEK AREA (axis) FIRST, before range selection ===
+        track_y_start = self._padding + self._axis_height
+        is_in_seek_area = (can_seek and
+                           event.button() == Qt.LeftButton and
+                           self._padding <= pos.x() <= self.width() - self._padding and
+                           pos.y() < track_y_start)
+
+        if is_in_seek_area:
+            # Clicking in axis area → SEEK (don't select ranges)
+            self.seek_requested.emit(frame)
+            return  # Exit early - don't process range selection
+        # === END FIX ===
+
         if can_edit and event.button() == Qt.LeftButton and self._selected_range_index != -1 and self._selected_range_index < len(self._action_ranges):
             selected_range_rect = self._get_range_rect(self._selected_range_index)
             if selected_range_rect.isValid() and selected_range_rect.contains(pos):
@@ -213,14 +317,12 @@ class TimelineWidget(QWidget):
             for i, r in enumerate(self._action_ranges):
                 range_rect = self._get_range_rect(i)
                 if range_rect.contains(pos): clicked_range_index = i; break
-            if clicked_range_index != self._selected_range_index: self._selected_range_index = clicked_range_index; selection_changed = True; print(f"Timeline DEBUG: Selection changed on press to index {clicked_range_index}")
         if not drag_initiated and not selection_changed and event.button() == Qt.LeftButton:
              track_y_start = self._padding + self._axis_height; track_y_end = track_y_start + self._track_height
              if can_edit and self._selected_range_index == -1 and self._padding <= pos.x() <= self.width() - self._padding and track_y_start <= pos.y() <= track_y_end:
                  self._dragging_mode = "create"; self._temp_drag_rect = QRect(pos, QSize(0, 0)); drag_initiated = True;
                  self._original_ranges_during_drag = copy.deepcopy(self._action_ranges); self._temp_ranges_for_visual_feedback = copy.deepcopy(self._action_ranges)
-             elif can_seek and self._padding <= pos.x() <= self.width() - self._padding and pos.y() < track_y_start:
-                 print(f"Timeline DEBUG: Seek requested to frame {frame}"); self.seek_requested.emit(frame)
+             # REMOVED: Old seek handling (now done at top of function to prevent range selection interference)
         if selection_changed:
              self.update();
              selected_data = None
@@ -288,13 +390,10 @@ class TimelineWidget(QWidget):
                         try: newly_created_index = final_ranges_state.index(new_range)
                         except ValueError: print("Timeline ERROR: Could not find newly created TBC range after sorting."); newly_created_index = -1
                         newly_created_range = new_range; local_selected_index = newly_created_index
-                        print(f"Timeline DEBUG: Create released. New TBC range F{frame1}-{frame2} at index {local_selected_index}")
                     else: print("Timeline ERROR: temp_ranges was None during create release.")
-                else: print("Timeline DEBUG: Create drag too short, ignored.")
             elif can_edit and local_drag_mode in ["start_edge", "end_edge", "move"] and drag_occurred:
                  if local_selected_index != -1 and temp_ranges is not None:
                      final_ranges_state = temp_ranges
-                     print(f"Timeline DEBUG: Edit drag ({local_drag_mode}) released for index {local_selected_index}")
             print(f"Timeline STUCK_GUI_DEBUG: mouseReleaseEvent - BEFORE CLEANUP - Drag mode: {local_drag_mode}, Final Index: {local_selected_index}, Changed State: {final_ranges_state is not None}")
             self._dragging_mode = None; self._original_ranges_during_drag = None; self._temp_ranges_for_visual_feedback = None; self._temp_drag_rect = None
             self._selected_range_index = local_selected_index
@@ -305,39 +404,25 @@ class TimelineWidget(QWidget):
                     if copy.deepcopy(final_ranges_state) != copy.deepcopy(original_ranges): changed = True
                 except Exception as e: changed = True; print(f"Error comparing ranges on release: {e}")
                 if changed:
-                    print(f"Timeline DEBUG: Emitting ranges_edited ({local_drag_mode}, Index={local_selected_index})")
                     self.ranges_edited.emit(copy.deepcopy(final_ranges_state), local_selected_index, local_drag_mode)
                 if local_drag_mode == "create" and newly_created_range is not None:
-                    print(f"Timeline DEBUG: Emitting range_selected for newly created TBC range at index {local_selected_index}")
                     self.range_selected.emit(True, newly_created_range) # Signal that the new range is selected
             print(f"Timeline STUCK_GUI_DEBUG: mouseReleaseEvent - END - Drag mode was: {local_drag_mode}")
-    def wheelEvent(self, event): # (Unchanged)
-        steps = event.angleDelta().y() / 120;
-        if steps == 0: return
-        zoom_speed = 1.2; anchor_frame = self.x_to_frame(event.pos().x())
-        if steps > 0: new_zoom = self._zoom_factor * (zoom_speed ** steps)
-        else: new_zoom = self._zoom_factor / (zoom_speed ** abs(steps))
-        min_zoom = 1.0; max_pixels_per_frame = 20; view_width = self._get_view_width()
-        max_zoom = (self._total_frames * max_pixels_per_frame) / view_width if view_width > 0 else 100
-        max_zoom = max(min_zoom, max_zoom); new_zoom = max(min_zoom, min(new_zoom, max_zoom))
-        if abs(new_zoom - self._zoom_factor) < 0.01: return
-        new_pixels_per_frame = self._get_pixels_per_frame(zoom=new_zoom)
-        if new_pixels_per_frame <= 0: return
-        new_scroll_offset = anchor_frame - (event.pos().x() - self._padding) / new_pixels_per_frame
-        self._zoom_factor = new_zoom; max_visible_frames = self._get_visible_frames()
-        clamped_max_scroll = max(0, self._total_frames - max_visible_frames if max_visible_frames > 0 else 0)
-        new_scroll_offset = max(0, min(new_scroll_offset, clamped_max_scroll))
-        self._scroll_offset_frames = int(new_scroll_offset); self.update(); event.accept()
-    def keyPressEvent(self, event): # (Unchanged)
-        key = event.key(); scroll_amount_frames = int(self._get_visible_frames() * 0.1)
+    def keyPressEvent(self, event):
+        key = event.key()
         if key == Qt.Key_Left:
-            new_offset = max(0, self._scroll_offset_frames - scroll_amount_frames)
-            if new_offset != self._scroll_offset_frames: self._scroll_offset_frames = new_offset; self.update(); event.accept()
+            # Navigate to previous frame
+            new_frame = max(0, self._current_frame - 1)
+            if new_frame != self._current_frame:
+                self.seek_requested.emit(new_frame)
+                event.accept()
             return
         elif key == Qt.Key_Right:
-            max_visible_frames = self._get_visible_frames(); max_scroll = max(0, self._total_frames - max_visible_frames)
-            new_offset = min(max_scroll, self._scroll_offset_frames + scroll_amount_frames)
-            if new_offset != self._scroll_offset_frames: self._scroll_offset_frames = new_offset; self.update(); event.accept()
+            # Navigate to next frame
+            new_frame = min(self._total_frames - 1, self._current_frame + 1)
+            if new_frame != self._current_frame:
+                self.seek_requested.emit(new_frame)
+                event.accept()
             return
         elif (key == Qt.Key_Delete or key == Qt.Key_Backspace) and self._editing_enabled:
             if self._selected_range_index != -1 and self._selected_range_index < len(self._action_ranges):
@@ -354,20 +439,8 @@ class TimelineWidget(QWidget):
             event.ignore() # Let the main window handle it
             return
         super().keyPressEvent(event)
-    def _ensure_frame_visible(self, frame): # (Unchanged)
-        visible_frames_count = self._get_visible_frames()
-        if visible_frames_count <=0: return
-        if visible_frames_count >= self._total_frames:
-            if self._scroll_offset_frames != 0: self._scroll_offset_frames = 0; self.update()
-            return
-        current_view_start_frame = self._scroll_offset_frames; current_view_end_frame = self._scroll_offset_frames + visible_frames_count -1
-        needs_update = False; new_offset = self._scroll_offset_frames; margin = max(5, int(visible_frames_count * 0.1))
-        if frame < current_view_start_frame + margin: new_offset = max(0, frame - margin); needs_update = True
-        elif frame > current_view_end_frame - margin:
-             max_scroll = self._total_frames - visible_frames_count; target_offset = frame - visible_frames_count + margin + 1
-             new_offset = max(0, min(max_scroll, target_offset)); needs_update = True
-        if needs_update and int(new_offset) != int(self._scroll_offset_frames): self._scroll_offset_frames = int(new_offset); self.update()
-    def contextMenuEvent(self, event): # (Unchanged)
+
+    def contextMenuEvent(self, event):
         hover_index = -1; pos = event.pos()
         for i, r in enumerate(self._action_ranges):
              range_rect = self._get_range_rect(i)
