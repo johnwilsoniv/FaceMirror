@@ -163,12 +163,18 @@ class ONNXStarDetector:
         # Get transformation matrix
         matrix = self._get_crop_matrix(scale, center_w, center_h)
 
-        # Apply perspective transformation
+        # CRITICAL: Convert to float32 BEFORE transformation (to match PyTorch)
+        # warpPerspective on uint8 vs float32 produces different results!
+        image_float = image.astype(np.float32) / 255.0
+
+        # Apply perspective transformation on float32 image
+        # NOTE: cv2.warpPerspective should be okay since STAR doesn't use antialiasing
+        # (unlike transforms.Resize which has antialias=True by default)
         input_crop = cv2.warpPerspective(
-            image, matrix,
+            image_float, matrix,
             dsize=(self.input_size, self.input_size),
             flags=cv2.INTER_LINEAR,
-            borderValue=0
+            borderValue=0.0
         )
 
         # Convert to tensor format (1, 3, 256, 256)
@@ -176,8 +182,9 @@ class ONNXStarDetector:
         input_tensor = input_tensor.transpose(0, 3, 1, 2)  # NHWC -> NCHW
 
         # Normalize to [-1, 1] range (as per STAR preprocessing)
+        # Input is already in [0, 1], so just scale to [-1, 1]
         input_tensor = input_tensor.astype(np.float32)
-        input_tensor = input_tensor / 255.0 * 2.0 - 1.0
+        input_tensor = input_tensor * 2.0 - 1.0
 
         return input_tensor, matrix
 

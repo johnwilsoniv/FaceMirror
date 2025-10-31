@@ -104,12 +104,20 @@ class OpenFace3LandmarkDetector:
                 print("  ⊘ RetinaFace detection skipped (using default bbox)")
         else:
             # OptimizedFaceDetector auto-selects ONNX (fast) or PyTorch (slow)
-            self.face_detector = FaceDetector(
-                model_path=f'{model_dir}/Alignment_RetinaFace.pth',
-                onnx_model_path=f'{model_dir}/retinaface_mobilenet025_coreml.onnx',
-                device=device,
-                confidence_threshold=0.9
-            )
+            if USING_ONNX_FACE_DETECTION:
+                self.face_detector = FaceDetector(
+                    model_path=f'{model_dir}/Alignment_RetinaFace.pth',
+                    onnx_model_path=f'{model_dir}/retinaface_mobilenet025_coreml.onnx',
+                    device=device,
+                    confidence_threshold=0.9
+                )
+            else:
+                # Standard PyTorch detector doesn't accept onnx_model_path
+                self.face_detector = FaceDetector(
+                    model_path=f'{model_dir}/Alignment_RetinaFace.pth',
+                    device=device,
+                    confidence_threshold=0.9
+                )
 
         # Patch STAR config to use writable cache directory instead of /work
         # Only needed for PyTorch backend, not ONNX
@@ -132,11 +140,18 @@ class OpenFace3LandmarkDetector:
 
         # Use OptimizedLandmarkDetector which auto-selects ONNX (fast) or PyTorch (slow)
         # ONNX model path: same directory as .pkl, named star_landmark_98_coreml.onnx
-        self.landmark_detector = LandmarkDetector(
-            model_path=f'{model_dir}/Landmark_98.pkl',
-            onnx_model_path=f'{model_dir}/star_landmark_98_coreml.onnx',
-            device=device
-        )
+        if USING_ONNX_LANDMARK_DETECTION:
+            self.landmark_detector = LandmarkDetector(
+                model_path=f'{model_dir}/Landmark_98.pkl',
+                onnx_model_path=f'{model_dir}/star_landmark_98_coreml.onnx',
+                device=device
+            )
+        else:
+            # Standard PyTorch detector doesn't accept onnx_model_path
+            self.landmark_detector = LandmarkDetector(
+                model_path=f'{model_dir}/Landmark_98.pkl',
+                device=device
+            )
 
         # Restore original __init__
         alignment_conf.Alignment.__init__ = original_init

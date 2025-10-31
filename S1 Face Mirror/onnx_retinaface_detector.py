@@ -67,6 +67,17 @@ class ONNXRetinaFaceDetector:
         # Load ONNX model
         print(f"Loading ONNX RetinaFace model from: {onnx_model_path}")
 
+        if use_coreml:
+            print("")
+            print("=" * 70)
+            print("⏰ CoreML First-Time Compilation Notice:")
+            print("   If this is the first time loading this model with CoreML,")
+            print("   compilation may take 30-60 seconds (one-time only).")
+            print("   Subsequent loads will be instant (model is cached).")
+            print("   Please wait...")
+            print("=" * 70)
+            print("")
+
         # Configure session options to prevent thread conflicts
         sess_options = ort.SessionOptions()
         sess_options.intra_op_num_threads = 1  # Single thread per operator

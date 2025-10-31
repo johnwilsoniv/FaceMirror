@@ -103,6 +103,10 @@ class ONNXMultitaskPredictor:
         """
         Preprocess face image for MTL inference
 
+        CRITICAL: Must match PyTorch transforms.Resize EXACTLY, including antialiasing!
+        PyTorch uses antialias=True by default, which cv2.resize cannot replicate.
+        Solution: Use torch.nn.functional.interpolate for perfect match.
+
         Args:
             face: Input BGR face crop (numpy array)
 
@@ -112,21 +116,35 @@ class ONNXMultitaskPredictor:
         # Convert BGR to RGB
         face_rgb = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
 
-        # Resize to 224x224
-        face_resized = cv2.resize(face_rgb, (self.input_size, self.input_size),
-                                   interpolation=cv2.INTER_LINEAR)
+        # Convert to float32 and normalize to [0, 1] (matching ToTensor)
+        face_float = face_rgb.astype(np.float32) / 255.0
 
-        # Convert to float32 and normalize to [0, 1]
-        face_float = face_resized.astype(np.float32) / 255.0
+        # Convert to PyTorch tensor in CHW format for interpolation
+        face_tensor = torch.from_numpy(face_float).permute(2, 0, 1).unsqueeze(0)  # -> (1, C, H, W)
 
-        # Apply ImageNet normalization
-        face_normalized = (face_float - self.mean) / self.std
+        # Resize using PyTorch F.interpolate (matches transforms.Resize with antialias=True)
+        # This is critical - cv2.resize does NOT match PyTorch's antialiased resize!
+        face_resized = torch.nn.functional.interpolate(
+            face_tensor,
+            size=(self.input_size, self.input_size),
+            mode='bilinear',
+            align_corners=False,
+            antialias=True  # CRITICAL: Must match PyTorch default
+        )
 
-        # Convert to NCHW format (batch, channels, height, width)
-        face_tensor = face_normalized.transpose(2, 0, 1)
-        face_tensor = np.expand_dims(face_tensor, axis=0)
+        # Remove batch dimension and convert back to numpy
+        face_resized = face_resized.squeeze(0).numpy()  # -> (C, H, W)
 
-        return face_tensor
+        # Normalize per-channel (ImageNet stats)
+        # Note: mean/std are (3,) arrays, need to reshape for broadcasting with (C, H, W)
+        mean_chw = self.mean.reshape(3, 1, 1)
+        std_chw = self.std.reshape(3, 1, 1)
+        face_normalized = (face_resized - mean_chw) / std_chw
+
+        # Add batch dimension
+        face_tensor = np.expand_dims(face_normalized, axis=0)
+
+        return face_tensor.astype(np.float32)
 
     def predict(self, face: np.ndarray) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """

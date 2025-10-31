@@ -191,11 +191,18 @@ class OpenFace3Processor:
 
         # Initialize multitask model for AU extraction
         # OptimizedMultitaskPredictor auto-selects ONNX (fast) or PyTorch (slow)
-        self.multitask_model = MultitaskPredictor(
-            model_path=str(weights_dir / 'MTL_backbone.pth'),
-            onnx_model_path=str(weights_dir / 'mtl_efficientnet_b0_coreml.onnx'),
-            device=device
-        )
+        if USING_ONNX_MTL:
+            self.multitask_model = MultitaskPredictor(
+                model_path=str(weights_dir / 'MTL_backbone.pth'),
+                onnx_model_path=str(weights_dir / 'mtl_efficientnet_b0_coreml.onnx'),
+                device=device
+            )
+        else:
+            # Standard PyTorch predictor doesn't accept onnx_model_path
+            self.multitask_model = MultitaskPredictor(
+                model_path=str(weights_dir / 'MTL_backbone.pth'),
+                device=device
+            )
 
         # Report backend
         if hasattr(self.multitask_model, 'backend'):
@@ -347,11 +354,18 @@ class OpenFace3Processor:
         try:
             # Initialize landmark detector for 98-point landmarks
             # Use ONNX-optimized STAR detector for 5-7x speedup (same as mirroring)
-            self.landmark_detector = LandmarkDetector(
-                model_path=str(weights_dir / 'Landmark_98.pkl'),
-                onnx_model_path=str(weights_dir / 'star_landmark_98_coreml.onnx'),
-                device=device
-            )
+            if USING_ONNX_LANDMARK_DETECTION:
+                self.landmark_detector = LandmarkDetector(
+                    model_path=str(weights_dir / 'Landmark_98.pkl'),
+                    onnx_model_path=str(weights_dir / 'star_landmark_98_coreml.onnx'),
+                    device=device
+                )
+            else:
+                # Standard PyTorch detector doesn't accept onnx_model_path
+                self.landmark_detector = LandmarkDetector(
+                    model_path=str(weights_dir / 'Landmark_98.pkl'),
+                    device=device
+                )
         finally:
             # Restore stdout and logging
             sys.stdout = old_stdout
@@ -1014,7 +1028,7 @@ def process_videos(directory_path, specific_files=None, output_dir=None):
 
     # Initialize OpenFace 3.0 processor
     device = 'cpu'  # Use 'cuda' if GPU available
-    processor = OpenFace3Processor(device=device)
+    processor = OpenFace3Processor(device=device, skip_face_detection=True)
 
     # Counter for processed files
     processed_count = 0
