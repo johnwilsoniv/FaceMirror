@@ -41,7 +41,8 @@ elif not os.path.isdir(analyzer_dir):
 try:
     from facial_au_gui import FacialAUAnalyzerGUI
     from facial_au_batch_processor import FacialAUBatchProcessor
-    from facial_au_constants import PARALYSIS_SEVERITY_LEVELS
+    from facial_au_constants import PARALYSIS_SEVERITY_LEVELS, USE_ML_FOR_LOWER_FACE, USE_ML_FOR_MIDFACE, USE_ML_FOR_UPPER_FACE
+    from paralysis_detector import ParalysisDetector
 except ImportError as e:
     print(f"FATAL ERROR: Could not import necessary project modules: {e}", file=sys.stderr)
     print(f"Current sys.path: {sys.path}", file=sys.stderr)
@@ -104,17 +105,54 @@ logger.info(f"Root logging level set to: {logging.getLevelName(LOG_LEVEL)}")
 if file_handler: logger.info(f"Logging to file: {log_file_path}")
 
 
+def preload_ml_detectors(splash=None):
+    """
+    Pre-load ML paralysis detectors during startup.
+    Returns dict of {zone: ParalysisDetector} for enabled zones.
+    """
+    detectors = {}
+    zones_to_load = []
+
+    if USE_ML_FOR_LOWER_FACE:
+        zones_to_load.append('lower')
+    if USE_ML_FOR_MIDFACE:
+        zones_to_load.append('mid')
+    if USE_ML_FOR_UPPER_FACE:
+        zones_to_load.append('upper')
+
+    if not zones_to_load:
+        logger.info("No ML detectors enabled, skipping pre-load")
+        return detectors
+
+    logger.info(f"Pre-loading ML detectors for zones: {zones_to_load}")
+
+    for zone in zones_to_load:
+        if splash:
+            splash.update_status(f"Loading {zone} face model...")
+
+        try:
+            detectors[zone] = ParalysisDetector(zone=zone)
+            logger.info(f"Successfully pre-loaded {zone} face detector")
+        except ValueError as ve:
+            logger.error(f"Failed to initialize ParalysisDetector for {zone}: {ve}")
+        except Exception as e_pd:
+            logger.error(f"Failed to initialize ParalysisDetector for {zone}: {e_pd}", exc_info=True)
+
+    logger.info(f"Pre-loaded {len(detectors)}/{len(zones_to_load)} ML detectors")
+    return detectors
+
+
 def main():
     """Main entry point."""
     # Show splash screen (ONLY in main process)
-    splash = SplashScreen("Data Analysis", "2.0.0")
+    splash = SplashScreen("Data Analysis", "1.0.0")
     splash.show()
 
     # Stage 1: Loading frameworks
     splash.update_status("Loading frameworks...")
 
-    # Stage 2: Loading ML models
-    splash.update_status("Loading ML models...")
+    # Stage 2: Pre-load ML models (actual work now!)
+    preloaded_detectors = preload_ml_detectors(splash)
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Facial AU Analyzer')
@@ -147,9 +185,9 @@ def main():
         logger.info(f"Generate Visual Outputs: {generate_visuals_flag}")
         logger.info(f"Paralysis detection levels defined: {', '.join(PARALYSIS_SEVERITY_LEVELS)}")
 
-        # Create batch processor
+        # Create batch processor with pre-loaded detectors
         try:
-             processor = FacialAUBatchProcessor(output_dir)
+             processor = FacialAUBatchProcessor(output_dir, shared_detectors=preloaded_detectors)
         except Exception as e:
              logger.error(f"Failed to initialize batch processor: {e}", exc_info=True)
              return 1
@@ -187,7 +225,7 @@ def main():
             splash.close()
 
             root = tk.Tk()
-            app = FacialAUAnalyzerGUI(root)
+            app = FacialAUAnalyzerGUI(root, shared_detectors=preloaded_detectors)
             root.mainloop()
             return 0
         except Exception as e_gui:

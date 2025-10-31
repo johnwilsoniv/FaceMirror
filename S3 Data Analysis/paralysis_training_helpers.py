@@ -297,7 +297,6 @@ def create_optuna_objective(
                 'objective': model_params_base_xgb.get('objective', 'multi:softprob'),  # Base objective
                 'num_class': num_classes,
                 'random_state': random_state,
-                'use_label_encoder': False,
                 'eval_metric': model_params_base_xgb.get('eval_metric', 'mlogloss'),  # Base eval_metric
                 'tree_method': model_params_base_xgb.get('tree_method', 'hist'),
                 'nthread': xgb_nthread,  # Optimal thread count for parallel Optuna trials

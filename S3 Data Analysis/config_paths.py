@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 # Version information
-VERSION = "2.0.0"
+VERSION = "1.0.0"
 APP_NAME = "Data Analysis"
 
 def get_app_dir():
@@ -52,6 +52,18 @@ def get_documents_dir():
     else:
         # macOS/Linux: ~/Documents
         return Path.home() / "Documents"
+
+
+def get_s2_coded_dir():
+    """
+    Get S2 coded files directory (input for S3)
+
+    Returns:
+        Path: ~/Documents/SplitFace/S2O Coded Files/
+    """
+    docs = get_documents_dir()
+    s2_coded = docs / "SplitFace" / "S2O Coded Files"
+    return s2_coded
 
 
 def get_output_base_dir():

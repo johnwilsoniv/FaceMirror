@@ -754,7 +754,6 @@ def analyze_training_influence(zone, model, scaler, feature_names,
             'objective'] = 'multi:softprob' if num_classes_influence > 2 else 'binary:logistic'
         if 'eval_metric' not in retrain_params: retrain_params[
             'eval_metric'] = 'mlogloss' if num_classes_influence > 2 else 'logloss'
-        retrain_params['use_label_encoder'] = False
 
         analyzed_count = 0
         for idx_label in candidate_indices:  # idx_label is the actual index label from X_train_orig_df

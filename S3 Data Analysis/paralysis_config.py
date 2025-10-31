@@ -385,7 +385,7 @@ PERFORMANCE_CONFIG = {
     },
     'parallel_processing': {
         'n_jobs': -1,  # Default for sklearn components that support it (e.g. RF, ET, CalibCV)
-        # Optuna study.optimize runs trials sequentially (n_jobs=1)
+        # Optuna study.optimize runs with n_jobs=4 parallel trials (implemented in model_trainer)
         'backend': 'threading',  # Default for many sklearn components
         'batch_size': 'auto'  # For operations that support batching (not common in this pipeline)
     }

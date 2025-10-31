@@ -10,8 +10,8 @@ import os
 import platform
 import logging
 import re
+import time
 import config_paths
-# Removed time import as it wasn't used
 from facial_au_analyzer import FacialAUAnalyzer
 from facial_au_batch_processor import FacialAUBatchProcessor
 from facial_au_constants import PARALYSIS_SEVERITY_LEVELS
@@ -24,12 +24,13 @@ class FacialAUAnalyzerGUI:
     GUI for Facial AU Analyzer with batch analysis mode.
     """
 
-    def __init__(self, root):
+    def __init__(self, root, shared_detectors=None):
         """
         Initialize the GUI.
 
         Args:
             root (tk.Tk): Root window
+            shared_detectors (dict): Pre-loaded ML detectors (optional)
         """
         self.root = root
         self.root.title(f"{config_paths.APP_NAME} v{config_paths.VERSION}")
@@ -41,6 +42,7 @@ class FacialAUAnalyzerGUI:
         self.output_dir = str(config_paths.get_output_base_dir())
         self.generate_visuals_var = tk.BooleanVar(value=True)
         self.debug_mode_var = tk.BooleanVar(value=False)
+        self.shared_detectors = shared_detectors  # Store pre-loaded detectors
 
         # Create GUI elements
         self.create_widgets()
@@ -48,6 +50,7 @@ class FacialAUAnalyzerGUI:
         # Initialize batch processor
         self.batch_processor = None
         self.analysis_thread = None
+        self.processing_start_time = None  # Track processing time
 
     def create_widgets(self):
         """Create all GUI widgets."""
@@ -104,8 +107,9 @@ class FacialAUAnalyzerGUI:
 
     def browse_data_dir(self):
         """Browse for data directory and automatically scan."""
-        initial_dir = os.path.expanduser("~"); docs_dir = os.path.join(initial_dir, "Documents")
-        if os.path.isdir(docs_dir): initial_dir = docs_dir
+        # Set default directory to S2 output folder
+        default_dir = config_paths.get_s2_coded_dir()
+        initial_dir = str(default_dir) if default_dir.exists() else os.path.expanduser("~")
         dirpath = filedialog.askdirectory(title="Select Data Directory", initialdir=initial_dir)
         if dirpath:
             self.data_dir.set(dirpath)
@@ -124,7 +128,7 @@ class FacialAUAnalyzerGUI:
         self.root.update_idletasks()
 
         try:
-            self.batch_processor = FacialAUBatchProcessor(self.output_dir)
+            self.batch_processor = FacialAUBatchProcessor(self.output_dir, shared_detectors=self.shared_detectors)
             num_patients = self.batch_processor.auto_detect_patients(data_dir_path)
             if self.batch_processor.patients:
                  for patient in self.batch_processor.patients: self.patients_listbox.insert(tk.END, patient['patient_id'])
@@ -169,6 +173,9 @@ class FacialAUAnalyzerGUI:
     def analyze_batch(self, generate_visuals, debug_mode):
         """Run batch analysis in a separate thread."""
         try:
+            # Start timing
+            self.processing_start_time = time.time()
+
             total_patients = len(self.batch_processor.patients)
             logger.info(f"analyze_batch started for {total_patients} patients. Visuals: {generate_visuals}, Debug: {debug_mode}")
 
@@ -190,10 +197,21 @@ class FacialAUAnalyzerGUI:
                 self.root.after(0, self.batch_progress_var.set, 95)
                 self.batch_processor.analyze_asymmetry_across_patients()
 
+                # Calculate processing time
+                elapsed_seconds = time.time() - self.processing_start_time
+                time_str = self._format_processing_time(elapsed_seconds)
+
                 self.root.after(0, self.batch_status_var.set, f"Batch complete! Results: {output_path}")
                 self.root.after(0, self.batch_progress_var.set, 100)
                 logger.info("Batch analysis thread finished successfully.")
-                self.root.after(0, lambda: messagebox.showinfo("Analysis Complete", f"Batch analysis successful!\nResults saved to:\n{output_path}"))
+
+                # Create summary message with processing time
+                summary = f"Analysis Complete!\n\n"
+                summary += f"Successfully processed {total_patients} patient(s)\n\n"
+                summary += f"Processing time: {time_str}\n\n"
+                summary += f"Results saved to:\n{output_path}"
+
+                self.root.after(0, lambda: self._show_completion_dialog(summary))
             else:
                 self.root.after(0, self.batch_status_var.set, "Processing failed. Check logs.")
                 self.root.after(0, self.batch_progress_var.set, 100)
@@ -208,6 +226,26 @@ class FacialAUAnalyzerGUI:
              self.root.after(0, self.batch_progress_var.set, 100)
              self.root.after(0, self.run_button.configure, {'state': tk.NORMAL}) # Re-enable button
 
+    def _format_processing_time(self, elapsed_seconds):
+        """Format elapsed seconds into readable time string"""
+        hours = int(elapsed_seconds // 3600)
+        minutes = int((elapsed_seconds % 3600) // 60)
+        seconds = int(elapsed_seconds % 60)
+
+        if hours > 0:
+            return f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{seconds}s"
+
+    def _show_completion_dialog(self, message):
+        """Show completion dialog and close program when dismissed"""
+        messagebox.showinfo("Analysis Complete", message)
+        # Close the program after dialog is dismissed
+        logger.info("User dismissed completion dialog. Closing application.")
+        self.root.quit()
+        self.root.destroy()
 
     def check_analysis_thread(self):
         """Periodically check if the analysis thread is still running."""

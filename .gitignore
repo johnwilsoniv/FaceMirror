@@ -40,3 +40,4 @@ dist/
 
 # DMG installers (generated from dist/)
 DMG_Installers/
+pyfhog/

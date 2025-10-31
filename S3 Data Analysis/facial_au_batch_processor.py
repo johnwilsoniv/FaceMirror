@@ -9,6 +9,8 @@ import glob
 import re
 import gc
 import config_paths
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 from facial_au_analyzer import FacialAUAnalyzer
 from facial_au_visualizer import FacialAUVisualizer
 from facial_au_constants import (
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 class FacialAUBatchProcessor:
     """ Process multiple patients' facial AU data in batch mode. """
 
-    def __init__(self, output_dir=None):
+    def __init__(self, output_dir=None, shared_detectors=None):
         # Use config_paths for default output directory
         if output_dir is None:
             output_dir = str(config_paths.get_output_base_dir())
@@ -33,9 +35,13 @@ class FacialAUBatchProcessor:
         self.summary_data = None
         self.errors = {}
         self.data_dir_path = None
+        self.shared_detectors = shared_detectors  # Store pre-loaded detectors
         try:
             os.makedirs(output_dir, exist_ok=True)
-            logger.info(f"Batch Processor initialized. Main output directory: {os.path.abspath(self.output_dir)}")
+            if shared_detectors:
+                logger.info(f"Batch Processor initialized with {len(shared_detectors)} pre-loaded detectors. Main output directory: {os.path.abspath(self.output_dir)}")
+            else:
+                logger.info(f"Batch Processor initialized. Main output directory: {os.path.abspath(self.output_dir)}")
         except OSError as e:
              logger.error(f"Could not create main output directory '{output_dir}'. Error: {e}")
              raise
@@ -112,7 +118,7 @@ class FacialAUBatchProcessor:
             os.makedirs(patient_output_dir, exist_ok=True)
             logger.info(f"Output directory for patient {patient_id}: {os.path.abspath(patient_output_dir)}")
 
-            analyzer = FacialAUAnalyzer(); analyzer.patient_id = patient_id; analyzer.output_dir = patient_output_dir
+            analyzer = FacialAUAnalyzer(shared_detectors=self.shared_detectors); analyzer.patient_id = patient_id; analyzer.output_dir = patient_output_dir
             visualizer = FacialAUVisualizer()
 
             if not analyzer.load_data(left_csv, right_csv):
@@ -275,8 +281,16 @@ class FacialAUBatchProcessor:
             logger.info(f"--- Finished processing patient {patient_id} ---")
 
 
-    def process_all(self, extract_frames=True, debug_mode=False, progress_callback=None):
-        """ Processes all added patients and saves a combined summary. """
+    def process_all(self, extract_frames=True, debug_mode=False, progress_callback=None, max_workers=3):
+        """
+        Processes all added patients and saves a combined summary.
+
+        Args:
+            extract_frames: Whether to extract frame images
+            debug_mode: Enable debug comparison with expert key
+            progress_callback: Callback function for progress updates
+            max_workers: Number of parallel workers (default 3, set to 1 for sequential)
+        """
         if not self.patients: logger.error("No patients added."); return None
         expert_data_df = None
         if debug_mode:
@@ -295,24 +309,73 @@ class FacialAUBatchProcessor:
             except Exception as e_load_key: logger.error(f"Failed load expert key '{expert_key_path}': {e_load_key}", exc_info=True); expert_data_df = None
 
         all_patient_summaries = []; total_patients = len(self.patients)
-        logger.info(f"Starting batch processing for {total_patients} patients..."); logger.info(f"Visuals: {extract_frames}, Debug: {debug_mode}.")
+        logger.info(f"Starting batch processing for {total_patients} patients with {max_workers} workers...")
+        logger.info(f"Visuals: {extract_frames}, Debug: {debug_mode}.")
 
-        for i, patient_info in enumerate(self.patients):
-             logger.info(f"--- Progress: Processing patient {i+1}/{total_patients} ({patient_info['patient_id']}) ---")
-             if progress_callback:
-                 try: progress_callback(i + 1, total_patients)
-                 except Exception as e_cb: logger.error(f"Error in progress callback: {e_cb}")
-             # Pass expert_data_df AND debug_mode flag to process_patient
-             patient_summary = self.process_patient(
-                 patient_info,
-                 extract_frames=extract_frames,
-                 expert_data_df=expert_data_df,
-                 debug_mode=debug_mode
-             )
-             if patient_summary: all_patient_summaries.append(patient_summary)
+        # Use parallel processing if max_workers > 1
+        if max_workers > 1 and total_patients > 1:
+            # Thread-safe counter for progress
+            completed_count = [0]
+            progress_lock = threading.Lock()
 
-             # Force garbage collection between patients to prevent memory accumulation
-             gc.collect()
+            def process_with_progress(patient_info):
+                """Wrapper to process patient and update progress thread-safely"""
+                patient_summary = self.process_patient(
+                    patient_info,
+                    extract_frames=extract_frames,
+                    expert_data_df=expert_data_df,
+                    debug_mode=debug_mode
+                )
+
+                # Update progress thread-safely
+                with progress_lock:
+                    completed_count[0] += 1
+                    current = completed_count[0]
+
+                if progress_callback:
+                    try:
+                        progress_callback(current, total_patients)
+                    except Exception as e_cb:
+                        logger.error(f"Error in progress callback: {e_cb}")
+
+                logger.info(f"--- Progress: Completed patient {current}/{total_patients} ({patient_info['patient_id']}) ---")
+
+                # Force garbage collection
+                gc.collect()
+                return patient_summary
+
+            # Process patients in parallel
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {executor.submit(process_with_progress, patient_info): patient_info
+                          for patient_info in self.patients}
+
+                for future in as_completed(futures):
+                    patient_info = futures[future]
+                    try:
+                        patient_summary = future.result()
+                        if patient_summary:
+                            all_patient_summaries.append(patient_summary)
+                    except Exception as e:
+                        logger.error(f"Exception processing patient {patient_info['patient_id']}: {e}", exc_info=True)
+        else:
+            # Sequential processing (original behavior)
+            logger.info("Using sequential processing (max_workers=1)")
+            for i, patient_info in enumerate(self.patients):
+                 logger.info(f"--- Progress: Processing patient {i+1}/{total_patients} ({patient_info['patient_id']}) ---")
+                 if progress_callback:
+                     try: progress_callback(i + 1, total_patients)
+                     except Exception as e_cb: logger.error(f"Error in progress callback: {e_cb}")
+                 # Pass expert_data_df AND debug_mode flag to process_patient
+                 patient_summary = self.process_patient(
+                     patient_info,
+                     extract_frames=extract_frames,
+                     expert_data_df=expert_data_df,
+                     debug_mode=debug_mode
+                 )
+                 if patient_summary: all_patient_summaries.append(patient_summary)
+
+                 # Force garbage collection between patients to prevent memory accumulation
+                 gc.collect()
 
         if all_patient_summaries:
             logger.info(f"Generating combined summary CSV for {len(all_patient_summaries)} processed patients.")

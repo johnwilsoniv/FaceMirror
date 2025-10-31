@@ -22,7 +22,7 @@ IS_WINDOWS = sys.platform == 'win32'
 
 # Application info
 app_name = 'Data Analysis'
-app_version = '2.0.0'
+app_version = '1.0.0'
 
 # Collect data files for dependencies
 datas = []

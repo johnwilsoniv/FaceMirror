@@ -268,7 +268,6 @@ def train_model_workflow(zone_key_mw, X_train_df_mw, y_train_arr_mw, X_test_df_m
 
     xgb_final_params_voter = best_xgb_params_mw.copy()
     if 'early_stopping_rounds' in xgb_final_params_voter: del xgb_final_params_voter['early_stopping_rounds']
-    xgb_final_params_voter['use_label_encoder'] = False
     if num_classes_mw <= 2 and xgb_final_params_voter.get('objective') == 'multi:softprob':
         xgb_final_params_voter['objective'] = 'binary:logistic';
         xgb_final_params_voter['eval_metric'] = 'logloss'
@@ -453,6 +452,41 @@ def train_model_workflow(zone_key_mw, X_train_df_mw, y_train_arr_mw, X_test_df_m
         logger.error(f"[{zone_name_disp_mw}] Training set uncertainty analysis failed: {e_train_an_mw}", exc_info=True)
 
     feature_importance_df_mw = get_common_feature_importance_df(final_model_mw, feature_names_mw, zone_name_disp_mw)
+
+    # SHAP Analysis for enhanced feature importance
+    try:
+        from shap_analysis import run_full_shap_analysis, SHAP_AVAILABLE
+
+        if SHAP_AVAILABLE:
+            logger.info(f"[{zone_name_disp_mw}] Computing SHAP values for feature importance analysis...")
+
+            # Determine SHAP save path
+            shap_importance_path = None
+            if 'filenames' in zone_config_mw:
+                model_dir = os.path.dirname(zone_config_mw['filenames'].get('model', ''))
+                if model_dir:
+                    shap_importance_path = os.path.join(model_dir, f'{zone_key_mw}_shap_importance.csv')
+
+            # Run SHAP analysis on training data (all samples as per user requirement)
+            shap_analysis_result = run_full_shap_analysis(
+                model=final_model_mw,
+                X_data=X_train_scaled_for_analysis_selected,
+                feature_names=feature_names_mw,
+                zone_name=zone_name_disp_mw,
+                class_names=class_names_map_global_mw,
+                save_path=shap_importance_path,
+                use_fasttreeshap=True  # Use FastTreeSHAP if available
+            )
+
+            if shap_analysis_result:
+                logger.info(f"[{zone_name_disp_mw}] SHAP analysis completed successfully")
+                logger.info(f"[{zone_name_disp_mw}] SHAP computation method: {shap_analysis_result['shap_result']['computation_method']}")
+            else:
+                logger.warning(f"[{zone_name_disp_mw}] SHAP analysis failed or returned no results")
+        else:
+            logger.info(f"[{zone_name_disp_mw}] SHAP analysis skipped (SHAP library not available)")
+    except Exception as e_shap_mw:
+        logger.warning(f"[{zone_name_disp_mw}] SHAP analysis encountered an error: {e_shap_mw}. Continuing without SHAP.", exc_info=False)
 
     if PERFORMANCE_CONFIG.get('memory_optimization', {}).get('enable_gc', True):
         gc.collect()

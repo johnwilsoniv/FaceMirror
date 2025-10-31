@@ -11,6 +11,10 @@ import cv2
 import numpy as np
 import logging
 import pandas as pd
+
+# Use non-interactive backend for thread-safe plotting
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches

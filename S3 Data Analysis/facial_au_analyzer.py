@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class FacialAUAnalyzer:
     """Analyzes facial AU data for facial paralysis detection."""
 
-    def __init__(self, output_dir=None):
+    def __init__(self, output_dir=None, shared_detectors=None):
         # Use config_paths for default output directory
         if output_dir is None:
             output_dir = str(config_paths.get_output_base_dir())
@@ -38,21 +38,26 @@ class FacialAUAnalyzer:
         self.patient_baseline_values = {'left': {}, 'right': {}}
         self.patient_row_data = {} # Store the combined peak data for the patient
 
-        # Initialize paralysis detectors
-        self.paralysis_detectors = {}
-        if USE_ML_FOR_LOWER_FACE or USE_ML_FOR_MIDFACE or USE_ML_FOR_UPPER_FACE:
-            logger.info("Initializing ML Paralysis Detectors...")
-            try:
-                if ParalysisDetector:
-                     for zone in ['lower', 'mid', 'upper']:
-                         if (zone == 'lower' and USE_ML_FOR_LOWER_FACE) or \
-                            (zone == 'mid' and USE_ML_FOR_MIDFACE) or \
-                            (zone == 'upper' and USE_ML_FOR_UPPER_FACE):
-                             try: self.paralysis_detectors[zone] = ParalysisDetector(zone=zone)
-                             except ValueError as ve: logger.error(f"Failed init ParalysisDetector for {zone}: {ve}")
-                             except Exception as e_pd: logger.error(f"Failed init ParalysisDetector for {zone}: {e_pd}", exc_info=True)
-                else: logger.error("ParalysisDetector class not found.")
-            except Exception as e: logger.error(f"Error initializing paralysis detectors: {e}", exc_info=True)
+        # Use shared pre-loaded detectors if provided, otherwise initialize new ones
+        if shared_detectors:
+            self.paralysis_detectors = shared_detectors
+            logger.debug(f"Using {len(shared_detectors)} pre-loaded shared detectors")
+        else:
+            # Initialize paralysis detectors (legacy behavior)
+            self.paralysis_detectors = {}
+            if USE_ML_FOR_LOWER_FACE or USE_ML_FOR_MIDFACE or USE_ML_FOR_UPPER_FACE:
+                logger.info("Initializing ML Paralysis Detectors...")
+                try:
+                    if ParalysisDetector:
+                         for zone in ['lower', 'mid', 'upper']:
+                             if (zone == 'lower' and USE_ML_FOR_LOWER_FACE) or \
+                                (zone == 'mid' and USE_ML_FOR_MIDFACE) or \
+                                (zone == 'upper' and USE_ML_FOR_UPPER_FACE):
+                                 try: self.paralysis_detectors[zone] = ParalysisDetector(zone=zone)
+                                 except ValueError as ve: logger.error(f"Failed init ParalysisDetector for {zone}: {ve}")
+                                 except Exception as e_pd: logger.error(f"Failed init ParalysisDetector for {zone}: {e_pd}", exc_info=True)
+                    else: logger.error("ParalysisDetector class not found.")
+                except Exception as e: logger.error(f"Error initializing paralysis detectors: {e}", exc_info=True)
 
     def load_data(self, left_csv_path, right_csv_path):
         """Loads and preprocesses data from left and right CSV files."""

@@ -74,12 +74,7 @@ def extract_features_for_detection(row_data, side, zone_key_for_detection):
         logger.error(f"[{det_zone_name}] Feature list not found. Cannot extract detection features.")
         return None
     try:
-        # Handle both .pkl and .list text files
-        if feature_list_path.endswith('.list'):
-            with open(feature_list_path, 'r') as f:
-                ordered_feature_names = [line.strip() for line in f if line.strip()]
-        else:
-            ordered_feature_names = joblib.load(feature_list_path)
+        ordered_feature_names = joblib.load(feature_list_path)
     except Exception as e:
         logger.error(f"[{det_zone_name}] Failed load feature list: {e}"); return None
 
@@ -97,23 +92,18 @@ def extract_features_for_detection(row_data, side, zone_key_for_detection):
     # Interaction/Summary Features for detection (Upper Face)
     au1_ratio_s = feature_data_det.get('RE_AU01_r_Asym_Ratio', pd.Series([1.0]))
     au2_ratio_s = feature_data_det.get('RE_AU02_r_Asym_Ratio', pd.Series([1.0]))
-    au1_ratio_val = au1_ratio_s.iloc[0] if isinstance(au1_ratio_s, pd.Series) and not au1_ratio_s.empty else 1.0
-    au2_ratio_val = au2_ratio_s.iloc[0] if isinstance(au2_ratio_s, pd.Series) and not au2_ratio_s.empty else 1.0
-    feature_data_det['RE_avg_Asym_Ratio'] = pd.Series([(au1_ratio_val + au2_ratio_val) / 2.0])
-
+    feature_data_det['RE_avg_Asym_Ratio'] = pd.Series([(au1_ratio_s.iloc[0] + au2_ratio_s.iloc[0]) / 2.0])
+    # ... (other upper-face specific summary features, ensuring .iloc[0] is used) ...
     au1_pd_s = feature_data_det.get('RE_AU01_r_Asym_PercDiff', pd.Series([0.0]))
     au2_pd_s = feature_data_det.get('RE_AU02_r_Asym_PercDiff', pd.Series([0.0]))
-    au1_pd_val = au1_pd_s.iloc[0] if isinstance(au1_pd_s, pd.Series) and not au1_pd_s.empty else 0.0
-    au2_pd_val = au2_pd_s.iloc[0] if isinstance(au2_pd_s, pd.Series) and not au2_pd_s.empty else 0.0
-    feature_data_det['RE_avg_Asym_PercDiff'] = pd.Series([(au1_pd_val + au2_pd_val) / 2.0])
-    feature_data_det['RE_max_Asym_PercDiff'] = pd.Series([max(au1_pd_val, au2_pd_val)])
+    feature_data_det['RE_avg_Asym_PercDiff'] = pd.Series([(au1_pd_s.iloc[0] + au2_pd_s.iloc[0]) / 2.0])
+    pd_vals_det = [au1_pd_s.iloc[0], au2_pd_s.iloc[0]]
+    feature_data_det['RE_max_Asym_PercDiff'] = pd.Series([max(pd_vals_det) if pd_vals_det else 0.0])
 
     au1_val_side_s = feature_data_det.get('RE_AU01_r_val_side', pd.Series([0.0]))
     au2_val_side_s = feature_data_det.get('RE_AU02_r_val_side', pd.Series([0.0]))
-    au1_val_side_val = au1_val_side_s.iloc[0] if isinstance(au1_val_side_s, pd.Series) and not au1_val_side_s.empty else 0.0
-    au2_val_side_val = au2_val_side_s.iloc[0] if isinstance(au2_val_side_s, pd.Series) and not au2_val_side_s.empty else 0.0
-    feature_data_det['RE_AU01_AU02_product_side'] = pd.Series([au1_val_side_val * au2_val_side_val])
-    feature_data_det['RE_AU01_AU02_sum_side'] = pd.Series([au1_val_side_val + au2_val_side_val])
+    feature_data_det['RE_AU01_AU02_product_side'] = pd.Series([au1_val_side_s.iloc[0] * au2_val_side_s.iloc[0]])
+    feature_data_det['RE_AU01_AU02_sum_side'] = pd.Series([au1_val_side_s.iloc[0] + au2_val_side_s.iloc[0]])
 
     feature_data_det["side_indicator"] = pd.Series([0 if side.lower() == 'left' else 1])
 

@@ -6,6 +6,10 @@ import sys
 import pandas as pd
 import numpy as np
 import warnings
+import hashlib
+import pickle
+from pathlib import Path
+from datetime import datetime
 
 from sklearn.model_selection import train_test_split
 
@@ -107,6 +111,49 @@ if not pipeline_script_logger.hasHandlers():  # Setup only if not already config
     pipeline_script_logger.setLevel(LOGGING_CONFIG.get('level', 'INFO').upper())
 
 
+def get_data_cache_key(zone_key, results_csv, expert_csv):
+    """Generate cache key based on zone and input file modification times"""
+    # Create hash from zone key and file mtimes
+    hash_input = f"{zone_key}"
+
+    if results_csv and os.path.exists(results_csv):
+        mtime = os.path.getmtime(results_csv)
+        hash_input += f"|{results_csv}|{mtime}"
+
+    if expert_csv and os.path.exists(expert_csv):
+        mtime = os.path.getmtime(expert_csv)
+        hash_input += f"|{expert_csv}|{mtime}"
+
+    cache_hash = hashlib.md5(hash_input.encode()).hexdigest()[:12]
+    return f"{zone_key}_data_{cache_hash}.pkl"
+
+
+def load_cached_data(cache_path):
+    """Load preprocessed data from cache"""
+    try:
+        with open(cache_path, 'rb') as f:
+            cached = pickle.load(f)
+        return cached['features_df'], cached['targets_arr'], cached['metadata_df']
+    except Exception as e:
+        pipeline_script_logger.warning(f"Failed to load cache: {e}")
+        return None, None, None
+
+
+def save_data_cache(cache_path, features_df, targets_arr, metadata_df):
+    """Save preprocessed data to cache"""
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        with open(cache_path, 'wb') as f:
+            pickle.dump({
+                'features_df': features_df,
+                'targets_arr': targets_arr,
+                'metadata_df': metadata_df
+            }, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pipeline_script_logger.info(f"Saved data cache to {cache_path}")
+    except Exception as e:
+        pipeline_script_logger.warning(f"Failed to save cache: {e}")
+
+
 def run_zone_training_pipeline(zone_key_pipe, zone_config_all_pipe, input_files_all_pipe, class_names_global_pipe):
     """
     Runs the full training and evaluation pipeline for a single specified zone.
@@ -145,12 +192,34 @@ def run_zone_training_pipeline(zone_key_pipe, zone_config_all_pipe, input_files_
     results_csv_pipe = input_files_all_pipe.get('results_csv')
     expert_csv_pipe = input_files_all_pipe.get('expert_key_csv')
 
-    # prepare_data_generalized now returns the initial full feature set
-    features_df_pipe, targets_arr_pipe, metadata_df_pipe = prepare_data_generalized(
-        zone_key=zone_key_pipe, results_file_path=results_csv_pipe, expert_file_path=expert_csv_pipe,
-        base_config_dict=zone_config_all_pipe, input_files_global_dict=input_files_all_pipe,
-        class_names_global_dict=class_names_global_pipe
-    )
+    # Try to load from cache first
+    cache_dir = os.path.join(os.path.dirname(__file__), '.cache')
+    cache_key = get_data_cache_key(zone_key_pipe, results_csv_pipe, expert_csv_pipe)
+    cache_path = os.path.join(cache_dir, cache_key)
+
+    features_df_pipe, targets_arr_pipe, metadata_df_pipe = None, None, None
+
+    if os.path.exists(cache_path):
+        logger.info(f"[{zone_name_display_pipe}] Loading data from cache: {cache_key}")
+        features_df_pipe, targets_arr_pipe, metadata_df_pipe = load_cached_data(cache_path)
+
+        if features_df_pipe is not None:
+            logger.info(f"[{zone_name_display_pipe}] Successfully loaded cached data")
+
+    # If cache miss or invalid, prepare data from scratch
+    if features_df_pipe is None or targets_arr_pipe is None:
+        logger.info(f"[{zone_name_display_pipe}] Cache miss - preparing data from source files...")
+        # prepare_data_generalized now returns the initial full feature set
+        features_df_pipe, targets_arr_pipe, metadata_df_pipe = prepare_data_generalized(
+            zone_key=zone_key_pipe, results_file_path=results_csv_pipe, expert_file_path=expert_csv_pipe,
+            base_config_dict=zone_config_all_pipe, input_files_global_dict=input_files_all_pipe,
+            class_names_global_dict=class_names_global_pipe
+        )
+
+        # Save to cache for next time
+        if features_df_pipe is not None and not features_df_pipe.empty:
+            save_data_cache(cache_path, features_df_pipe, targets_arr_pipe, metadata_df_pipe)
+
     if features_df_pipe is None or features_df_pipe.empty or targets_arr_pipe is None or len(targets_arr_pipe) == 0:
         logger.error(f"[{zone_name_display_pipe}] Data preparation failed or returned no data. Aborting zone.")
         return
@@ -354,7 +423,79 @@ def run_zone_training_pipeline(zone_key_pipe, zone_config_all_pipe, input_files_
             else:
                 logger.info(f"[{zone_name_display_pipe}] No review candidates generated.")
 
-    logger.info(f"[{zone_name_display_pipe}] Training pipeline finished for zone {zone_key_pipe}!\n{'=' * 60}")
+    # Generate and save training and performance summaries
+    logger.info(f"[{zone_name_display_pipe}] Generating training and performance summaries...")
+    try:
+        from training_summary import generate_training_summary, generate_performance_summary, save_summary
+        from hardware_detection import detect_hardware
+
+        # Collect training results for summary
+        training_results = {
+            'n_features_initial': len(feature_names_list_pipe_initial),
+            'n_features_selected': len(selected_feature_names_final_pipe),
+            'selected_features': selected_feature_names_final_pipe,
+            'optuna_study': optuna_study_pipe,
+            'optimal_thresholds': optimal_thresholds_pipe,
+            'smote_applied': training_params_log_pipe.get('smote', {}).get('enabled', False),
+            'smote_variant': training_params_log_pipe.get('smote', {}).get('variant', 'N/A'),
+            'calibration_method': training_params_log_pipe.get('calibration', {}).get('method', 'None'),
+            'hardware_info': detect_hardware()
+        }
+
+        # Check if SHAP was available (will be logged in model trainer)
+        # For now, we'll indicate based on whether SHAP files exist
+        shap_importance_path = os.path.join(os.path.dirname(filenames_cfg_pipe.get('model', '')), f'{zone_key_pipe}_shap_importance.csv')
+        training_results['shap_available'] = os.path.exists(shap_importance_path) if shap_importance_path else False
+        if training_results['shap_available']:
+            training_results['shap_method'] = 'fasttreeshap or standard'
+            training_results['shap_n_samples'] = len(X_train_pipe)
+
+        # Generate training summary
+        training_summary_text = generate_training_summary(
+            zone_name_display_pipe, zone_key_pipe, training_results, zone_specific_config_pipe
+        )
+
+        # Generate performance summary
+        performance_summary_text = generate_performance_summary(
+            zone_name_display_pipe, zone_key_pipe,
+            y_test_pipe, y_pred_test_final_pipe, y_proba_test_final_pipe,
+            class_names_global_pipe,
+            performance_targets=get_performance_targets(zone_key_pipe) if get_performance_targets else None
+        )
+
+        # Save summaries to files
+        summary_dir = os.path.join(ANALYSIS_DIR, zone_key_pipe, 'summaries')
+        os.makedirs(summary_dir, exist_ok=True)
+
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        training_summary_path = os.path.join(summary_dir, f'{zone_key_pipe}_training_summary_{timestamp_str}.txt')
+        performance_summary_path = os.path.join(summary_dir, f'{zone_key_pipe}_performance_summary_{timestamp_str}.txt')
+
+        # Also save as "latest" for easy access
+        training_summary_latest_path = os.path.join(summary_dir, f'{zone_key_pipe}_training_summary_latest.txt')
+        performance_summary_latest_path = os.path.join(summary_dir, f'{zone_key_pipe}_performance_summary_latest.txt')
+
+        save_summary(training_summary_text, training_summary_path, zone_name_display_pipe)
+        save_summary(training_summary_text, training_summary_latest_path, zone_name_display_pipe)
+        save_summary(performance_summary_text, performance_summary_path, zone_name_display_pipe)
+        save_summary(performance_summary_text, performance_summary_latest_path, zone_name_display_pipe)
+
+        logger.info(f"[{zone_name_display_pipe}] Summaries saved to {summary_dir}")
+
+        # Return summaries for display in GUI Summary tab only
+        return {
+            'zone_name': zone_name_display_pipe,
+            'zone_key': zone_key_pipe,
+            'training_summary': training_summary_text,
+            'performance_summary': performance_summary_text
+        }
+
+    except Exception as e_summary:
+        logger.warning(f"[{zone_name_display_pipe}] Failed to generate summaries: {e_summary}", exc_info=False)
+        return None
+
+    finally:
+        logger.info(f"[{zone_name_display_pipe}] Training pipeline finished for zone {zone_key_pipe}!\n{'=' * 60}")
 
 
 if __name__ == "__main__":
@@ -411,11 +552,14 @@ if __name__ == "__main__":
             f"No zones specified via command line. Running all configured zones: {zones_to_run_main}")
 
     # Loop through selected zones and run the pipeline
+    completed_zones = []
     for zone_key_main_loop in zones_to_run_main:
         pipeline_script_logger.info(f"--- Processing Zone: {zone_key_main_loop.upper()} ---")
         try:
             # PARALYSIS_MAP (from utils, sourced from config.CLASS_NAMES) is passed as class_names_global_pipe
-            run_zone_training_pipeline(zone_key_main_loop, ZONE_CONFIG, INPUT_FILES, PARALYSIS_MAP)
+            summary_result = run_zone_training_pipeline(zone_key_main_loop, ZONE_CONFIG, INPUT_FILES, PARALYSIS_MAP)
+            if summary_result:
+                completed_zones.append(summary_result['zone_name'])
         except KeyboardInterrupt:
             pipeline_script_logger.error(f"Pipeline interrupted by user for zone {zone_key_main_loop}.")
             print(f"\n✗ Training interrupted by user for Zone: {zone_key_main_loop.upper()}")
@@ -428,3 +572,13 @@ if __name__ == "__main__":
             continue
 
     pipeline_script_logger.info(f"\n{'=' * 80}\nAll Specified Zone Processing Finished!\n{'=' * 80}")
+
+    # Log completion summary
+    if completed_zones:
+        root_logger = logging.getLogger()
+        root_logger.info("\n" + "=" * 80)
+        root_logger.info("TRAINING COMPLETE")
+        root_logger.info("=" * 80)
+        root_logger.info(f"Successfully completed {len(completed_zones)} zone(s): {', '.join(completed_zones)}")
+        root_logger.info(f"Summaries logged above for each zone")
+        root_logger.info("=" * 80)

@@ -13,6 +13,8 @@ from paralysis_utils import _extract_base_au_features  # Import the new helper
 logger = logging.getLogger(__name__)
 ZONE = 'lower'  # Define zone for this file
 
+
+# --- extract_features function (LOWER FACE - Training) ---
 def extract_features(df, side, zone_specific_config):  # df is merged_df from prepare_data_generalized
     """ Extracts features for LOWER FACE training using the helper and adding custom ones. """
     zone_name = zone_specific_config.get('name', 'Lower Face')
@@ -67,6 +69,8 @@ def extract_features(df, side, zone_specific_config):  # df is merged_df from pr
     logger.debug(f"[{zone_name}] Generated {features_df_final.shape[1]} features for {side} (Training).")
     return features_df_final
 
+
+# --- extract_features_for_detection (LOWER FACE - Detection) ---
 def extract_features_for_detection(row_data, side, zone_key_for_detection):
     """ Extracts features for LOWER FACE detection from a row of data. """
     # This function is called by the main detection pipeline, not directly by training.
@@ -89,12 +93,7 @@ def extract_features_for_detection(row_data, side, zone_key_for_detection):
             f"[{det_zone_name}] Feature list not found at {feature_list_path}. Cannot extract detection features.")
         return None
     try:
-        # Handle both .pkl and .list text files
-        if feature_list_path.endswith('.list'):
-            with open(feature_list_path, 'r') as f:
-                ordered_feature_names = [line.strip() for line in f if line.strip()]
-        else:
-            ordered_feature_names = joblib.load(feature_list_path)
+        ordered_feature_names = joblib.load(feature_list_path)
         if not isinstance(ordered_feature_names, list):
             logger.error(f"[{det_zone_name}] Loaded feature names is not a list.");
             return None
