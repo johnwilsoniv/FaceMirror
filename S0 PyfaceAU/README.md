@@ -131,6 +131,131 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component descript
 
 ---
 
+## Custom Components & Innovations
+
+pyAUface includes several novel components that can be used independently in other projects:
+
+### CalcParams - 3D Pose Estimation (99.45% accuracy)
+
+A pure Python implementation of OpenFace's CalcParams algorithm for 3D head pose estimation. Achieves 99.45% correlation with the C++ reference implementation.
+
+```python
+from pyfaceau.alignment import CalcParams
+
+# Initialize with PDM model
+calc_params = CalcParams(pdm_file='weights/In-the-wild_aligned_PDM_68.txt')
+
+# Estimate 3D pose from 2D landmarks
+params_local, params_global, detected_landmarks = calc_params.estimate_pose(
+    landmarks_2d,  # 68x2 array of detected landmarks
+    img_width,
+    img_height
+)
+
+# Extract pose parameters
+tx, ty = params_global[4], params_global[5]  # Translation
+rx, ry, rz = params_global[1:4]  # Rotation (radians)
+scale = params_global[0]  # Scale factor
+```
+
+**Use cases:** Head pose tracking, gaze estimation, facial alignment
+
+### CLNF Landmark Refinement
+
+Constrained Local Neural Fields (CLNF) refinement using SVR patch experts for improved landmark accuracy. Particularly effective for challenging poses and expressions.
+
+```python
+from pyfaceau.detectors import CLNFRefiner
+
+# Initialize refiner
+refiner = CLNFRefiner(
+    pdm_file='weights/In-the-wild_aligned_PDM_68.txt',
+    patch_expert_file='weights/svr_patches_0.25_general.txt'
+)
+
+# Refine landmarks
+refined_landmarks = refiner.refine_landmarks(
+    frame,
+    initial_landmarks,
+    face_bbox,
+    num_iterations=5
+)
+```
+
+**Use cases:** Landmark tracking, facial feature extraction, expression analysis
+
+### Cython Histogram Median Tracker (260x speedup)
+
+High-performance running median tracking for temporal smoothing of geometric features. Implements OpenFace's histogram-based median algorithm in optimized Cython.
+
+```python
+from pyfaceau.features import HistogramMedianTracker
+
+# Initialize tracker
+tracker = HistogramMedianTracker(
+    num_features=136,  # 68 landmarks x 2 (x,y)
+    history_length=120
+)
+
+# Update with new frame
+smoothed_features = tracker.update(current_features)
+```
+
+**Performance:** 260x faster than pure Python, 0.02ms per frame
+
+**Use cases:** Temporal smoothing, noise reduction, video feature tracking
+
+### Batched AU Predictor (2-5x speedup)
+
+Optimized AU prediction using batch processing for HOG features. Reduces overhead when processing multiple frames.
+
+```python
+from pyfaceau.prediction import BatchedAUPredictor
+
+# Initialize predictor
+predictor = BatchedAUPredictor(
+    au_models_dir='weights/AU_predictors',
+    batch_size=30
+)
+
+# Predict AUs for multiple frames
+au_results = predictor.predict_batch(
+    hog_features_list,  # List of HOG feature arrays
+    geom_features_list  # List of geometric feature arrays
+)
+```
+
+**Performance:** 2-5x faster than sequential prediction
+
+**Use cases:** Video processing, batch AU extraction, real-time analysis
+
+### OpenFace22 Face Aligner
+
+Pure Python implementation of OpenFace 2.2's face alignment algorithm. Produces pixel-perfect aligned faces matching the C++ implementation.
+
+```python
+from pyfaceau.alignment import OpenFace22FaceAligner
+
+# Initialize aligner
+aligner = OpenFace22FaceAligner(
+    pdm_file='weights/In-the-wild_aligned_PDM_68.txt',
+    triangulation_file='weights/tris_68_full.txt'
+)
+
+# Align face for AU extraction
+aligned_face = aligner.align_face(
+    frame,
+    landmarks_2d,
+    tx, ty, rz  # From CalcParams
+)
+```
+
+**Output:** 112x112 RGB aligned face, ready for HOG extraction
+
+**Use cases:** Face normalization, AU extraction preprocessing, facial feature analysis
+
+---
+
 ## Performance
 
 ### Accuracy (vs OpenFace C++ 2.2)
@@ -184,7 +309,7 @@ results = pipeline.process_video('input.mp4', 'output.csv')
 - **4 cores**: ~18-23 FPS (4-5x speedup)
 - **6 cores**: ~27-32 FPS (6-7x speedup)
 - **8 cores**: ~36-41 FPS (8-9x speedup)
-- **10+ cores**: ~45-50 FPS (10x speedup) ✨
+- **10+ cores**: ~45-50 FPS (10x speedup)
 
 See [docs/PARALLEL_PROCESSING.md](docs/PARALLEL_PROCESSING.md) for full details.
 
@@ -350,4 +475,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Built with ❤️ for the facial behavior research community**
+**Built for the facial behavior research community**

@@ -53,9 +53,11 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "pyfaceau=pyfaceau.processor:main",  # Optional CLI entry point
+            "pyfaceau=pyfaceau.processor:main",
+            "pyfaceau-gui=pyfaceau_gui:main",
         ],
     },
+    scripts=['pyfaceau_gui.py'],
     include_package_data=True,
     package_data={
         "pyfaceau": ["*.txt", "*.json"],
