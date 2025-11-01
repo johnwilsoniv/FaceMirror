@@ -34,6 +34,7 @@ from pyfaceau.features.pdm import PDMParser
 from pyfaceau.alignment.face_aligner import OpenFace22FaceAligner
 from pyfaceau.features.triangulation import TriangulationParser
 from pyfaceau.prediction.model_parser import OF22ModelParser
+from pyfaceau.refinement.targeted_refiner import TargetedCLNFRefiner
 
 # Import Cython-optimized running median (with fallback)
 try:
@@ -83,10 +84,12 @@ class FullPythonAUPipeline:
         pdm_file: str,
         au_models_dir: str,
         triangulation_file: str,
+        patch_expert_file: Optional[str] = None,
         use_calc_params: bool = True,
         use_coreml: bool = True,
         track_faces: bool = True,
         use_batched_predictor: bool = True,
+        use_clnf_refinement: bool = False,
         verbose: bool = True
     ):
         """
@@ -98,10 +101,12 @@ class FullPythonAUPipeline:
             pdm_file: Path to PDM shape model
             au_models_dir: Directory containing AU SVR models
             triangulation_file: Path to triangulation file for masking
+            patch_expert_file: Path to patch expert file for CLNF refinement (optional)
             use_calc_params: Use full CalcParams vs. simplified PnP (default: True)
             use_coreml: Enable CoreML Neural Engine acceleration (default: True)
             track_faces: Use face tracking (detect once, track between frames) (default: True)
             use_batched_predictor: Use optimized batched AU predictor (2-5x faster) (default: True)
+            use_clnf_refinement: Enable CLNF landmark refinement (default: False)
             verbose: Print progress messages (default: True)
         """
         import threading
@@ -111,6 +116,7 @@ class FullPythonAUPipeline:
         self.use_coreml = use_coreml
         self.track_faces = track_faces
         self.use_batched_predictor = use_batched_predictor and USING_BATCHED_PREDICTOR
+        self.use_clnf_refinement = use_clnf_refinement
 
         # Face tracking: cache bbox and only re-detect on failure (3x speedup!)
         self.cached_bbox = None
@@ -124,6 +130,7 @@ class FullPythonAUPipeline:
             'pdm_file': pdm_file,
             'au_models_dir': au_models_dir,
             'triangulation_file': triangulation_file,
+            'patch_expert_file': patch_expert_file,
         }
 
         # Components will be initialized on first use (in worker thread if CoreML)
@@ -133,6 +140,7 @@ class FullPythonAUPipeline:
         # Component placeholders
         self.face_detector = None
         self.landmark_detector = None
+        self.clnf_refiner = None
         self.pdm_parser = None
         self.calc_params = None
         self.face_aligner = None
@@ -198,6 +206,19 @@ class FullPythonAUPipeline:
             self.landmark_detector = CunjianPFLDDetector(pfld_model)
             if self.verbose:
                 print(f"✓ Landmark detector loaded: {self.landmark_detector}\n")
+
+            # Component 2.5: CLNF Refiner (optional)
+            if self.use_clnf_refinement:
+                if self.verbose:
+                    print("[2.5/8] Loading CLNF landmark refiner...")
+                patch_expert_file = self._init_params['patch_expert_file']
+                if patch_expert_file is None:
+                    patch_expert_file = 'weights/svr_patches_0.25_general.txt'
+                self.clnf_refiner = TargetedCLNFRefiner(patch_expert_file, search_window=3)
+                if self.verbose:
+                    print(f"✓ CLNF refiner loaded with {len(self.clnf_refiner.patch_experts)} patch experts\n")
+            else:
+                self.clnf_refiner = None
 
             # Component 3: PDM Parser
             if self.verbose:
@@ -682,6 +703,11 @@ class FullPythonAUPipeline:
 
             try:
                 landmarks_68, _ = self.landmark_detector.detect_landmarks(frame, bbox)
+
+                # Optional CLNF refinement for critical landmarks
+                if self.use_clnf_refinement and self.clnf_refiner is not None:
+                    landmarks_68 = self.clnf_refiner.refine_landmarks(frame, landmarks_68)
+
                 if self.verbose and frame_idx < 3:
                     print(f"[Frame {frame_idx}] Step 2: Got {len(landmarks_68)} landmarks")
             except Exception as e:
@@ -704,6 +730,10 @@ class FullPythonAUPipeline:
 
                     # Retry landmark detection with new bbox
                     landmarks_68, _ = self.landmark_detector.detect_landmarks(frame, bbox)
+
+                    # Optional CLNF refinement for critical landmarks
+                    if self.use_clnf_refinement and self.clnf_refiner is not None:
+                        landmarks_68 = self.clnf_refiner.refine_landmarks(frame, landmarks_68)
                 else:
                     # Not tracking or already re-detected - fail
                     raise
