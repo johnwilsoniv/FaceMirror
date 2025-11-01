@@ -30,9 +30,9 @@ import subprocess
 import tempfile
 import shutil
 from typing import Dict, Optional, Tuple
-from openface22_model_parser import OF22ModelParser
-from openface22_hog_parser import OF22HOGParser
-from pdm_parser import PDMParser
+from pyfaceau.prediction.model_parser import OF22ModelParser
+from pyfaceau.features.hog import OF22HOGParser
+from pyfaceau.features.pdm import PDMParser
 
 # Try to use Cython-optimized running median (234x faster!)
 try:

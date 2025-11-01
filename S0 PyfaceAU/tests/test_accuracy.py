@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test PyfaceAU Accuracy - Validate against C++ OpenFace baseline
+Test pyAUface Accuracy - Validate against C++ OpenFace baseline
 
 Compares Python AU predictions with C++ OpenFace 2.2 outputs
 to ensure r > 0.83 correlation is maintained.
@@ -11,7 +11,7 @@ Requires:
 """
 
 import sys
-sys.path.insert(0, '../pyfaceau')
+sys.path.insert(0, '../pyauface')
 sys.path.insert(0, '../../pyfhog/src')
 
 import numpy as np
@@ -19,7 +19,7 @@ import pandas as pd
 
 def test_accuracy_vs_cpp():
     """
-    Compare PyfaceAU outputs with C++ OpenFace baseline
+    Compare pyAUface outputs with C++ OpenFace baseline
 
     Expected results:
     - Overall: r > 0.83

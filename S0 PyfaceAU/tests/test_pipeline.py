@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Test PyfaceAU Pipeline - Basic functionality test
+Test pyAUface Pipeline - Basic functionality test
 
 Tests the complete AU extraction pipeline on a single frame.
 """
 
 import sys
-sys.path.insert(0, '../pyfaceau')
+sys.path.insert(0, '../pyauface')
 sys.path.insert(0, '../../pyfhog/src')
 
 import numpy as np
@@ -19,7 +19,7 @@ def test_pipeline_initialization():
     print("="*80)
 
     try:
-        from pyfaceau.pipeline import FullPythonAUPipeline
+        from pyauface.pipeline import FullPythonAUPipeline
 
         pipeline = FullPythonAUPipeline(
             retinaface_model='../weights/retinaface_mobilenet025_coreml.onnx',
@@ -51,7 +51,7 @@ def test_individual_components():
     # Test 1: Face Detector
     tests_total += 1
     try:
-        from pyfaceau.detectors.retinaface import ONNXRetinaFaceDetector
+        from pyauface.detectors.retinaface import ONNXRetinaFaceDetector
         detector = ONNXRetinaFaceDetector('../weights/retinaface_mobilenet025_coreml.onnx', use_coreml=False)
         print("✅ Face detector (RetinaFace)")
         tests_passed += 1
@@ -61,7 +61,7 @@ def test_individual_components():
     # Test 2: Landmark Detector
     tests_total += 1
     try:
-        from pyfaceau.detectors.pfld import CunjianPFLDDetector
+        from pyauface.detectors.pfld import CunjianPFLDDetector
         landmarker = CunjianPFLDDetector('../weights/pfld_cunjian.onnx')
         print("✅ Landmark detector (PFLD)")
         tests_passed += 1
@@ -71,7 +71,7 @@ def test_individual_components():
     # Test 3: Face Aligner
     tests_total += 1
     try:
-        from pyfaceau.alignment.face_aligner import OpenFace22FaceAligner
+        from pyauface.alignment.face_aligner import OpenFace22FaceAligner
         aligner = OpenFace22FaceAligner('../weights/In-the-wild_aligned_PDM_68.txt')
         print("✅ Face aligner")
         tests_passed += 1
@@ -81,7 +81,7 @@ def test_individual_components():
     # Test 4: PDM Parser
     tests_total += 1
     try:
-        from pyfaceau.features.pdm import PDMParser
+        from pyauface.features.pdm import PDMParser
         pdm = PDMParser('../weights/In-the-wild_aligned_PDM_68.txt')
         print("✅ PDM parser")
         tests_passed += 1
@@ -91,7 +91,7 @@ def test_individual_components():
     # Test 5: Running Median
     tests_total += 1
     try:
-        from pyfaceau.prediction.running_median import DualHistogramMedianTracker
+        from pyauface.prediction.running_median import DualHistogramMedianTracker
         median_tracker = DualHistogramMedianTracker()
         print("✅ Running median tracker")
         tests_passed += 1
@@ -101,7 +101,7 @@ def test_individual_components():
     # Test 6: AU Model Parser
     tests_total += 1
     try:
-        from pyfaceau.prediction.model_parser import OF22ModelParser
+        from pyauface.prediction.model_parser import OF22ModelParser
         parser = OF22ModelParser('/Users/johnwilsoniv/repo/fea_tool/external_libs/openFace/OpenFace/lib/local/FaceAnalyser/AU_predictors')
         print("✅ AU model parser")
         tests_passed += 1

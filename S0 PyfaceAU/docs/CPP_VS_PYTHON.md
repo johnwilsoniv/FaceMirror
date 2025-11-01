@@ -1,12 +1,12 @@
-# OpenFace C++ vs PyfaceAU Python Comparison
+# OpenFace C++ vs pyAUface Python Comparison
 
-**Detailed comparison of the original C++ OpenFace 2.2 and PyfaceAU Python implementation**
+**Detailed comparison of the original C++ OpenFace 2.2 and pyAUface Python implementation**
 
 ---
 
 ## Executive Summary
 
-| Metric | OpenFace C++ 2.2 | PyfaceAU Python |
+| Metric | OpenFace C++ 2.2 | pyAUface Python |
 |--------|------------------|-----------------|
 | **Performance** | 32.9 FPS (30ms/frame) | 4.6 FPS (217ms/frame) |
 | **Accuracy** | Baseline (1.0) | r = 0.83 overall |
@@ -29,7 +29,7 @@
 - **Accuracy:** High
 - **Format:** Compiled C++ with dlib
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Detector:** RetinaFace ONNX
 - **Stages:** Single-stage (faster)
 - **Speed:** 2ms average with tracking (469ms without)
@@ -51,7 +51,7 @@
 - **Accuracy:** Very high (considered gold standard)
 - **Format:** Compiled C++ proprietary
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Detector:** PFLD (Practical Facial Landmark Detector)
 - **Method:** Direct CNN regression
 - **Points:** 68 landmarks
@@ -72,7 +72,7 @@
 - **Accuracy:** Baseline
 - **Features:** Highly optimized matrix operations
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Method:** CalcParams (identical algorithm)
 - **Implementation:** Pure Python with NumPy
 - **Speed:** ~80ms per frame (8x slower!)
@@ -94,7 +94,7 @@
 - **Speed:** ~5-10ms per frame
 - **Key params:** sim_scale=0.7
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Method:** Kabsch algorithm + similarity transform (identical)
 - **Implementation:** NumPy + OpenCV
 - **Output:** 112×112 aligned face
@@ -116,7 +116,7 @@
 - **Features:** 4464 dimensions
 - **Cell size:** 8 pixels
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Library:** PyFHOG (C extension with Python bindings)
 - **Implementation:** C library (same as C++)
 - **Speed:** ~50ms per frame (3-5x slower)
@@ -137,7 +137,7 @@
 - **Speed:** ~1-2ms per frame
 - **Features:** 238 dimensions
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Method:** PDM reconstruction (identical)
 - **Implementation:** NumPy matrix multiplication
 - **Speed:** ~5ms per frame (2-3x slower)
@@ -156,7 +156,7 @@
 - **Speed:** ~1-2ms per frame
 - **Histograms:** HOG (4464×1000) + Geom (238×10000)
 
-#### PyfaceAU Python (Cython)
+#### pyAUface Python (Cython)
 - **Method:** Histogram-based median (identical)
 - **Implementation:** Cython (C-level performance)
 - **Update:** Every 2nd frame (exact match)
@@ -178,7 +178,7 @@
 - **Models:** 17 binary .dat files
 - **Features:** 4702 dimensions (4464 HOG + 238 geom)
 
-#### PyfaceAU Python
+#### pyAUface Python
 - **Method:** SVR (identical algorithm)
 - **Implementation:** NumPy dot products
 - **Speed:** ~30ms for all 17 AUs (60x slower!)
@@ -198,8 +198,8 @@
 | Implementation | Total Time | FPS | Per Frame | Relative Speed |
 |----------------|------------|-----|-----------|----------------|
 | **OpenFace C++ 2.2** | 33.8s | **32.9** | **30ms** | **7.1x faster** |
-| PyfaceAU Python (CPU) | 240s | 4.6 | 217ms | Baseline |
-| PyfaceAU Python (optimized*) | 140s | 7.9 | 127ms | 2x faster* |
+| pyAUface Python (CPU) | 240s | 4.6 | 217ms | Baseline |
+| pyAUface Python (optimized*) | 140s | 7.9 | 127ms | 2x faster* |
 
 \* With proposed optimizations (solvePnP, HOG cell_size=12, vectorized SVR)
 
@@ -285,7 +285,7 @@ Alignment → FHOG (C++) → PDM → Running Median (C++) → SVR → AUs
 - ❌ Difficult to modify
 - ❌ MTCNN is slow
 
-### PyfaceAU Python Architecture
+### pyAUface Python Architecture
 
 ```
 Video → RetinaFace (ONNX) → PFLD (ONNX) → CalcParams (NumPy) →
@@ -337,7 +337,7 @@ make -j4
 - Dependency hell
 - Often fails
 
-### PyfaceAU Python
+### pyAUface Python
 
 **All Platforms:**
 ```bash
@@ -358,7 +358,7 @@ pip install pyfhog
 - ✅ Production deployment with fixed requirements
 - ✅ Need CLNF landmark accuracy
 
-### Use PyfaceAU Python When:
+### Use pyAUface Python When:
 - ✅ Cross-platform support needed (especially Windows)
 - ✅ Easy installation required
 - ✅ Research/exploration (modifiable code)
@@ -371,7 +371,7 @@ pip install pyfhog
 
 ## Future Directions
 
-### PyfaceAU Improvements
+### pyAUface Improvements
 
 **Performance (Target: 8-10 FPS):**
 1. Replace CalcParams with OpenCV `solvePnP()` → 50ms savings
@@ -386,7 +386,7 @@ pip install pyfhog
 4. **Result:** Potential r > 0.90 overall
 
 **Distribution:**
-1. Package as `pip install pyfaceau`
+1. Package as `pip install pyauface`
 2. Publish to PyPI
 3. Create conda package
 4. Docker container
@@ -400,14 +400,14 @@ pip install pyfhog
 - Real-time AU extraction
 - Linux-based deployments
 
-**PyfaceAU Python** is the better choice for:
+**pyAUface Python** is the better choice for:
 - Research and development
 - Cross-platform applications
 - Easy installation and modification
 - Python ML pipeline integration
 - Teaching and learning
 
-**Key Achievement:** PyfaceAU achieves **r = 0.83** correlation with C++ OpenFace while being 100% Python and requiring zero compilation. With targeted optimizations, it can reach 2x faster performance (8 FPS) while maintaining accuracy.
+**Key Achievement:** pyAUface achieves **r = 0.83** correlation with C++ OpenFace while being 100% Python and requiring zero compilation. With targeted optimizations, it can reach 2x faster performance (8 FPS) while maintaining accuracy.
 
 ---
 
@@ -417,7 +417,7 @@ pip install pyfhog
 - Repository: https://github.com/TadasBaltrusaitis/OpenFace
 - Paper: Baltrušaitis et al. (2018) "OpenFace 2.0: Facial Behavior Analysis Toolkit"
 
-**PyfaceAU:**
+**pyAUface:**
 - This project
 - Built on: PyFHOG, RetinaFace, PFLD, OpenFace models
 

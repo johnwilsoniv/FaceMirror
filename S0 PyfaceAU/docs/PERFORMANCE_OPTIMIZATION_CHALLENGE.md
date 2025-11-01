@@ -1,4 +1,4 @@
-# Performance Optimization Challenge - PyFace AU Extraction Pipeline
+# Performance Optimization Challenge - pyAUface AU Extraction Pipeline
 
 **Date:** 2025-10-30
 **Status:** WORKING but 7x SLOWER than native C++ OpenFace
@@ -24,15 +24,15 @@ We have a **fully functional pure Python implementation** of OpenFace 2.2's AU e
 
 ### Performance Results
 
-| Implementation | Total Time | FPS | Per Frame | Speedup vs PyFace |
+| Implementation | Total Time | FPS | Per Frame | Speedup vs pyAUface |
 |----------------|------------|-----|-----------|-------------------|
 | **Native C++ OpenFace 2.2** | **33.8s** | **32.9** | **30ms** | **7.1x faster** |
 | S1 (OpenFace 3.0 Neural) | ~40s | 28 | 35ms | 6.1x faster |
-| **PyFace (Current)** | **240s** | **4.6** | **217ms** | **Baseline** |
+| **pyAUface (Current)** | **240s** | **4.6** | **217ms** | **Baseline** |
 
 ### 100 Frame Test Results
 ```
-PyFace Performance (100 frames):
+pyAUface Performance (100 frames):
 ✅ Success: 100/100 frames (100%)
 ⏱️ Time: 21.69s
 📊 Per frame: 217ms
@@ -497,7 +497,7 @@ We're trying to create a **pure Python alternative to C++ OpenFace** that:
 
 ### What Success Looks Like
 
-If we hit **10-15 FPS** (2-3x improvement), PyFace becomes a viable alternative to C++ OpenFace for many use cases. It won't beat C++ for speed, but **convenience + reasonable performance** is the value proposition.
+If we hit **10-15 FPS** (2-3x improvement), pyAUface becomes a viable alternative to C++ OpenFace for many use cases. It won't beat C++ for speed, but **convenience + reasonable performance** is the value proposition.
 
 ---
 
@@ -505,7 +505,7 @@ If we hit **10-15 FPS** (2-3x improvement), PyFace becomes a viable alternative 
 
 You've got all the context, profiling estimates, and starting points. The codebase is clean, functional, and ready for optimization.
 
-**Your mission:** Make PyFace 2-3x faster while keeping it 100% Python and maintaining AU accuracy.
+**Your mission:** Make pyAUface 2-3x faster while keeping it 100% Python and maintaining AU accuracy.
 
 Let's get those 125 glasses! 💧💧💧
 

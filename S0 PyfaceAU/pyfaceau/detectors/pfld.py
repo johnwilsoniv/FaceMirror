@@ -17,13 +17,38 @@ class CunjianPFLDDetector:
     Speed: 0.01s per face
     """
 
-    def __init__(self, model_path):
+    def __init__(self, model_path, use_coreml=True):
         """Initialize the PFLD detector.
 
         Args:
             model_path: Path to the ONNX model file
+            use_coreml: Whether to attempt CoreML acceleration on Apple Silicon (default: True)
         """
-        self.session = ort.InferenceSession(model_path)
+        # Configure execution providers for Apple Silicon Neural Engine acceleration
+        if use_coreml:
+            providers = [
+                ('CoreMLExecutionProvider', {
+                    'MLComputeUnits': 'ALL',  # Use Neural Engine + GPU + CPU
+                    'ModelFormat': 'MLProgram',  # Use latest CoreML format
+                }),
+                'CPUExecutionProvider'  # Fallback
+            ]
+        else:
+            providers = ['CPUExecutionProvider']
+
+        # Suppress CoreML compilation warnings
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore')
+            self.session = ort.InferenceSession(model_path, providers=providers)
+
+        # Check which provider is active
+        active_providers = self.session.get_providers()
+        if 'CoreMLExecutionProvider' in active_providers:
+            print("✓ PFLD using CoreML Neural Engine acceleration (2-3x speedup)")
+        else:
+            print("⚠ PFLD using CPU execution (CoreML unavailable)")
+
         self.input_name = self.session.get_inputs()[0].name
 
         # Model expects 112x112 RGB input normalized to [0, 1]

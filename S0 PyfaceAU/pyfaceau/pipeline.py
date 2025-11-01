@@ -27,21 +27,28 @@ import argparse
 import sys
 
 # Import all pipeline components
-from onnx_retinaface_detector import ONNXRetinaFaceDetector
-from cunjian_pfld_detector import CunjianPFLDDetector
-from calc_params import CalcParams
-from pdm_parser import PDMParser
-from openface22_face_aligner import OpenFace22FaceAligner
-from triangulation_parser import TriangulationParser
-from openface22_model_parser import OF22ModelParser
+from pyfaceau.detectors.retinaface import ONNXRetinaFaceDetector
+from pyfaceau.detectors.pfld import CunjianPFLDDetector
+from pyfaceau.alignment.calc_params import CalcParams
+from pyfaceau.features.pdm import PDMParser
+from pyfaceau.alignment.face_aligner import OpenFace22FaceAligner
+from pyfaceau.features.triangulation import TriangulationParser
+from pyfaceau.prediction.model_parser import OF22ModelParser
 
 # Import Cython-optimized running median (with fallback)
 try:
     from cython_histogram_median import DualHistogramMedianTrackerCython as DualHistogramMedianTracker
     USING_CYTHON = True
 except ImportError:
-    from histogram_median_tracker import DualHistogramMedianTracker
+    from pyfaceau.features.histogram_median_tracker import DualHistogramMedianTracker
     USING_CYTHON = False
+
+# Import optimized batched AU predictor
+try:
+    from pyfaceau.prediction.batched_au_predictor import BatchedAUPredictor
+    USING_BATCHED_PREDICTOR = True
+except ImportError:
+    USING_BATCHED_PREDICTOR = False
 
 # Import PyFHOG for HOG extraction
 # Try different paths where pyfhog might be installed
@@ -79,6 +86,7 @@ class FullPythonAUPipeline:
         use_calc_params: bool = True,
         use_coreml: bool = True,
         track_faces: bool = True,
+        use_batched_predictor: bool = True,
         verbose: bool = True
     ):
         """
@@ -93,6 +101,7 @@ class FullPythonAUPipeline:
             use_calc_params: Use full CalcParams vs. simplified PnP (default: True)
             use_coreml: Enable CoreML Neural Engine acceleration (default: True)
             track_faces: Use face tracking (detect once, track between frames) (default: True)
+            use_batched_predictor: Use optimized batched AU predictor (2-5x faster) (default: True)
             verbose: Print progress messages (default: True)
         """
         import threading
@@ -101,6 +110,7 @@ class FullPythonAUPipeline:
         self.use_calc_params = use_calc_params
         self.use_coreml = use_coreml
         self.track_faces = track_faces
+        self.use_batched_predictor = use_batched_predictor and USING_BATCHED_PREDICTOR
 
         # Face tracking: cache bbox and only re-detect on failure (3x speedup!)
         self.cached_bbox = None
@@ -128,7 +138,12 @@ class FullPythonAUPipeline:
         self.face_aligner = None
         self.triangulation = None
         self.au_models = None
+        self.batched_au_predictor = None
         self.running_median = None
+
+        # Two-pass processing: Store features for early frames
+        self.stored_features = []  # List of (frame_idx, hog_features, geom_features)
+        self.max_stored_frames = 3000  # OpenFace default
 
         # Note: Actual initialization happens in _initialize_components()
         # This is called lazily on first use (in worker thread if CoreML enabled)
@@ -224,11 +239,21 @@ class FullPythonAUPipeline:
                 use_combined=True
             )
             if self.verbose:
-                print(f"✓ Loaded {len(self.au_models)} AU models\n")
+                print(f"✓ Loaded {len(self.au_models)} AU models")
+
+            # Initialize batched predictor if enabled
+            if self.use_batched_predictor:
+                self.batched_au_predictor = BatchedAUPredictor(self.au_models)
+                if self.verbose:
+                    print(f"✓ Batched AU predictor enabled (2-5x faster!) ⚡")
+            if self.verbose:
+                print("")
 
             # Component 7: Running Median Tracker
             if self.verbose:
                 print("[7/8] Initializing running median tracker...")
+            # Revert to original parameters while investigating C++ OpenFace histogram usage
+            # TODO: Verify if C++ uses same histogram for HOG and geometric features
             self.running_median = DualHistogramMedianTracker(
                 hog_dim=4464,
                 geom_dim=238,
@@ -279,6 +304,9 @@ class FullPythonAUPipeline:
         """
         import threading
         import queue
+
+        # Reset stored features for new video processing
+        self.stored_features = []
 
         # CoreML mode: Use queue-based architecture
         # Main thread handles VideoCapture, worker thread handles CoreML processing
@@ -372,6 +400,12 @@ class FullPythonAUPipeline:
 
             # Convert to DataFrame
             df = pd.DataFrame(results)
+
+            # Apply post-processing (cutoff adjustment, temporal smoothing)
+            # This is CRITICAL for dynamic AU accuracy!
+            if self.verbose:
+                print("\nApplying post-processing (cutoff adjustment, temporal smoothing)...")
+            df = self.finalize_predictions(df)
 
             # Statistics
             total_processed = df['success'].sum()
@@ -550,6 +584,12 @@ class FullPythonAUPipeline:
         # Convert to DataFrame
         df = pd.DataFrame(results)
 
+        # Apply post-processing (cutoff adjustment, temporal smoothing)
+        # This is CRITICAL for dynamic AU accuracy!
+        if self.verbose:
+            print("\nApplying post-processing (cutoff adjustment, temporal smoothing)...")
+        df = self.finalize_predictions(df)
+
         if self.verbose:
             print("")
             print("=" * 80)
@@ -673,8 +713,9 @@ class FullPythonAUPipeline:
                 print(f"[Frame {frame_idx}] Step 3: Estimating 3D pose...")
             if self.use_calc_params and self.calc_params:
                 # Full CalcParams optimization
+                # Pass landmarks as (68, 2) array - CalcParams handles format conversion
                 params_global, params_local = self.calc_params.calc_params(
-                    landmarks_68.flatten()
+                    landmarks_68
                 )
 
                 # Extract pose parameters
@@ -736,6 +777,10 @@ class FullPythonAUPipeline:
             if self.verbose and frame_idx < 3:
                 print(f"[Frame {frame_idx}] Step 7: Running median shape: {running_median.shape}")
 
+            # Store features for two-pass processing (OpenFace reprocesses first 3000 frames)
+            if frame_idx < self.max_stored_frames:
+                self.stored_features.append((frame_idx, hog_features.copy(), geom_features.copy()))
+
             # Step 8: Predict AUs
             if self.verbose and frame_idx < 3:
                 print(f"[Frame {frame_idx}] Step 8: Predicting AUs...")
@@ -764,6 +809,9 @@ class FullPythonAUPipeline:
         """
         Predict AU intensities using SVR models
 
+        Uses batched predictor if enabled (2-5x faster), otherwise falls back
+        to sequential prediction.
+
         Args:
             hog_features: HOG feature vector (4464,)
             geom_features: Geometric feature vector (238,)
@@ -772,6 +820,11 @@ class FullPythonAUPipeline:
         Returns:
             Dictionary of AU predictions {AU_name: intensity}
         """
+        # Use batched predictor if available (2-5x faster)
+        if self.use_batched_predictor and self.batched_au_predictor is not None:
+            return self.batched_au_predictor.predict(hog_features, geom_features, running_median)
+
+        # Fallback to sequential prediction
         predictions = {}
 
         # Construct full feature vector
@@ -822,11 +875,31 @@ class FullPythonAUPipeline:
             print("Applying post-processing...")
             print("  [1/3] Two-pass median correction...")
 
-        # Get final median
-        final_median = self.median_tracker.get_combined_median()
+        # Two-pass reprocessing: Re-predict AUs for early frames using final running median
+        # This fixes systematic baseline offset from immature running median in early frames
+        if len(self.stored_features) > 0:
+            final_median = self.running_median.get_combined_median()
 
-        # TODO: Implement two-pass reprocessing
-        # (Would require storing features for first 3000 frames)
+            if self.verbose:
+                print(f"    Re-predicting {len(self.stored_features)} early frames with final median...")
+
+            # Re-predict AUs for stored frames
+            for frame_idx, hog_features, geom_features in self.stored_features:
+                # Re-predict AUs using final running median
+                au_results = self._predict_aus(hog_features, geom_features, final_median)
+
+                # Update DataFrame with re-predicted values
+                for au_name, au_value in au_results.items():
+                    df.loc[frame_idx, au_name] = au_value
+
+            # Clear stored features to free memory
+            self.stored_features = []
+
+            if self.verbose:
+                print(f"    ✓ Two-pass correction complete")
+        else:
+            if self.verbose:
+                print("    (No stored features - skipping)")
 
         if self.verbose:
             print("  [2/3] Cutoff adjustment...")

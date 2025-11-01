@@ -1,4 +1,4 @@
-# PyfaceAU Architecture
+# pyAUface Architecture
 
 **Detailed component descriptions and data flow**
 
@@ -6,7 +6,7 @@
 
 ## Pipeline Overview
 
-PyfaceAU implements the complete OpenFace 2.2 AU extraction pipeline as 12 distinct components:
+pyAUface implements the complete OpenFace 2.2 AU extraction pipeline as 12 distinct components:
 
 ```
 [1] Video Input → [2] Face Detection → [3] Landmark Detection →
@@ -44,8 +44,8 @@ while True:
 
 ## Component 2: Face Detection
 
-**Module:** `pyfaceau.detectors.retinaface`
-**File:** `pyfaceau/detectors/retinaface.py`
+**Module:** `pyauface.detectors.retinaface`
+**File:** `pyauface/detectors/retinaface.py`
 **Class:** `ONNXRetinaFaceDetector`
 
 ### Purpose
@@ -60,7 +60,7 @@ Detect faces in video frames and return bounding boxes.
 
 ### Implementation
 ```python
-from pyfaceau.detectors import ONNXRetinaFaceDetector
+from pyauface.detectors import ONNXRetinaFaceDetector
 
 detector = ONNXRetinaFaceDetector(
     'weights/retinaface_mobilenet025_coreml.onnx',
@@ -86,8 +86,8 @@ faces = detector.detect_faces(frame)
 
 ## Component 3: Landmark Detection
 
-**Module:** `pyfaceau.detectors.pfld`
-**File:** `pyfaceau/detectors/pfld.py`
+**Module:** `pyauface.detectors.pfld`
+**File:** `pyauface/detectors/pfld.py`
 **Class:** `CunjianPFLDDetector`
 
 ### Purpose
@@ -103,7 +103,7 @@ Detect 68 facial landmark points in 2D (x, y pixel coordinates).
 
 ### Implementation
 ```python
-from pyfaceau.detectors import CunjianPFLDDetector
+from pyauface.detectors import CunjianPFLDDetector
 
 detector = CunjianPFLDDetector('weights/pfld_cunjian.onnx')
 landmarks, confidence = detector.detect_landmarks(frame, bbox)
@@ -130,8 +130,8 @@ landmarks, confidence = detector.detect_landmarks(frame, bbox)
 
 ## Component 4: 3D Pose Estimation (CalcParams)
 
-**Module:** `pyfaceau.alignment.calc_params`
-**File:** `pyfaceau/alignment/calc_params.py`
+**Module:** `pyauface.alignment.calc_params`
+**File:** `pyauface/alignment/calc_params.py`
 **Class:** `CalcParams`
 
 ### Purpose
@@ -144,7 +144,7 @@ Gauss-Newton optimization to find:
 
 ### Implementation
 ```python
-from pyfaceau.alignment import CalcParams
+from pyauface.alignment import CalcParams
 
 calc_params = CalcParams(pdm_parser)
 params_global, params_local = calc_params.calc_params(landmarks_68.flatten())
@@ -180,8 +180,8 @@ params_global, params_local = calc_params.calc_params(landmarks_68.flatten())
 
 ## Component 5: Face Alignment
 
-**Module:** `pyfaceau.alignment.face_aligner`
-**File:** `pyfaceau/alignment/face_aligner.py`
+**Module:** `pyauface.alignment.face_aligner`
+**File:** `pyauface/alignment/face_aligner.py`
 **Class:** `OpenFace22FaceAligner`
 
 ### Purpose
@@ -197,7 +197,7 @@ Align detected face to canonical frontal pose using landmarks and pose parameter
 
 ### Implementation
 ```python
-from pyfaceau.alignment import OpenFace22FaceAligner
+from pyauface.alignment import OpenFace22FaceAligner
 
 aligner = OpenFace22FaceAligner('weights/In-the-wild_aligned_PDM_68.txt')
 aligned = aligner.align_face(
@@ -226,8 +226,8 @@ aligned = aligner.align_face(
 
 ## Component 6: Face Masking (Triangulation)
 
-**Module:** `pyfaceau.features.triangulation`
-**File:** `pyfaceau/features/triangulation.py`
+**Module:** `pyauface.features.triangulation`
+**File:** `pyauface/features/triangulation.py`
 **Class:** `TriangulationParser`
 
 ### Purpose
@@ -235,7 +235,7 @@ Apply binary mask to aligned face, keeping only pixels within facial region.
 
 ### Implementation
 ```python
-from pyfaceau.features import TriangulationParser
+from pyauface.features import TriangulationParser
 
 triangulation = TriangulationParser('weights/tris_68_full.txt')
 mask = triangulation.create_mask(aligned_landmarks, (112, 112))
@@ -291,8 +291,8 @@ hog_features = pyfhog.extract_fhog_features(aligned_rgb, cell_size=8)
 
 ## Component 8: Geometric Feature Extraction (PDM)
 
-**Module:** `pyfaceau.features.pdm`
-**File:** `pyfaceau/features/pdm.py`
+**Module:** `pyauface.features.pdm`
+**File:** `pyauface/features/pdm.py`
 **Class:** `PDMParser`
 
 ### Purpose
@@ -310,7 +310,7 @@ geom_features = np.concatenate([shape_3d_flat, params_local])
 
 ### Implementation
 ```python
-from pyfaceau.features import PDMParser
+from pyauface.features import PDMParser
 
 pdm = PDMParser('weights/In-the-wild_aligned_PDM_68.txt')
 geom_features = pdm.extract_geometric_features(params_local)
@@ -330,8 +330,8 @@ geom_features = pdm.extract_geometric_features(params_local)
 
 ## Component 9: Running Median Tracking
 
-**Module:** `pyfaceau.prediction.running_median`
-**File:** `pyfaceau/prediction/running_median.py`
+**Module:** `pyauface.prediction.running_median`
+**File:** `pyauface/prediction/running_median.py`
 **Class:** `DualHistogramMedianTracker`
 
 ### Purpose
@@ -346,7 +346,7 @@ Two separate histogram trackers:
 
 ### Implementation
 ```python
-from pyfaceau.prediction import DualHistogramMedianTracker
+from pyauface.prediction import DualHistogramMedianTracker
 
 median_tracker = DualHistogramMedianTracker(
     hog_dim=4464, geom_dim=238,
@@ -369,7 +369,7 @@ geom_median = median_tracker.get_geom_median()
 - **Status:** ✅ Fully optimized (Cython)
 
 ### Cython Optimization
-- **File:** `pyfaceau/utils/cython_extensions/cython_histogram_median.pyx`
+- **File:** `pyauface/utils/cython_extensions/cython_histogram_median.pyx`
 - **Speedup:** 260x faster than pure Python
 - **Features:** C-level histogram update, early termination, HOG clamping
 
@@ -400,8 +400,8 @@ for au_name, model in au_models.items():
 
 ## Component 11: AU Prediction (SVR Models)
 
-**Module:** `pyfaceau.prediction.model_parser`
-**File:** `pyfaceau/prediction/model_parser.py`
+**Module:** `pyauface.prediction.model_parser`
+**File:** `pyauface/prediction/model_parser.py`
 **Class:** `OF22ModelParser`
 
 ### Purpose
@@ -424,7 +424,7 @@ else:
 
 ### Implementation
 ```python
-from pyfaceau.prediction import OF22ModelParser
+from pyauface.prediction import OF22ModelParser
 
 parser = OF22ModelParser('path/to/AU_predictors/')
 au_models = parser.load_all_models()
@@ -541,4 +541,4 @@ frame,success,AU01_r,AU02_r,...,AU45_r
 
 ---
 
-**For implementation details, see source code in `pyfaceau/` directory.**
+**For implementation details, see source code in `pyauface/` directory.**

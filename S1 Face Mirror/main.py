@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
 def auto_detect_device():
     """
-    Auto-detect best available device for processing.
+    Auto-detect best available device for processing.O
 
     Device selection hierarchy:
     1. CUDA (NVIDIA GPU) - Best for PyTorch models on NVIDIA hardware

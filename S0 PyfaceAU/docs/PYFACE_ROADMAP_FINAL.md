@@ -1,8 +1,8 @@
-# PyFace-AU Roadmap - FINAL (MLB Edition) ⚾
+# pyAUface-AU Roadmap - FINAL (MLB Edition) ⚾
 
 **Date:** 2025-10-30
 **Status:** WORKING but needs optimization
-**Mission:** Hit 10+ FPS to make PyFace viable
+**Mission:** Hit 10+ FPS to make pyAUface viable
 
 ---
 
@@ -14,7 +14,7 @@
 |------|-----|-----------|-------|
 | **C++ OpenFace 2.2** 🏆 | **32.9** | **30ms** | World Series Champion |
 | S1 (OpenFace 3.0) 🥈 | 28.0 | 35ms | All-Star |
-| **PyFace (Current)** 📉 | **4.6** | **217ms** | **Rookie League** |
+| **pyAUface (Current)** 📉 | **4.6** | **217ms** | **Rookie League** |
 
 **Gap to close:** 7.1x slower than C++
 
@@ -277,8 +277,8 @@ Compared to C++:      4.1x slower (acceptable!)
 
 **Market Position:**
 - **C++ OpenFace (33 FPS):** Professional league - max performance
-- **PyFace (8-10 FPS):** College league - good enough, way easier
-- **Current PyFace (4.6 FPS):** High school - needs work
+- **pyAUface (8-10 FPS):** College league - good enough, way easier
+- **Current pyAUface (4.6 FPS):** High school - needs work
 
 ---
 
@@ -294,12 +294,12 @@ Compared to C++:      4.1x slower (acceptable!)
 - **Weakness:** Black box, harder to modify
 - **When to use:** Production speed needed
 
-### PyFace (Target 8-10 FPS)
+### pyAUface (Target 8-10 FPS)
 - **Strength:** 100% Python, easy to use
 - **Weakness:** Slower than alternatives
 - **When to use:** Cross-platform, research, no C++
 
-**Sweet Spot:** PyFace doesn't need to beat C++, just needs to be "good enough" for users who value convenience over max speed.
+**Sweet Spot:** pyAUface doesn't need to beat C++, just needs to be "good enough" for users who value convenience over max speed.
 
 ---
 

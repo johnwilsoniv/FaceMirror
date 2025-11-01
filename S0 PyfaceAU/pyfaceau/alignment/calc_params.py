@@ -20,12 +20,28 @@ import cv2
 
 # Try to import Cython-optimized rotation update for 99.9% accuracy
 try:
+    import sys
+    from pathlib import Path
+    # Add parent directory to path so we can import cython extensions
+    sys.path.insert(0, str(Path(__file__).parent.parent))
     from cython_rotation_update import update_rotation_cython
     CYTHON_AVAILABLE = True
     print("✓ Cython rotation update module loaded - targeting 99.9% accuracy")
 except ImportError:
     CYTHON_AVAILABLE = False
     print("⚠ Cython rotation update not available - using Python (99.45% accuracy)")
+
+# Try to import Numba JIT-accelerated CalcParams functions for 2-5x speedup
+try:
+    from pyfaceau.alignment.numba_calcparams_accelerator import (
+        compute_jacobian_accelerated,
+        project_shape_to_2d_jit,
+        euler_to_rotation_matrix_jit
+    )
+    NUMBA_AVAILABLE = True
+except ImportError:
+    NUMBA_AVAILABLE = False
+    print("⚠ Numba JIT accelerator not available - using standard Python (slower)")
 
 
 class CalcParams:
@@ -243,6 +259,16 @@ class CalcParams:
             J: (n*2, 6+m) Jacobian matrix
             J_w_t: (6+m, n*2) weighted Jacobian transpose
         """
+        # Use Numba JIT-accelerated version if available (2-5x speedup!)
+        if NUMBA_AVAILABLE:
+            n_vis = self.mean_shape.shape[0] // 3
+            m = 34
+            return compute_jacobian_accelerated(
+                params_local, params_global, self.princ_comp,
+                self.mean_shape, weight_matrix, n_vis, m
+            )
+
+        # Fall back to Python implementation (slower)
         n = 68  # number of landmarks
         m = 34  # number of PCA modes
 
@@ -479,13 +505,17 @@ class CalcParams:
         try:
             # Initial projection error
             shape_3d = M.flatten() + (V @ params_local.reshape(-1, 1)).flatten()
-            shape_3d = shape_3d.reshape(3, n_vis)
+            shape_3d = shape_3d.reshape(3, n_vis).astype(np.float32)
 
-            curr_shape_2d = np.zeros(n_vis * 2, dtype=np.float32)
-            for i in range(n_vis):
-                X, Y, Z = shape_3d[:, i]
-                curr_shape_2d[i] = scaling * (R[0,0]*X + R[0,1]*Y + R[0,2]*Z) + translation[0]
-                curr_shape_2d[i + n_vis] = scaling * (R[1,0]*X + R[1,1]*Y + R[1,2]*Z) + translation[1]
+            # Use Numba JIT for 2D projection if available
+            if NUMBA_AVAILABLE:
+                curr_shape_2d = project_shape_to_2d_jit(shape_3d, R, scaling, translation[0], translation[1], n_vis)
+            else:
+                curr_shape_2d = np.zeros(n_vis * 2, dtype=np.float32)
+                for i in range(n_vis):
+                    X, Y, Z = shape_3d[:, i]
+                    curr_shape_2d[i] = scaling * (R[0,0]*X + R[0,1]*Y + R[0,2]*Z) + translation[0]
+                    curr_shape_2d[i + n_vis] = scaling * (R[1,0]*X + R[1,1]*Y + R[1,2]*Z) + translation[1]
 
             curr_error = np.linalg.norm(curr_shape_2d - landmarks_vis)
 
@@ -506,19 +536,22 @@ class CalcParams:
             for iteration in range(max_iterations):
                 # Get current 3D shape
                 shape_3d = self.calc_shape_3d(params_local)
-                shape_3d = shape_3d.reshape(3, n_vis)
+                shape_3d = shape_3d.reshape(3, n_vis).astype(np.float32)
 
                 # Get current rotation
-                R = self.euler_to_rotation_matrix(params_global[1:4])
+                R = self.euler_to_rotation_matrix(params_global[1:4]).astype(np.float32)
                 s = params_global[0]
                 t = params_global[4:6]
 
-                # Project to 2D
-                curr_shape_2d = np.zeros(n_vis * 2, dtype=np.float32)
-                for i in range(n_vis):
-                    X, Y, Z = shape_3d[:, i]
-                    curr_shape_2d[i] = s * (R[0,0]*X + R[0,1]*Y + R[0,2]*Z) + t[0]
-                    curr_shape_2d[i + n_vis] = s * (R[1,0]*X + R[1,1]*Y + R[1,2]*Z) + t[1]
+                # Project to 2D using Numba JIT if available
+                if NUMBA_AVAILABLE:
+                    curr_shape_2d = project_shape_to_2d_jit(shape_3d, R, s, t[0], t[1], n_vis)
+                else:
+                    curr_shape_2d = np.zeros(n_vis * 2, dtype=np.float32)
+                    for i in range(n_vis):
+                        X, Y, Z = shape_3d[:, i]
+                        curr_shape_2d[i] = s * (R[0,0]*X + R[0,1]*Y + R[0,2]*Z) + t[0]
+                        curr_shape_2d[i + n_vis] = s * (R[1,0]*X + R[1,1]*Y + R[1,2]*Z) + t[1]
 
                 # Compute error residual
                 error_resid = (landmarks_vis - curr_shape_2d).astype(np.float32)
@@ -612,6 +645,10 @@ class CalcParams:
             # Restore original PDM matrices (critical for thread safety)
             self.mean_shape = mean_shape_original
             self.princ_comp = princ_comp_original
+
+        # DO NOT normalize - C++ OpenFace outputs unnormalized params!
+        # (Previous assumption was wrong - C++ does NOT divide by sqrt(eigenvalue))
+        # params_local_normalized = params_local / np.sqrt(self.eigen_values)
 
         return params_global, params_local
 

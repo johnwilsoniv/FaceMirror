@@ -19,7 +19,7 @@ import numpy as np
 import cv2
 from pathlib import Path
 from typing import Tuple, Optional
-from pdm_parser import PDMParser
+from pyfaceau.features.pdm import PDMParser
 
 
 class OpenFace22FaceAligner:
