@@ -15,16 +15,16 @@
 | Component | Time (ms) | Percentage | Status |
 |-----------|-----------|------------|--------|
 | **Face Detection** | **469ms** | **88%** | 🚨 CRITICAL BOTTLENECK |
-| Pose Estimation | 42ms | 8% | ⚠️ Minor bottleneck |
-| Landmark Detection | 5ms | 1% | ✅ Optimized |
-| Other components | ~15ms | 3% | ✅ Fast |
+| Pose Estimation | 42ms | 8% | Warning: Minor bottleneck |
+| Landmark Detection | 5ms | 1% | Optimized |
+| Other components | ~15ms | 3% | Fast |
 | **TOTAL** | **~531ms** | **100%** | **1.9 FPS** |
 
 ---
 
 ## Component Breakdown
 
-### 1. Face Detection (RetinaFace ONNX CPU) - 469ms ⚠️
+### 1. Face Detection (RetinaFace ONNX CPU) - 469ms 
 
 **Current Performance:**
 - Average: 469ms per frame
@@ -40,7 +40,7 @@
 
 **Optimization Options:**
 
-#### Option A: Enable CoreML (2-3x speedup) ⚡
+#### Option A: Enable CoreML (2-3x speedup) 
 ```python
 # With Thread+Fork pattern
 if __name__ == "__main__":
@@ -52,7 +52,7 @@ detector = ONNXRetinaFaceDetector(use_coreml=True)
 **Risk:** Requires Thread initialization pattern
 **Recommendation:** HIGH PRIORITY - Use for standalone tools
 
-#### Option B: Lower Resolution Preprocessing (2-4x speedup) ⚡
+#### Option B: Lower Resolution Preprocessing (2-4x speedup) 
 ```python
 # Resize to 960x540 before detection
 resize_factor = 0.5
@@ -62,7 +62,7 @@ detections = detector.detect_faces(frame, resize=resize_factor)
 **Trade-off:** Slight accuracy loss on small faces
 **Recommendation:** IMMEDIATE - Easy win!
 
-#### Option C: Skip Detection (Tracking) (10-50x speedup) ⚡⚡⚡
+#### Option C: Skip Detection (Tracking) (10-50x speedup) 
 ```python
 # Detect every Nth frame, track in between
 if frame_idx % 10 == 0:
@@ -82,7 +82,7 @@ else:
 
 ---
 
-### 2. Pose Estimation (CalcParams) - 42ms ⚠️
+### 2. Pose Estimation (CalcParams) - 42ms 
 
 **Current Performance:**
 - Average: 42ms per frame
@@ -96,7 +96,7 @@ else:
 
 **Optimization Options:**
 
-#### Option A: Cythonize Gauss-Newton Solver (2-5x speedup) ⚡
+#### Option A: Cythonize Gauss-Newton Solver (2-5x speedup) 
 ```python
 # Convert calc_params_core.py to Cython
 # Cythonize inner loops
@@ -124,14 +124,14 @@ params = calc_params(landmarks, warmstart=prev_params)
 
 ---
 
-### 3. Landmark Detection (PFLD) - 5ms ✅
+### 3. Landmark Detection (PFLD) - 5ms 
 
 **Current Performance:**
 - Average: 5ms per frame
 - Range: 4-10ms
 - Takes 1% of total time
 
-**Status:** ✅ **Already Optimized!**
+**Status:** **Already Optimized!**
 
 **Analysis:**
 - Using efficient PFLD model
@@ -142,7 +142,7 @@ params = calc_params(landmarks, warmstart=prev_params)
 
 ---
 
-### 4. Face Alignment - ~8ms (estimated) ✅
+### 4. Face Alignment - ~8ms (estimated) 
 
 **Expected Performance:**
 - Kabsch algorithm: ~5ms
@@ -151,7 +151,7 @@ params = calc_params(landmarks, warmstart=prev_params)
 
 **Optimization Options:**
 
-#### Option A: Cythonize Kabsch Algorithm (2-3x speedup) ⚡
+#### Option A: Cythonize Kabsch Algorithm (2-3x speedup) 
 ```cython
 # Cythonize SVD and matrix operations
 cdef align_face_cython(...)
@@ -162,24 +162,24 @@ cdef align_face_cython(...)
 
 ---
 
-### 5. HOG Extraction (PyFHOG) - ~10ms (estimated) ✅
+### 5. HOG Extraction (PyFHOG) - ~10ms (estimated) 
 
 **Expected Performance:**
 - Using C library (pyfhog)
 - r=1.0 correlation with C++ OpenFace
 - ~10ms for 112x112 aligned face
 
-**Status:** ✅ **Already Optimized** (C library)
+**Status:** **Already Optimized** (C library)
 
 **No action needed** - This is as fast as it gets!
 
 ---
 
-### 6-8. Other Components - <5ms total ✅
+### 6-8. Other Components - <5ms total 
 
-**Running Median:** 0.2ms (Cython-optimized, 260x speedup!) ✅
-**Geometric Features:** 1-2ms (NumPy vectorized) ✅
-**AU Prediction:** 0.5ms (scikit-learn C backend) ✅
+**Running Median:** 0.2ms (Cython-optimized, 260x speedup!) 
+**Geometric Features:** 1-2ms (NumPy vectorized) 
+**AU Prediction:** 0.5ms (scikit-learn C backend) 
 
 **All optimized!** No action needed.
 
@@ -212,7 +212,7 @@ Other: 20ms (unchanged)
 ─────────────────────
 Total: ~74ms per frame
 Throughput: 13.5 FPS
-vs C++ Hybrid: 9.5x FASTER! 🚀
+vs C++ Hybrid: 9.5x FASTER! 
 ```
 
 **Recommendation 2: CoreML + Tracking** (MAXIMUM)
@@ -235,7 +235,7 @@ Other: 20ms (unchanged)
 ─────────────────────
 Total: ~80ms per frame
 Throughput: 12.5 FPS
-vs C++ Hybrid: 8.8x FASTER! 🚀
+vs C++ Hybrid: 8.8x FASTER! 
 ```
 
 **Recommendation 3: All Optimizations** (ULTIMATE)

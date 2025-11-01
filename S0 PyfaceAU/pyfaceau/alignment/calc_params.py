@@ -26,10 +26,10 @@ try:
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from cython_rotation_update import update_rotation_cython
     CYTHON_AVAILABLE = True
-    print("✓ Cython rotation update module loaded - targeting 99.9% accuracy")
+    print("Cython rotation update module loaded - targeting 99.9% accuracy")
 except ImportError:
     CYTHON_AVAILABLE = False
-    print("⚠ Cython rotation update not available - using Python (99.45% accuracy)")
+    print("Warning: Cython rotation update not available - using Python (99.45% accuracy)")
 
 # Try to import Numba JIT-accelerated CalcParams functions for 2-5x speedup
 try:
@@ -41,7 +41,7 @@ try:
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
-    print("⚠ Numba JIT accelerator not available - using standard Python (slower)")
+    print("Warning: Numba JIT accelerator not available - using standard Python (slower)")
 
 
 class CalcParams:
@@ -661,8 +661,8 @@ def test_calc_params():
 
     # This would require loading a PDM and testing
     # For now, just verify the module loads
-    print("\n✓ CalcParams module loaded successfully")
-    print("✓ Ready to use with PDMParser")
+    print("\nCalcParams module loaded successfully")
+    print("Ready to use with PDMParser")
 
     print("\n" + "=" * 80)
 

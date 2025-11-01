@@ -20,13 +20,13 @@ Current performance on Apple Silicon:
 
 | Technology | Works? | Performance | Accuracy | Effort |
 |------------|--------|-------------|----------|--------|
-| **CoreML (Neural Engine)** | ✅ YES | 2-5x | 100% | Easy |
-| **Metal Performance Shaders** | ✅ YES | 3-10x | 100% | Medium |
-| **Accelerate Framework** | ✅ YES | 2-4x | 100% | Medium |
-| **PyTorch MPS** | ✅ YES | 2-5x | 100% | Medium |
-| **Parallel Processing** | ✅ YES | 6x | 100% | Easy |
-| CUDA/CuPy | ❌ NO | N/A | N/A | N/A |
-| Numba | ⚠️ LIMITED | 1.2-2x | 100% | Easy |
+| **CoreML (Neural Engine)** | YES | 2-5x | 100% | Easy |
+| **Metal Performance Shaders** | YES | 3-10x | 100% | Medium |
+| **Accelerate Framework** | YES | 2-4x | 100% | Medium |
+| **PyTorch MPS** | YES | 2-5x | 100% | Medium |
+| **Parallel Processing** | YES | 6x | 100% | Easy |
+| CUDA/CuPy | NO | N/A | N/A | N/A |
+| Numba | Warning: LIMITED | 1.2-2x | 100% | Easy |
 
 ---
 
@@ -53,13 +53,13 @@ pipeline = FullPythonAUPipeline(
     pdm_file='weights/In-the-wild_aligned_PDM_68.txt',
     au_models_dir='weights/AU_predictors',
     triangulation_file='weights/tris_68_full.txt',
-    use_coreml=True,  # ✅ Enable Neural Engine
+    use_coreml=True,  # Enable Neural Engine
     track_faces=True,
     verbose=True
 )
 ```
 
-**Already Implemented!** ✅
+**Already Implemented!** 
 
 **Performance:**
 - RetinaFace: ~150ms → ~50ms (3x faster)
@@ -303,7 +303,7 @@ PyFHOG is already a C extension, so limited optimization available without chang
 
 **No accuracy-preserving optimizations available for Mac.**
 
-⚠️ **Do NOT:**
+Warning: **Do NOT:**
 - Increase cell_size (changes features)
 - Reduce aligned face size (changes features)
 - Use different HOG implementation (different features)
@@ -326,7 +326,7 @@ Already uses optimized NumPy operations with Accelerate BLAS.
 
 ### Phase 1: Quick Wins (1 day, ~7x speedup)
 
-✅ **Already Done:**
+**Already Done:**
 1. CoreML acceleration (use_coreml=True)
 2. Face tracking (track_faces=True)
 3. Parallel processing (ParallelAUPipeline)
@@ -372,8 +372,8 @@ python -c "import numpy as np; np.__config__.show()"
 | Stage | FPS | Speedup | Accuracy | Effort |
 |-------|-----|---------|----------|--------|
 | Baseline (CPU) | 4.6 | 1x | 100% | - |
-| + CoreML + Tracking | 4.6 | 1x | 100% | ✅ Done |
-| + Parallel (6 workers) | 28 | 6x | 100% | ✅ Done |
+| + CoreML + Tracking | 4.6 | 1x | 100% | Done |
+| + Parallel (6 workers) | 28 | 6x | 100% | Done |
 | + Batched SVR | 32 | 7x | 100% | 🟢 2-3 hours |
 | + Accelerate BLAS | 36 | 8x | 100% | 🟢 Verify only |
 | + Numba CalcParams | 40 | 9x | 100% | 🟡 1 day |
@@ -442,14 +442,14 @@ sudo powermetrics --samplers gpu_power -i 1000
 
 ## What NOT to Do (Accuracy Loss)
 
-❌ **Do NOT:**
+**Do NOT:**
 1. Reduce HOG cell_size (8 → 12) - Changes features
 2. Reduce aligned face size (112 → 96) - Changes features
 3. Reduce CalcParams iterations - Changes pose accuracy
 4. Use approximate matrix solvers - Changes pose accuracy
 5. Quantize models - Changes neural network outputs
 
-✅ **Safe Optimizations:**
+**Safe Optimizations:**
 1. Batched matrix operations (vectorization)
 2. Better BLAS libraries (Accelerate)
 3. JIT compilation (same math, faster execution)
@@ -463,7 +463,7 @@ sudo powermetrics --samplers gpu_power -i 1000
 
 **Best options for Apple Silicon:**
 
-1. **Parallel processing** - 6x speedup, already implemented ✅
+1. **Parallel processing** - 6x speedup, already implemented 
 2. **Batched SVR predictions** - 15% additional speedup, 2-3 hours
 3. **Accelerate BLAS** - 10-15% additional speedup, just verify
 4. **PyTorch MPS for CalcParams** - 25-40% additional speedup, 2-3 days

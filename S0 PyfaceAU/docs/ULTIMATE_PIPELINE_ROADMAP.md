@@ -4,9 +4,9 @@
 
 **Strategy:** Go component-by-component in pipeline order, validating each against C++ baseline before moving to next.
 
-**Current Overall Status:** ✅ **100% COMPLETE** - Full Python pipeline integrated and working! All components validated: RetinaFace ONNX (CPU mode), Cunjian PFLD, **CalcParams 99.45% accuracy** ✅, Face Alignment, PyFHOG (r=1.0), **Running Median 260x faster with Cython** 🚀, AU Prediction (r=0.83). **Pipeline is 5-9x faster than C++ hybrid!**
+**Current Overall Status:** **100% COMPLETE** - Full Python pipeline integrated and working! All components validated: RetinaFace ONNX (CPU mode), Cunjian PFLD, **CalcParams 99.45% accuracy** ✅, Face Alignment, PyFHOG (r=1.0), **Running Median 260x faster with Cython** , AU Prediction (r=0.83). **Pipeline is 5-9x faster than C++ hybrid!**
 
-**⚠️ CoreML Note:** CoreML acceleration causes segfaults in standalone scripts (exit code 139) but works perfectly in Face Mirror's multiprocessing architecture. Current pipeline uses CPU mode - still 5-9x faster than C++ hybrid!
+**Warning: CoreML Note:** CoreML acceleration causes segfaults in standalone scripts (exit code 139) but works perfectly in Face Mirror's multiprocessing architecture. Current pipeline uses CPU mode - still 5-9x faster than C++ hybrid!
 
 ---
 
@@ -42,7 +42,7 @@ Output: AU01_r, AU02_r, ..., AU45_r
 
 ## Component 1: Video Input
 
-### Status: ✅ USING PYTHON (OpenCV)
+### Status: USING PYTHON (OpenCV)
 
 ### Description
 Read video frames sequentially for processing.
@@ -65,7 +65,7 @@ while True:
 - No differences or validation needed
 
 ### Validation
-✅ N/A - Standard library, no custom logic
+N/A - Standard library, no custom logic
 
 ### Files
 - Standard usage in all test scripts
@@ -74,7 +74,7 @@ while True:
 
 ## Component 2: Face Detection
 
-### Status: ✅ **PYTHON IMPLEMENTATION SELECTED - RetinaFace ONNX**
+### Status: **PYTHON IMPLEMENTATION SELECTED - RetinaFace ONNX**
 
 ### Description
 Detect faces in frame and return bounding box coordinates.
@@ -107,12 +107,12 @@ faces = detector.detect_faces(frame, confidence_threshold=0.5)
 ### Why RetinaFace?
 
 **Advantages:**
-1. ✅ **State-of-the-art accuracy** - Better than MTCNN, HOG, MediaPipe
-2. ✅ **ONNX model available** - Cross-platform, no Python library dependencies
-3. ✅ **Provides 5-point landmarks** - Bonus: can validate face orientation
-4. ✅ **Robust to scale/pose** - Works on challenging angles
-5. ✅ **Production proven** - Widely used in industry
-6. ✅ **CoreML acceleration** - 5-10x faster on Mac with Neural Engine
+1. **State-of-the-art accuracy** - Better than MTCNN, HOG, MediaPipe
+2. **ONNX model available** - Cross-platform, no Python library dependencies
+3. **Provides 5-point landmarks** - Bonus: can validate face orientation
+4. **Robust to scale/pose** - Works on challenging angles
+5. **Production proven** - Widely used in industry
+6. **CoreML acceleration** - 5-10x faster on Mac with Neural Engine
 
 **Model Details:**
 - Architecture: RetinaFace with MobileNet0.25 backbone
@@ -122,9 +122,9 @@ faces = detector.detect_faces(frame, confidence_threshold=0.5)
 - Speed: Real-time on CPU, faster on CoreML
 
 ### Implementation Status
-- ✅ Detector class exists: `onnx_retinaface_detector.py`
-- ✅ ONNX model available: `weights/retinaface_mobilenet025_coreml.onnx`
-- ✅ CoreML optimization supported
+- Detector class exists: `onnx_retinaface_detector.py`
+- ONNX model available: `weights/retinaface_mobilenet025_coreml.onnx`
+- CoreML optimization supported
 - ⏳ Validation pending: Detection rate vs OpenFace
 
 ### Critical Implementation Details
@@ -166,8 +166,8 @@ landmarks, conf = pfld_detector.detect_landmarks(frame, bbox)
 ```
 
 ### Files
-- `onnx_retinaface_detector.py` - Detector wrapper class ✅
-- `weights/retinaface_mobilenet025_coreml.onnx` - ONNX model (1.7MB) ✅
+- `onnx_retinaface_detector.py` - Detector wrapper class 
+- `weights/retinaface_mobilenet025_coreml.onnx` - ONNX model (1.7MB) 
 - ⏳ `test_retinaface_component2.py` - Validation script (in progress)
 
 ### Validation Plan
@@ -186,7 +186,7 @@ Complete validation testing, then integrate with Component 3 (Cunjian PFLD)
 
 ## Component 3: Landmark Detection (68 2D Points)
 
-### Status: ✅ **PYTHON IMPLEMENTATION SELECTED - Cunjian PFLD**
+### Status: **PYTHON IMPLEMENTATION SELECTED - Cunjian PFLD**
 
 ### Description
 Detect 68 facial landmark points in 2D (x, y pixel coordinates) within detected face region.
@@ -229,17 +229,17 @@ Range: [8.96px, 10.51px]
 **Comparison to Alternatives:**
 | Model | RMSE | NME | Speed | Size | Winner |
 |-------|------|-----|-------|------|--------|
-| **Cunjian PFLD** | 9.82px | **4.37%** ✅ | **0.01s** ✅ | **2.9MB** ✅ | **SELECTED** |
-| FAN2 | **6.95px** ✅ | 5.79% | 5s | 51MB | Not selected |
-| Wrong PFLD | 13.26px ❌ | ~11% ❌ | 0.02s | 5.8MB | Rejected |
+| **Cunjian PFLD** | 9.82px | **4.37%** | **0.01s** | **2.9MB** | **SELECTED** |
+| FAN2 | **6.95px** | 5.79% | 5s | 51MB | Not selected |
+| Wrong PFLD | 13.26px | ~11% | 0.02s | 5.8MB | Rejected |
 
 **Decision Rationale:**
-- ✅ Better normalized accuracy (NME) - 24% better than FAN2
-- ✅ 500x faster than FAN2 (0.01s vs 5s)
-- ✅ 18x smaller model (2.9MB vs 51MB)
-- ✅ Closer to published benchmark (3.97% NME target)
-- ✅ More stable NME variance (0.17% vs 0.30%)
-- ⚠️ Slightly worse absolute pixel accuracy than FAN2 (9.82px vs 6.95px)
+- Better normalized accuracy (NME) - 24% better than FAN2
+- 500x faster than FAN2 (0.01s vs 5s)
+- 18x smaller model (2.9MB vs 51MB)
+- Closer to published benchmark (3.97% NME target)
+- More stable NME variance (0.17% vs 0.30%)
+- Warning: Slightly worse absolute pixel accuracy than FAN2 (9.82px vs 6.95px)
 
 **Why NME matters more than RMSE for AU extraction:**
 - AU analysis relies on relative facial proportions, not absolute pixels
@@ -270,18 +270,18 @@ Range: [8.96px, 10.51px]
 3. Translate to original image coordinates
 
 ### Files
-- `cunjian_pfld_detector.py` - Detector wrapper class ✅
-- `weights/pfld_cunjian.onnx` - ONNX model (2.9MB) ✅
-- `test_cunjian_pfld.py` - Single-frame validation ✅
-- `test_cunjian_pfld_full.py` - 50-frame validation ✅
-- `comparison_cunjian_pfld.jpg` - Visual validation ✅
+- `cunjian_pfld_detector.py` - Detector wrapper class 
+- `weights/pfld_cunjian.onnx` - ONNX model (2.9MB) 
+- `test_cunjian_pfld.py` - Single-frame validation 
+- `test_cunjian_pfld_full.py` - 50-frame validation 
+- `comparison_cunjian_pfld.jpg` - Visual validation 
 
 ### Model Search Documentation
 
 **Tested alternatives:**
-1. ❌ Wrong PFLD (HuggingFace unknown source) - 13.26px RMSE
-2. ✅ FAN2 (HuggingFace bluefoxcreation) - 6.95px RMSE, 5.79% NME
-3. ✅ **Cunjian PFLD (cunjian/pytorch_face_landmark)** - 9.82px RMSE, 4.37% NME ← SELECTED
+1. Wrong PFLD (HuggingFace unknown source) - 13.26px RMSE
+2. FAN2 (HuggingFace bluefoxcreation) - 6.95px RMSE, 5.79% NME
+3. **Cunjian PFLD (cunjian/pytorch_face_landmark)** - 9.82px RMSE, 4.37% NME ← SELECTED
 4. ⏭️ HRNet - No pre-trained ONNX available, would require conversion
 5. ⏭️ InsightFace 1k3d68 - Requires library wrapper, too complex
 6. ⏭️ github-luffy PFLD - No public pre-trained weights available
@@ -298,7 +298,7 @@ Integrate `CunjianPFLDDetector` into full AU extraction pipeline once face detec
 
 ## Component 4: 3D Pose Estimation (CalcParams)
 
-### Status: ✅ **GOLD STANDARD - 99.45% Accuracy Achieved with Cython Optimization** 🚀
+### Status: **GOLD STANDARD - 99.45% Accuracy Achieved with Cython Optimization** 
 
 ### Description
 Estimate 3D head pose and face shape from 2D landmarks using Point Distribution Model (PDM).
@@ -341,17 +341,17 @@ params_local = row[params_local_cols].values  # (34,)
 
 ### Python Implementation Status
 
-**✅ IMPLEMENTATION COMPLETE**
+**IMPLEMENTATION COMPLETE**
 
 File: `calc_params.py` (~500 lines)
 
 **Components implemented:**
-1. ✅ `euler_to_rotation_matrix()` - Euler angles to 3×3 rotation matrix
-2. ✅ `rotation_matrix_to_euler()` - Reverse conversion via quaternion
-3. ✅ `orthonormalise()` - SVD-based orthonormalization
-4. ✅ `compute_jacobian()` - Full Jacobian matrix (136×40)
-5. ✅ `update_model_parameters()` - Parameter update with rotation composition
-6. ✅ `calc_params()` - Main iterative optimization loop
+1. `euler_to_rotation_matrix()` - Euler angles to 3×3 rotation matrix
+2. `rotation_matrix_to_euler()` - Reverse conversion via quaternion
+3. `orthonormalise()` - SVD-based orthonormalization
+4. `compute_jacobian()` - Full Jacobian matrix (136×40)
+5. `update_model_parameters()` - Parameter update with rotation composition
+6. `calc_params()` - Main iterative optimization loop
 
 **Validation Results: 99.45% Accuracy ACHIEVED ✅**
 
@@ -367,15 +367,15 @@ Local params (34 PCA coefficients):
   - Mean correlation: 0.9899 (98.99%)
   - 31 of 34 params > 0.980 correlation
 
-Overall mean correlation: 0.9945 (99.45%) ✅
+Overall mean correlation: 0.9945 (99.45%) 
 
 Conclusion: EXCEEDED 99% target accuracy!
 ```
 
 **Key Improvements That Achieved 99.45%:**
-1. ✅ Shepperd's method (4-case robust quaternion extraction) - eliminates gimbal lock
-2. ✅ OpenCV Cholesky solver (`cv2.solve(DECOMP_CHOLESKY)`) - matches C++ numerical behavior exactly
-3. ✅ Float32 precision enforcement throughout - prevents subtle drift
+1. Shepperd's method (4-case robust quaternion extraction) - eliminates gimbal lock
+2. OpenCV Cholesky solver (`cv2.solve(DECOMP_CHOLESKY)`) - matches C++ numerical behavior exactly
+3. Float32 precision enforcement throughout - prevents subtle drift
 
 **Phase 2: Cython Optimization (C-level rotation math)**
 ```
@@ -393,16 +393,16 @@ Result: Maintains 99.45% accuracy with potential speedup
 
 CalcParams is now a **GOLD STANDARD** component with 99.45% accuracy because:
 
-1. ✅ **99.91% correlation on global pose parameters** (scale, rx, ry, rz, tx, ty)
-2. ✅ **98.99% correlation on local shape parameters** (34 PCA coefficients)
-3. ✅ **Robust quaternion extraction** (Shepperd's method with 4-case branching)
-4. ✅ **Exact numerical match** to C++ solver (OpenCV Cholesky)
-5. ✅ **Cython integration** for potential speedup (maintains accuracy)
-6. ✅ **Validated on 50 frames** (statistical significance)
+1. **99.91% correlation on global pose parameters** (scale, rx, ry, rz, tx, ty)
+2. **98.99% correlation on local shape parameters** (34 PCA coefficients)
+3. **Robust quaternion extraction** (Shepperd's method with 4-case branching)
+4. **Exact numerical match** to C++ solver (OpenCV Cholesky)
+5. **Cython integration** for potential speedup (maintains accuracy)
+6. **Validated on 50 frames** (statistical significance)
 
 ### Current Status: Production Ready
 
-**Current Approach:** ✅ Using CSV pose parameters from C++ OpenFace
+**Current Approach:** Using CSV pose parameters from C++ OpenFace
 
 **For Future Integration:**
 - Python CalcParams achieves 99.45% accuracy (validated independently)
@@ -433,7 +433,7 @@ CalcParams is now a **GOLD STANDARD** component with 99.45% accuracy because:
 
 ## Component 5: Face Alignment
 
-### Status: ✅ **PYTHON IMPLEMENTATION - WORKING (r=0.94 for static AUs)**
+### Status: **PYTHON IMPLEMENTATION - WORKING (r=0.94 for static AUs)**
 
 ### Description
 Align detected face to canonical frontal pose using landmarks and pose parameters. Output is 112×112 pixel image in standard orientation.
@@ -553,12 +553,12 @@ This controls how much of the face is visible in aligned image.
 Static AUs achieve **r = 0.9364** (excellent!)
 
 ```
-AU04_r: r=0.8659 (static) ✓
-AU06_r: r=0.9652 (static) ✓✓
-AU07_r: r=0.9088 (static) ✓✓
-AU10_r: r=0.9652 (static) ✓✓
-AU12_r: r=0.9948 (static) ✓✓✓
-AU14_r: r=0.9488 (static) ✓✓
+AU04_r: r=0.8659 (static) 
+AU06_r: r=0.9652 (static) ✓
+AU07_r: r=0.9088 (static) ✓
+AU10_r: r=0.9652 (static) ✓
+AU12_r: r=0.9948 (static) ✓✓
+AU14_r: r=0.9488 (static) ✓
 ```
 
 **Why this proves alignment works:**
@@ -569,7 +569,7 @@ AU14_r: r=0.9488 (static) ✓✓
 - If alignment were wrong, static AUs would fail completely
 
 ### Known Issues
-✅ None - Static AU performance proves this component works correctly
+None - Static AU performance proves this component works correctly
 
 ### Files
 - `openface22_face_aligner.py` - Main implementation
@@ -585,7 +585,7 @@ Previous session summaries documenting:
 
 ## Component 6: Triangulation Masking
 
-### Status: ✅ **PYTHON IMPLEMENTATION - PERFECT**
+### Status: **PYTHON IMPLEMENTATION - PERFECT**
 
 ### Description
 Apply binary mask to aligned face image, keeping only pixels within facial region (defined by triangulation mesh). Sets non-face pixels to black.
@@ -635,7 +635,7 @@ aligned = aligner.align_face(frame, landmarks, tx, ty, rz,
 ```
 
 ### Validation
-✅ Works correctly - Static AUs at r=0.94 prove masked images are correct
+Works correctly - Static AUs at r=0.94 prove masked images are correct
 
 ### Files
 - `triangulation_parser.py` - Implementation
@@ -649,7 +649,7 @@ aligned = aligner.align_face(frame, landmarks, tx, ty, rz,
 
 ## Component 7: HOG Feature Extraction (PyFHOG)
 
-### Status: ✅ **PYTHON IMPLEMENTATION - PERFECT (r=1.0)**
+### Status: **PYTHON IMPLEMENTATION - PERFECT (r=1.0)**
 
 ### Description
 Extract Felzenszwalb Histogram of Oriented Gradients (FHOG) features from 112×112 aligned face image. Produces 4464-dimensional feature vector.
@@ -699,7 +699,7 @@ hog_features = pyfhog.extract_fhog_features(aligned_rgb)
 
 Tested PyFHOG against C++ OpenFace HOG extraction:
 
-**Correlation: r = 1.0000** ✅✅✅
+**Correlation: r = 1.0000** ✅✅
 
 ```
 Test frames: Multiple frames from validation video
@@ -734,7 +734,7 @@ PyFHOG is the GOLD STANDARD component:
 
 ## Component 8: Geometric Feature Extraction (PDM)
 
-### Status: ✅ **PYTHON IMPLEMENTATION - PERFECT**
+### Status: **PYTHON IMPLEMENTATION - PERFECT**
 
 ### Description
 Extract geometric features from 3D face shape for AU prediction. Combines reconstructed 3D landmarks with PCA coefficients.
@@ -829,7 +829,7 @@ geom_features = np.concatenate([shape_3d_flat, params_local])
 ```
 
 ### Validation
-✅ Works correctly - Part of validated AU pipeline (r=0.83)
+Works correctly - Part of validated AU pipeline (r=0.83)
 
 ### Files
 - `pdm_parser.py` - Implementation
@@ -839,7 +839,7 @@ geom_features = np.concatenate([shape_3d_flat, params_local])
 
 ## Component 9: Running Median Tracking
 
-### Status: ✅ **GOLD STANDARD - Cython-Optimized (260x Faster)** 🚀
+### Status: **GOLD STANDARD - Cython-Optimized (260x Faster)** 
 
 ### Description
 Maintain histogram-based running median of HOG and geometric features for person-specific normalization. Essential for dynamic AU models.
@@ -951,7 +951,7 @@ These parameters MUST match C++ exactly.
 ```
 Running median implementation validated:
 - Histogram parameters match C++ exactly
-- Update frequency: every 2nd frame ✓
+- Update frequency: every 2nd frame 
 - Median computation correct
 - Normalization working
 
@@ -981,15 +981,15 @@ but every-2nd-frame is the CORRECT implementation matching C++.
 ### Gold Standard Achievement
 
 The running median tracker is a **gold standard** component because:
-1. ✅ Parameters exactly match C++ (validated)
-2. ✅ Update frequency matches C++ (extensively debugged)
-3. ✅ Histogram computation matches C++ (validated)
-4. ✅ Proven to work through dynamic AU performance
-5. ✅ **260x performance boost with Cython optimization** 🚀
+1. Parameters exactly match C++ (validated)
+2. Update frequency matches C++ (extensively debugged)
+3. Histogram computation matches C++ (validated)
+4. Proven to work through dynamic AU performance
+5. **260x performance boost with Cython optimization** 
 
-### Cython Optimization: 260x Speedup 🚀
+### Cython Optimization: 260x Speedup 
 
-**Status: ✅ PRODUCTION READY**
+**Status: PRODUCTION READY**
 
 **Performance Achievement:**
 ```
@@ -1042,11 +1042,11 @@ except ImportError:
    - `-ffast-math` (fast floating-point)
 
 **Functional Equivalence:**
-- ✅ API identical to Python version (drop-in replacement)
-- ✅ Two-pass processing preserved
-- ✅ HOG clamping implemented (critical for accuracy)
-- ✅ All 7 validation tests pass
-- ✅ Automatic fallback to Python if Cython unavailable
+- API identical to Python version (drop-in replacement)
+- Two-pass processing preserved
+- HOG clamping implemented (critical for accuracy)
+- All 7 validation tests pass
+- Automatic fallback to Python if Cython unavailable
 
 **Documentation:**
 - `CYTHON_SWAP_COMPLETE.md` - Complete optimization report
@@ -1055,7 +1055,7 @@ except ImportError:
 
 ### Files
 - `histogram_median_tracker.py` - Original Python implementation
-- `cython_histogram_median.pyx` - Cython-optimized version (260x faster) ⚡
+- `cython_histogram_median.pyx` - Cython-optimized version (260x faster) 
 - `openface22_au_predictor.py` - Integration with automatic fallback
 - `test_cython_swap.py` - 7-test validation suite
 - `benchmark_running_median.py` - Performance benchmarks
@@ -1071,7 +1071,7 @@ except ImportError:
 
 ## Component 10: Feature Normalization
 
-### Status: ✅ **PYTHON IMPLEMENTATION - CORRECT**
+### Status: **PYTHON IMPLEMENTATION - CORRECT**
 
 ### Description
 Normalize features by subtracting running median for dynamic AU models. Static models use original features.
@@ -1123,7 +1123,7 @@ for au_name, model_data in au_models.items():
 - AU04_r, AU06_r, AU07_r, AU10_r, AU12_r, AU14_r
 
 ### Validation
-✅ Correct - Proven by:
+Correct - Proven by:
 - Static AUs: r=0.94 (using original features)
 - Dynamic AUs: r=0.77 (using normalized features)
 - Distinction between dynamic/static is working
@@ -1136,7 +1136,7 @@ for au_name, model_data in au_models.items():
 
 ## Component 11: AU Prediction (SVR Models)
 
-### Status: ✅ **PYTHON IMPLEMENTATION - WORKING (r=0.83 overall)**
+### Status: **PYTHON IMPLEMENTATION - WORKING (r=0.83 overall)**
 
 ### Description
 Predict AU intensities using Support Vector Regression (SVR) models trained on 4702-dimensional feature vectors.
@@ -1280,34 +1280,34 @@ def parse_au_model(file_path):
 
 **Overall Performance: r = 0.8302**
 
-**Static Models (Mean r = 0.9364):** ✅✅
+**Static Models (Mean r = 0.9364):** ✅
 ```
-AU04_r: r=0.8659 ✓
-AU06_r: r=0.9652 ✓✓
-AU07_r: r=0.9088 ✓✓
-AU10_r: r=0.9652 ✓✓
-AU12_r: r=0.9948 ✓✓✓ (nearly perfect!)
-AU14_r: r=0.9488 ✓✓
+AU04_r: r=0.8659 
+AU06_r: r=0.9652 ✓
+AU07_r: r=0.9088 ✓
+AU10_r: r=0.9652 ✓
+AU12_r: r=0.9948 ✓✓(nearly perfect!)
+AU14_r: r=0.9488 ✓
 ```
 
-**Dynamic Models (Mean r = 0.7746):** ✓
+**Dynamic Models (Mean r = 0.7746):** 
 ```
 Good performers (r > 0.85):
-  AU01_r: r=0.8243 ✓
-  AU09_r: r=0.8969 ✓
-  AU17_r: r=0.8569 ✓
-  AU25_r: r=0.9739 ✓✓
-  AU26_r: r=0.9820 ✓✓
-  AU45_r: r=0.9888 ✓✓✓
+  AU01_r: r=0.8243 
+  AU09_r: r=0.8969 
+  AU17_r: r=0.8569 
+  AU25_r: r=0.9739 ✓
+  AU26_r: r=0.9820 ✓
+  AU45_r: r=0.9888 ✓✓
 
 Moderate performers (0.60 < r < 0.85):
   AU05_r: r=0.6562 ~
   AU23_r: r=0.7241 ~
 
 Poor performers (r < 0.60):
-  AU02_r: r=0.5829 ⚠
-  AU15_r: r=0.4927 ⚠
-  AU20_r: r=0.4867 ⚠
+  AU02_r: r=0.5829 
+  AU15_r: r=0.4927 
+  AU20_r: r=0.4867 
 ```
 
 ### Gold Standard Achievement
@@ -1355,7 +1355,7 @@ Compare to working AUs:
 
 ## Component 12: Output
 
-### Status: ✅ **PYTHON IMPLEMENTATION - WORKING**
+### Status: **PYTHON IMPLEMENTATION - WORKING**
 
 ### Description
 Output 17 AU intensities for each frame.
@@ -1376,7 +1376,7 @@ Output 17 AU intensities for each frame.
 All test scripts output to console and/or CSV files.
 
 ### Validation
-✅ Outputs match expected format and ranges (0-5)
+Outputs match expected format and ranges (0-5)
 
 ---
 
@@ -1396,45 +1396,45 @@ All test scripts output to console and/or CSV files.
 ```
 Overall Mean Correlation: r = 0.8302
 
-Static AUs (6): r = 0.9364 ✅✅
-Dynamic AUs (11): r = 0.7746 ✓
+Static AUs (6): r = 0.9364 ✅
+Dynamic AUs (11): r = 0.7746 
 
 Best performing AUs:
-  AU12: r = 0.9948 ✅✅✅
-  AU45: r = 0.9888 ✅✅✅
-  AU26: r = 0.9820 ✅✅
-  AU10: r = 0.9652 ✅✅
-  AU06: r = 0.9652 ✅✅
+  AU12: r = 0.9948 ✅✅
+  AU45: r = 0.9888 ✅✅
+  AU26: r = 0.9820 ✅
+  AU10: r = 0.9652 ✅
+  AU06: r = 0.9652 ✅
 
 Worst performing AUs:
-  AU20: r = 0.4867 ⚠
-  AU15: r = 0.4927 ⚠
-  AU02: r = 0.5829 ⚠
+  AU20: r = 0.4867 
+  AU15: r = 0.4927 
+  AU02: r = 0.5829 
 ```
 
 ### Gold Standard Components Summary
 
 **Perfect (r = 1.0 or proven exact):**
-1. ✅ PyFHOG - r=1.0 correlation
-2. ✅ PDM Parser - Exact loading
-3. ✅ Triangulation - Exact masking
-4. ✅ AU Model Parser - Exact loading
-5. ✅ Running Median - Extensively validated
+1. PyFHOG - r=1.0 correlation
+2. PDM Parser - Exact loading
+3. Triangulation - Exact masking
+4. AU Model Parser - Exact loading
+5. Running Median - Extensively validated
 
 **Excellent (r > 0.90):**
-6. ✅ Face Alignment - r=0.94 (static AUs)
-7. ✅ Static AU Prediction - r=0.94
+6. Face Alignment - r=0.94 (static AUs)
+7. Static AU Prediction - r=0.94
 
 **Good (r > 0.75):**
-8. ✓ Dynamic AU Prediction - r=0.77
-9. ✓ Overall Pipeline - r=0.83
+8. Dynamic AU Prediction - r=0.77
+9. Overall Pipeline - r=0.83
 
 **Not Integrated:**
-10. ❌ CalcParams - Implementation perfect (r<0.003 RMSE), integration failed
+10. CalcParams - Implementation perfect (r<0.003 RMSE), integration failed
 
 **Missing:**
-11. ⚠️ Face Detection - Need Python implementation
-12. ⚠️ Landmark Detection - Need Python implementation
+11. Warning: Face Detection - Need Python implementation
+12. Warning: Landmark Detection - Need Python implementation
 
 ---
 
@@ -1442,22 +1442,22 @@ Worst performing AUs:
 
 ### Phase 1: Validate Core Components (Already Complete)
 
-✅ **Component 7: PyFHOG**
+**Component 7: PyFHOG**
 - Validation: r=1.0 vs C++ HOG
 - Status: GOLD STANDARD
 - Document: PHASE3_COMPLETE.md
 
-✅ **Component 9: Running Median**
+**Component 9: Running Median**
 - Validation: Extensive debugging, two-pass testing
 - Status: GOLD STANDARD
 - Documents: PHASE2_COMPLETE_SUCCESS.md, TWO_PASS_PROCESSING_RESULTS.md
 
-✅ **Component 5: Face Alignment**
+**Component 5: Face Alignment**
 - Validation: Static AUs at r=0.94
 - Status: GOLD STANDARD
 - Evidence: Static AU performance
 
-✅ **Component 11: AU Models**
+**Component 11: AU Models**
 - Validation: Overall r=0.83, static r=0.94
 - Status: GOLD STANDARD (for static), GOOD (for dynamic)
 - Document: Current session results
@@ -1539,30 +1539,30 @@ If we want to improve r=0.83 → r=0.88+:
 ### Common Themes:
 
 **What worked:**
-- ✅ Exact parameter matching
-- ✅ Extensive validation at each step
-- ✅ Debugging based on evidence (not guessing)
-- ✅ Using proven external libraries when available
-- ✅ Multiple validation approaches
+- Exact parameter matching
+- Extensive validation at each step
+- Debugging based on evidence (not guessing)
+- Using proven external libraries when available
+- Multiple validation approaches
 
 **What didn't work:**
-- ❌ Assuming "close" is good enough
-- ❌ Not validating intermediate outputs
-- ❌ Ignoring small parameter differences
-- ❌ Guessing at implementation details
+- Assuming "close" is good enough
+- Not validating intermediate outputs
+- Ignoring small parameter differences
+- Guessing at implementation details
 
 ---
 
 ## Files and Documentation Reference
 
 ### Implementation Files
-1. `openface22_face_aligner.py` - Face alignment ✅
-2. `triangulation_parser.py` - Masking ✅
-3. `../pyfhog/` - HOG extraction ✅
-4. `pdm_parser.py` - PDM and geometric features ✅
-5. `histogram_median_tracker.py` - Running median ✅
-6. `openface22_model_parser.py` - AU model loading/prediction ✅
-7. `calc_params.py` - Pose optimization (not used) ❌
+1. `openface22_face_aligner.py` - Face alignment 
+2. `triangulation_parser.py` - Masking 
+3. `../pyfhog/` - HOG extraction 
+4. `pdm_parser.py` - PDM and geometric features 
+5. `histogram_median_tracker.py` - Running median 
+6. `openface22_model_parser.py` - AU model loading/prediction 
+7. `calc_params.py` - Pose optimization (not used) 
 
 ### Test Scripts
 1. `test_python_au_predictions.py` - Full pipeline test (r=0.83)
@@ -1596,7 +1596,7 @@ If we want to improve r=0.83 → r=0.88+:
 
 ## Full Python Pipeline Integration
 
-### Status: ✅ **COMPLETE AND VALIDATED**
+### Status: **COMPLETE AND VALIDATED**
 
 ### Description
 Complete end-to-end Python AU extraction pipeline integrating all 8 core components. No C++ dependencies, no intermediate files, full in-memory processing.
@@ -1635,14 +1635,14 @@ results = pipeline.process_video(
 
 **8 Core Components (All Python):**
 
-1. ✅ **Face Detection** - RetinaFace ONNX (CPU mode)
-2. ✅ **Landmark Detection** - Cunjian PFLD (68 points, NME=4.37%)
-3. ✅ **Pose Estimation** - CalcParams (99.45% accuracy)
-4. ✅ **Face Alignment** - OpenFace22 aligner (r=0.94 for static AUs)
-5. ✅ **HOG Extraction** - PyFHOG (r=1.0, gold standard)
-6. ✅ **Geometric Features** - PDM reconstruction (238 features)
-7. ✅ **Running Median** - Cython-optimized (260x faster)
-8. ✅ **AU Prediction** - SVR models (17 AUs, r=0.83 overall)
+1. **Face Detection** - RetinaFace ONNX (CPU mode)
+2. **Landmark Detection** - Cunjian PFLD (68 points, NME=4.37%)
+3. **Pose Estimation** - CalcParams (99.45% accuracy)
+4. **Face Alignment** - OpenFace22 aligner (r=0.94 for static AUs)
+5. **HOG Extraction** - PyFHOG (r=1.0, gold standard)
+6. **Geometric Features** - PDM reconstruction (238 features)
+7. **Running Median** - Cython-optimized (260x faster)
+8. **AU Prediction** - SVR models (17 AUs, r=0.83 overall)
 
 ### Performance
 
@@ -1674,7 +1674,7 @@ C++ Hybrid Pipeline (Measured):
 Full Python Pipeline (Profiled):
 - Per frame: 77-118ms (8.5-13 FPS)
 - 50 frames: 3.85-5.90 seconds
-- Speedup: 6-9x FASTER! 🚀
+- Speedup: 6-9x FASTER! 
 ```
 
 **Real-world projection (60-second video, 1800 frames @ 30 FPS):**
@@ -1685,7 +1685,7 @@ Full Python Pipeline (Profiled):
 
 ### CoreML Investigation Results
 
-**⚠️ Critical Finding:** CoreML + ONNX Runtime segfaults in standalone Python scripts
+**Warning: Critical Finding:** CoreML + ONNX Runtime segfaults in standalone Python scripts
 
 **Evidence:**
 - Exit code 139 (SIGSEGV) during first inference
@@ -1728,14 +1728,14 @@ detections = detector.detect_faces(frame)  # SEGFAULT
 
 **Advantages:**
 
-1. ✅ **No C++ Dependencies** - Pure Python + ONNX Runtime
-2. ✅ **No Intermediate Files** - All in-memory processing
-3. ✅ **5-9x Faster** than C++ hybrid (CPU mode)
-4. ✅ **CalcParams 99.45% Accuracy** - Gold standard pose estimation
-5. ✅ **Cython Running Median** - 260x speedup
-6. ✅ **PyInstaller Ready** - All components package cleanly
-7. ✅ **Cross-Platform** - Windows, Mac, Linux
-8. ✅ **Graceful Fallbacks** - Cython → Python automatic
+1. **No C++ Dependencies** - Pure Python + ONNX Runtime
+2. **No Intermediate Files** - All in-memory processing
+3. **5-9x Faster** than C++ hybrid (CPU mode)
+4. **CalcParams 99.45% Accuracy** - Gold standard pose estimation
+5. **Cython Running Median** - 260x speedup
+6. **PyInstaller Ready** - All components package cleanly
+7. **Cross-Platform** - Windows, Mac, Linux
+8. **Graceful Fallbacks** - Cython → Python automatic
 
 **Output:**
 
@@ -1773,18 +1773,18 @@ frame,success,AU01_r,AU02_r,...,AU45_r
 ### Validation Status
 
 **Component Validation:**
-- ✅ Face Detection: RetinaFace ONNX working
-- ✅ Landmarks: Cunjian PFLD (NME=4.37%)
-- ✅ CalcParams: 99.45% accuracy
-- ✅ Alignment: r=0.94 for static AUs
-- ✅ HOG: r=1.0 (perfect)
-- ✅ Running Median: 260x faster, validated
-- ✅ AU Prediction: r=0.83 overall, r=0.94 static
+- Face Detection: RetinaFace ONNX working
+- Landmarks: Cunjian PFLD (NME=4.37%)
+- CalcParams: 99.45% accuracy
+- Alignment: r=0.94 for static AUs
+- HOG: r=1.0 (perfect)
+- Running Median: 260x faster, validated
+- AU Prediction: r=0.83 overall, r=0.94 static
 
 **Integration Testing:**
-- ✅ Component-level profiling completed
-- ✅ Performance analysis vs C++ hybrid completed
-- ✅ Pipeline validated and ready for production
+- Component-level profiling completed
+- Performance analysis vs C++ hybrid completed
+- Pipeline validated and ready for production
 - ⏳ Optional: Extended runtime testing on longer videos
 - ⏳ Optional: User acceptance testing
 
@@ -1830,10 +1830,10 @@ for idx, row in results.iterrows():
 ### Next Steps
 
 **Immediate:**
-1. ✅ Pipeline implemented and configured
-2. ✅ Component-level profiling completed
-3. ✅ Performance benchmarked (6-9x speedup)
-4. ✅ Documentation complete
+1. Pipeline implemented and configured
+2. Component-level profiling completed
+3. Performance benchmarked (6-9x speedup)
+4. Documentation complete
 
 **Future Enhancements:**
 1. Consider Face Mirror integration for CoreML (10-12x speedup)
@@ -1843,7 +1843,7 @@ for idx, row in results.iterrows():
 
 ### Production Readiness
 
-**Status:** ✅ Ready for production use
+**Status:** Ready for production use
 
 **Deployment:**
 - Works as standalone command-line tool
@@ -1861,33 +1861,33 @@ for idx, row in results.iterrows():
 
 ## Conclusion
 
-### Current Status: ✅ **100% COMPLETE!**
+### Current Status: **100% COMPLETE!**
 
 **Full Python Pipeline Achieved:**
-- ✅ Face detection (RetinaFace ONNX - CPU mode)
-- ✅ Landmark detection (Cunjian PFLD, NME=4.37%)
-- ✅ Pose estimation (CalcParams 99.45% accuracy)
-- ✅ Face alignment (r=0.94 for static AUs)
-- ✅ HOG extraction (r=1.0, perfect)
-- ✅ Running median tracking (260x faster with Cython)
-- ✅ Geometric features (PDM reconstruction)
-- ✅ AU prediction (r=0.83 overall, r=0.94 static)
+- Face detection (RetinaFace ONNX - CPU mode)
+- Landmark detection (Cunjian PFLD, NME=4.37%)
+- Pose estimation (CalcParams 99.45% accuracy)
+- Face alignment (r=0.94 for static AUs)
+- HOG extraction (r=1.0, perfect)
+- Running median tracking (260x faster with Cython)
+- Geometric features (PDM reconstruction)
+- AU prediction (r=0.83 overall, r=0.94 static)
 
 **Performance Achievement:**
-- ✅ **6-9x faster** than C++ hybrid (CPU mode, validated)
-- ✅ **77-118ms per frame** (8.5-13 FPS)
-- ✅ **Saves 18+ minutes per 60-second video**
-- ✅ **No C++ dependencies** (except PyFHOG .so)
-- ✅ **No intermediate files** (all in-memory)
-- ✅ **PyInstaller ready**
+- **6-9x faster** than C++ hybrid (CPU mode, validated)
+- **77-118ms per frame** (8.5-13 FPS)
+- **Saves 18+ minutes per 60-second video**
+- **No C++ dependencies** (except PyFHOG .so)
+- **No intermediate files** (all in-memory)
+- **PyInstaller ready**
 
 **What Needs Improvement:**
-- 🔧 3 dynamic AUs underperform (AU02, AU15, AU20) - calibration issue
-- 🔧 CoreML acceleration (works in Face Mirror, segfaults in standalone)
+-  3 dynamic AUs underperform (AU02, AU15, AU20) - calibration issue
+-  CoreML acceleration (works in Face Mirror, segfaults in standalone)
 
 ### Production Status
 
-**✅ READY FOR DEPLOYMENT**
+**READY FOR DEPLOYMENT**
 
 **Complete standalone pipeline:**
 ```python
@@ -1898,30 +1898,30 @@ results = pipeline.process_video('video.mp4', 'output.csv')
 ```
 
 **Achieves:**
-- ✅ Cross-platform (Windows, Mac, Linux)
-- ✅ PyInstaller compatible
-- ✅ Excellent AU quality (r=0.83 overall, r=0.94 static)
-- ✅ 5-9x faster than C++ hybrid
-- ✅ No intermediate files
-- ✅ Graceful Cython fallback
+- Cross-platform (Windows, Mac, Linux)
+- PyInstaller compatible
+- Excellent AU quality (r=0.83 overall, r=0.94 static)
+- 5-9x faster than C++ hybrid
+- No intermediate files
+- Graceful Cython fallback
 
 **CoreML Status:**
-- ⚠️ Causes segfaults in standalone scripts
-- ✅ Works perfectly in Face Mirror (multiprocessing)
-- ✅ CPU mode is excellent alternative (still 5-9x faster!)
+- Warning: Causes segfaults in standalone scripts
+- Works perfectly in Face Mirror (multiprocessing)
+- CPU mode is excellent alternative (still 5-9x faster!)
 - 📝 See `COREML_INVESTIGATION_FINAL.md` for details
 
 ### Recommendation
 
 **For Standalone AU Extraction:**
-✅ Use the full Python pipeline (current configuration)
+Use the full Python pipeline (current configuration)
 - Complete, validated, production-ready
 - 5-9x faster than C++ hybrid
 - CPU mode is reliable and fast
 - Perfect for command-line tools
 
 **For Face Mirror Integration:**
-✅ Integrate full Python pipeline with Face Mirror
+Integrate full Python pipeline with Face Mirror
 - Leverage existing CoreML infrastructure
 - Get 10-12x speedup potential
 - Unified codebase and user experience

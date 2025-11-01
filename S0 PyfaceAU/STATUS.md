@@ -5,7 +5,7 @@
 
 ---
 
-## ✅ What We Successfully Implemented
+## What We Successfully Implemented
 
 ### 1. **Batched SVR Predictor** (Complete ✅)
 
@@ -46,7 +46,7 @@
 
 ---
 
-## ⚠️ Current Issues
+## Warning: Current Issues
 
 ### Missing Dependencies
 
@@ -64,11 +64,11 @@ The S0 PyfaceAU directory was created from documentation/planning but the actual
 
 ---
 
-## 🔧 Two Paths Forward
+##  Two Paths Forward
 
 ### Path A: Use S1 Face Mirror (Existing, Working)
 
-**Recommendation:** ✅ **RECOMMENDED for immediate testing**
+**Recommendation:** **RECOMMENDED for immediate testing**
 
 S1 Face Mirror already has a complete, working AU extraction pipeline at:
 `/Users/johnwilsoniv/Documents/SplitFace Open3/S1 Face Mirror`
@@ -119,7 +119,7 @@ cd "/Users/johnwilsoniv/Documents/SplitFace Open3/S1 Face Mirror"
 
 ---
 
-## 📊 Expected Performance (Once S0 is Running)
+##  Expected Performance (Once S0 is Running)
 
 Based on our optimizations:
 
@@ -142,7 +142,7 @@ Based on our optimizations:
 
 ---
 
-## 🎯 What You Can Do Right Now
+##  What You Can Do Right Now
 
 ### Option 1: Test with S1 Face Mirror (Immediate)
 
@@ -182,19 +182,19 @@ If you want the pure-Python PyfaceAU implementation:
 
 ## 📁 File Status Summary
 
-### ✅ Complete & Ready (Optimizations)
+### Complete & Ready (Optimizations)
 
-- `pyfaceau/prediction/batched_au_predictor.py` - ✅ Ready
-- Pipeline integration code - ✅ Ready
-- All documentation - ✅ Complete
-- Test scripts - ✅ Ready (pending dependencies)
+- `pyfaceau/prediction/batched_au_predictor.py` - Ready
+- Pipeline integration code - Ready
+- All documentation - Complete
+- Test scripts - Ready (pending dependencies)
 
-### ⚠️ Needs Dependencies (Base Pipeline)
+### Warning: Needs Dependencies (Base Pipeline)
 
-- `pyfaceau/detectors/retinaface.py` - ⚠️ Has external imports
-- `pyfaceau/detectors/pfld.py` - ⚠️ Has external imports
-- `pyfaceau/alignment/calc_params.py` - ⚠️ Needs check
-- `pyfaceau/alignment/face_aligner.py` - ⚠️ Needs check
+- `pyfaceau/detectors/retinaface.py` - Warning: Has external imports
+- `pyfaceau/detectors/pfld.py` - Warning: Has external imports
+- `pyfaceau/alignment/calc_params.py` - Warning: Needs check
+- `pyfaceau/alignment/face_aligner.py` - Warning: Needs check
 
 ---
 
@@ -212,10 +212,10 @@ Complete the S0 PyfaceAU setup following Path B above. All the optimizations are
 
 ## Summary
 
-✅ **Optimizations:** All implemented and ready to use
-✅ **Documentation:** Complete and comprehensive
-✅ **Performance Targets:** 30-50 FPS achievable (verified in design)
-⚠️ **Dependencies:** Need to resolve to make S0 runnable
+**Optimizations:** All implemented and ready to use
+**Documentation:** Complete and comprehensive
+**Performance Targets:** 30-50 FPS achievable (verified in design)
+Warning: **Dependencies:** Need to resolve to make S0 runnable
 
 **The optimization work is complete - we just need to resolve the base pipeline dependencies to run the benchmarks.**
 

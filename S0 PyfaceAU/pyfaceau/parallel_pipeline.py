@@ -283,7 +283,7 @@ class ParallelAUPipeline:
         if output_csv:
             df.to_csv(output_csv, index=False)
             if self.verbose:
-                print(f"✓ Results saved to: {output_csv}")
+                print(f"Results saved to: {output_csv}")
                 print("")
 
         return df
@@ -430,7 +430,7 @@ def main():
             verbose=True
         )
     except Exception as e:
-        print(f"❌ Failed to initialize pipeline: {e}")
+        print(f"Failed to initialize pipeline: {e}")
         return 1
 
     # Process video
@@ -442,7 +442,7 @@ def main():
         )
 
         print("=" * 80)
-        print("SUCCESS!")
+        print("SUCCESS")
         print("=" * 80)
         print(f"Processed {len(df)} frames")
         print(f"Results saved to: {args.output}")
@@ -451,7 +451,7 @@ def main():
         return 0
 
     except Exception as e:
-        print(f"❌ Processing failed: {e}")
+        print(f"Processing failed: {e}")
         import traceback
         traceback.print_exc()
         return 1

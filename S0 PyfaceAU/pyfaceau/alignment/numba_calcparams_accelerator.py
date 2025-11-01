@@ -241,4 +241,4 @@ def _warmup_jit():
 
 # Warmup on import
 _warmup_jit()
-print("✓ Numba CalcParams accelerator loaded - targeting 2-5x speedup")
+print("Numba CalcParams accelerator loaded - targeting 2-5x speedup")

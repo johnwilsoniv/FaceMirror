@@ -66,7 +66,7 @@ class OpenFace22FaceAligner:
         mean_shape_2d = mean_shape_scaled[:136]  # First 136 = all X,Y values
         self.reference_shape = mean_shape_2d.reshape(68, 2)  # (68, 2)
 
-        print(f"✓ Face aligner initialized")
+        print(f"Face aligner initialized")
         print(f"  Sim scale: {sim_scale}")
         print(f"  Output size: {output_size}")
         print(f"  Reference shape: {self.reference_shape.shape}")

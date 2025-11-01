@@ -63,7 +63,7 @@ except ImportError:
         sys.path.insert(0, str(pyfhog_src_path))
         import pyfhog
     else:
-        print("❌ Error: pyfhog not found. Please install it:")
+        print("Error: pyfhog not found. Please install it:")
         print("   cd ../pyfhog && pip install -e .")
         sys.exit(1)
 
@@ -89,7 +89,8 @@ class FullPythonAUPipeline:
         use_coreml: bool = True,
         track_faces: bool = True,
         use_batched_predictor: bool = True,
-        use_clnf_refinement: bool = False,
+        use_clnf_refinement: bool = True,
+        enforce_clnf_pdm: bool = False,
         verbose: bool = True
     ):
         """
@@ -106,7 +107,8 @@ class FullPythonAUPipeline:
             use_coreml: Enable CoreML Neural Engine acceleration (default: True)
             track_faces: Use face tracking (detect once, track between frames) (default: True)
             use_batched_predictor: Use optimized batched AU predictor (2-5x faster) (default: True)
-            use_clnf_refinement: Enable CLNF landmark refinement (default: False)
+            use_clnf_refinement: Enable CLNF landmark refinement (default: True)
+            enforce_clnf_pdm: Enforce PDM constraints after CLNF refinement (default: False)
             verbose: Print progress messages (default: True)
         """
         import threading
@@ -117,6 +119,7 @@ class FullPythonAUPipeline:
         self.track_faces = track_faces
         self.use_batched_predictor = use_batched_predictor and USING_BATCHED_PREDICTOR
         self.use_clnf_refinement = use_clnf_refinement
+        self.enforce_clnf_pdm = enforce_clnf_pdm
 
         # Face tracking: cache bbox and only re-detect on failure (3x speedup!)
         self.cached_bbox = None
@@ -187,9 +190,9 @@ class FullPythonAUPipeline:
             if self.verbose:
                 print("[1/8] Loading face detector (RetinaFace ONNX)...")
                 if self.use_coreml:
-                    print("  CoreML: ✅ Enabled (initializing in worker thread)")
+                    print("  CoreML: Enabled (initializing in worker thread)")
                 else:
-                    print("  CoreML: ⊘ Disabled (CPU mode)")
+                    print("  CoreML: Disabled (CPU mode)")
 
             self.face_detector = ONNXRetinaFaceDetector(
                 retinaface_model,
@@ -198,42 +201,29 @@ class FullPythonAUPipeline:
                 nms_threshold=0.4
             )
             if self.verbose:
-                print("✓ Face detector loaded\n")
+                print("Face detector loaded\n")
 
             # Component 2: Landmark Detection
             if self.verbose:
                 print("[2/8] Loading landmark detector (PFLD)...")
             self.landmark_detector = CunjianPFLDDetector(pfld_model)
             if self.verbose:
-                print(f"✓ Landmark detector loaded: {self.landmark_detector}\n")
+                print(f"Landmark detector loaded: {self.landmark_detector}\n")
 
-            # Component 2.5: CLNF Refiner (optional)
-            if self.use_clnf_refinement:
-                if self.verbose:
-                    print("[2.5/8] Loading CLNF landmark refiner...")
-                patch_expert_file = self._init_params['patch_expert_file']
-                if patch_expert_file is None:
-                    patch_expert_file = 'weights/svr_patches_0.25_general.txt'
-                self.clnf_refiner = TargetedCLNFRefiner(patch_expert_file, search_window=3)
-                if self.verbose:
-                    print(f"✓ CLNF refiner loaded with {len(self.clnf_refiner.patch_experts)} patch experts\n")
-            else:
-                self.clnf_refiner = None
-
-            # Component 3: PDM Parser
+            # Component 3: PDM Parser (moved before CLNF to support PDM enforcement)
             if self.verbose:
                 print("[3/8] Loading PDM shape model...")
             self.pdm_parser = PDMParser(pdm_file)
             if self.verbose:
-                print(f"✓ PDM loaded: {self.pdm_parser.mean_shape.shape[0]//3} landmarks\n")
+                print(f"PDM loaded: {self.pdm_parser.mean_shape.shape[0]//3} landmarks\n")
 
-            # Initialize CalcParams if using full pose estimation
-            if self.use_calc_params:
+            # Initialize CalcParams if using full pose estimation OR CLNF+PDM enforcement
+            if self.use_calc_params or self.enforce_clnf_pdm:
                 self.calc_params = CalcParams(self.pdm_parser)
             else:
                 self.calc_params = None
 
-            # Component 4: Face Aligner
+            # Component 4: Face Aligner (needed for CLNF PDM enforcement)
             if self.verbose:
                 print("[4/8] Initializing face aligner...")
             self.face_aligner = OpenFace22FaceAligner(
@@ -242,14 +232,37 @@ class FullPythonAUPipeline:
                 output_size=(112, 112)
             )
             if self.verbose:
-                print("✓ Face aligner initialized\n")
+                print("Face aligner initialized\n")
+
+            # Component 2.5: CLNF Refiner (optional, after PDM for constraint support)
+            if self.use_clnf_refinement:
+                if self.verbose:
+                    print("[2.5/8] Loading CLNF landmark refiner...")
+                patch_expert_file = self._init_params['patch_expert_file']
+                if patch_expert_file is None:
+                    patch_expert_file = 'weights/svr_patches_0.25_general.txt'
+
+                # Pass CalcParams (has CalcParams/CalcShape methods) for PDM enforcement
+                # Note: calc_params is initialized above if enforce_clnf_pdm is enabled
+                pdm_for_clnf = self.calc_params if (self.enforce_clnf_pdm and self.calc_params) else None
+                self.clnf_refiner = TargetedCLNFRefiner(
+                    patch_expert_file,
+                    search_window=3,
+                    pdm=pdm_for_clnf,
+                    enforce_pdm=self.enforce_clnf_pdm and (pdm_for_clnf is not None)
+                )
+                if self.verbose:
+                    pdm_status = " + PDM constraints" if (self.enforce_clnf_pdm and pdm_for_clnf) else ""
+                    print(f"CLNF refiner loaded with {len(self.clnf_refiner.patch_experts)} patch experts{pdm_status}\n")
+            else:
+                self.clnf_refiner = None
 
             # Component 5: Triangulation
             if self.verbose:
                 print("[5/8] Loading triangulation...")
             self.triangulation = TriangulationParser(triangulation_file)
             if self.verbose:
-                print(f"✓ Triangulation loaded: {len(self.triangulation.triangles)} triangles\n")
+                print(f"Triangulation loaded: {len(self.triangulation.triangles)} triangles\n")
 
             # Component 6: AU Models
             if self.verbose:
@@ -260,13 +273,13 @@ class FullPythonAUPipeline:
                 use_combined=True
             )
             if self.verbose:
-                print(f"✓ Loaded {len(self.au_models)} AU models")
+                print(f"Loaded {len(self.au_models)} AU models")
 
             # Initialize batched predictor if enabled
             if self.use_batched_predictor:
                 self.batched_au_predictor = BatchedAUPredictor(self.au_models)
                 if self.verbose:
-                    print(f"✓ Batched AU predictor enabled (2-5x faster!) ⚡")
+                    print(f"Batched AU predictor enabled (2-5x faster)")
             if self.verbose:
                 print("")
 
@@ -287,15 +300,15 @@ class FullPythonAUPipeline:
             )
             if self.verbose:
                 if USING_CYTHON:
-                    print("✓ Running median tracker initialized (Cython-optimized, 260x faster!) 🚀\n")
+                    print("Running median tracker initialized (Cython-optimized, 260x faster)\n")
                 else:
-                    print("✓ Running median tracker initialized (Python version)\n")
+                    print("Running median tracker initialized (Python version)\n")
 
             # Component 8: PyFHOG
             if self.verbose:
                 print("[8/8] PyFHOG ready for HOG extraction")
                 print("")
-                print("✅ All components initialized successfully!")
+                print("All components initialized successfully")
                 print("=" * 80)
                 print("")
 
@@ -447,7 +460,7 @@ class FullPythonAUPipeline:
             if output_csv:
                 df.to_csv(output_csv, index=False)
                 if self.verbose:
-                    print(f"✓ Results saved to: {output_csv}")
+                    print(f"Results saved to: {output_csv}")
                     print("")
 
             return df
@@ -625,7 +638,7 @@ class FullPythonAUPipeline:
         if output_csv:
             df.to_csv(output_csv, index=False)
             if self.verbose:
-                print(f"✓ Results saved to: {output_csv}")
+                print(f"Results saved to: {output_csv}")
                 print("")
 
         return df
@@ -926,7 +939,7 @@ class FullPythonAUPipeline:
             self.stored_features = []
 
             if self.verbose:
-                print(f"    ✓ Two-pass correction complete")
+                print(f"    Two-pass correction complete")
         else:
             if self.verbose:
                 print("    (No stored features - skipping)")
@@ -962,7 +975,7 @@ class FullPythonAUPipeline:
             df[au_col] = smoothed
 
         if self.verbose:
-            print("✓ Post-processing complete")
+            print("Post-processing complete")
 
         return df
 
@@ -1022,7 +1035,7 @@ Examples:
             verbose=True
         )
     except Exception as e:
-        print(f"❌ Failed to initialize pipeline: {e}")
+        print(f"Failed to initialize pipeline: {e}")
         return 1
 
     # Process video
@@ -1040,7 +1053,7 @@ Examples:
         df.to_csv(args.output, index=False)
 
         print("=" * 80)
-        print("SUCCESS!")
+        print("SUCCESS")
         print("=" * 80)
         print(f"Processed {len(df)} frames")
         print(f"Results saved to: {args.output}")
@@ -1060,7 +1073,7 @@ Examples:
         return 0
 
     except Exception as e:
-        print(f"❌ Processing failed: {e}")
+        print(f"Processing failed: {e}")
         import traceback
         traceback.print_exc()
         return 1

@@ -112,7 +112,7 @@ landmarks, confidence = detector.detect_landmarks(frame, bbox)
 
 ### Performance
 - **Time:** 5ms per frame
-- **Status:** ✅ Fully optimized (ONNX Runtime)
+- **Status:** Fully optimized (ONNX Runtime)
 
 ### Preprocessing
 1. Create square bounding box with 10% padding
@@ -156,7 +156,7 @@ params_global, params_local = calc_params.calc_params(landmarks_68.flatten())
 ### Performance
 - **Time:** 80ms per frame (37% of total pipeline time)
 - **Accuracy:** 99.45% correlation with C++ OpenFace
-- **Status:** ⚠️ Bottleneck (optimization opportunity)
+- **Status:** Warning: Bottleneck (optimization opportunity)
 
 ### Key Steps
 1. Initialize from bounding box
@@ -251,7 +251,7 @@ masked_face = cv2.bitwise_and(aligned_face, aligned_face, mask=mask)
 
 ### Performance
 - **Time:** Negligible (<1ms)
-- **Status:** ✅ Fully optimized
+- **Status:** Fully optimized
 
 ---
 
@@ -274,7 +274,7 @@ hog_features = pyfhog.extract_fhog_features(aligned_rgb, cell_size=8)
 ### Performance
 - **Time:** 50ms per frame (23% of total pipeline time)
 - **Accuracy:** r = 1.0 (PERFECT correlation with C++ OpenFace)
-- **Status:** ⚠️ Bottleneck (optimization: increase cell_size)
+- **Status:** Warning: Bottleneck (optimization: increase cell_size)
 
 ### Feature Dimensions
 - **Input:** 112×112 RGB image
@@ -319,7 +319,7 @@ geom_features = pdm.extract_geometric_features(params_local)
 
 ### Performance
 - **Time:** 5ms per frame (2% of total)
-- **Status:** ✅ Fully optimized
+- **Status:** Fully optimized
 
 ### PDM Components
 - **Mean shape:** (204, 1) - Average 3D face shape
@@ -366,7 +366,7 @@ geom_median = median_tracker.get_geom_median()
 ### Performance
 - **Python version:** 47ms per frame
 - **Cython version:** 0.2ms per frame (260x faster!)
-- **Status:** ✅ Fully optimized (Cython)
+- **Status:** Fully optimized (Cython)
 
 ### Cython Optimization
 - **File:** `pyauface/utils/cython_extensions/cython_histogram_median.pyx`
@@ -435,7 +435,7 @@ prediction = parser.predict_au(features, au_models['AU12_r'])
 
 ### Performance
 - **Time:** 30ms per frame for all 17 AUs (14% of total)
-- **Status:** ⚠️ Optimization opportunity (vectorize predictions)
+- **Status:** Warning: Optimization opportunity (vectorize predictions)
 
 ### Model Files
 - **Format:** Binary `.dat` files
@@ -482,18 +482,18 @@ frame,success,AU01_r,AU02_r,...,AU45_r
 
 | Component | Time (ms) | % Total | Status |
 |-----------|-----------|---------|--------|
-| Video Input | ~0 | 0% | ✅ Native |
-| Face Detection | 2 | 1% | ✅ Optimized (tracking) |
-| Landmark Detection | 5 | 2% | ✅ Optimized (ONNX) |
-| **Pose Estimation** | **80** | **37%** | ⚠️ Bottleneck |
-| Face Alignment | 20 | 9% | ✅ Good |
-| Face Masking | <1 | 0% | ✅ Optimized |
-| **HOG Extraction** | **50** | **23%** | ⚠️ Bottleneck |
-| Geometric Features | 5 | 2% | ✅ Optimized |
-| Running Median | 0.2 | 0% | ✅ Optimized (Cython) |
-| Normalization | <1 | 0% | ✅ Optimized |
-| **AU Prediction** | **30** | **14%** | ⚠️ Optimization target |
-| Output | <1 | 0% | ✅ Fast |
+| Video Input | ~0 | 0% | Native |
+| Face Detection | 2 | 1% | Optimized (tracking) |
+| Landmark Detection | 5 | 2% | Optimized (ONNX) |
+| **Pose Estimation** | **80** | **37%** | Warning: Bottleneck |
+| Face Alignment | 20 | 9% | Good |
+| Face Masking | <1 | 0% | Optimized |
+| **HOG Extraction** | **50** | **23%** | Warning: Bottleneck |
+| Geometric Features | 5 | 2% | Optimized |
+| Running Median | 0.2 | 0% | Optimized (Cython) |
+| Normalization | <1 | 0% | Optimized |
+| **AU Prediction** | **30** | **14%** | Warning: Optimization target |
+| Output | <1 | 0% | Fast |
 | **TOTAL** | **~217ms** | **100%** | **4.6 FPS** |
 
 ---

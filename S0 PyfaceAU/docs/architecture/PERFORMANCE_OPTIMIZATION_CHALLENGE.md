@@ -33,16 +33,16 @@ We have a **fully functional pure Python implementation** of OpenFace 2.2's AU e
 ### 100 Frame Test Results
 ```
 pyAUface Performance (100 frames):
-✅ Success: 100/100 frames (100%)
+Success: 100/100 frames (100%)
 ⏱️ Time: 21.69s
-📊 Per frame: 217ms
-🎯 FPS: 4.6
+ Per frame: 217ms
+ FPS: 4.6
 
 Face Tracking Statistics:
-✅ Tracking enabled: True
-✅ Frames since last detection: 99
-✅ Detection failures: 0
-✅ Total RetinaFace calls: 1/100 (99 skipped!)
+Tracking enabled: True
+Frames since last detection: 99
+Detection failures: 0
+Total RetinaFace calls: 1/100 (99 skipped!)
 ```
 
 **Face tracking IS working** - we successfully skip 99% of RetinaFace detections. The bottleneck is elsewhere.
@@ -58,10 +58,10 @@ Based on profiling and analysis, here's where we think the 217ms/frame is going:
 | **CalcParams (Pose Estimation)** | **~80ms** | **37%** | 🔴 BOTTLENECK |
 | **PyFHOG (HOG Extraction)** | **~50ms** | **23%** | 🔴 BOTTLENECK |
 | **17 SVR Models (AU Prediction)** | **~30ms** | **14%** | 🟡 OPTIMIZE |
-| Landmark Detection (PFLD) | ~30ms | 14% | ✅ OK (ONNX) |
-| Face Alignment | ~20ms | 9% | ✅ OK |
-| Running Median | ~5ms | 2% | ✅ OK (Cython) |
-| Face Detection (RetinaFace) | ~2ms avg | 1% | ✅ OK (skipped 99%) |
+| Landmark Detection (PFLD) | ~30ms | 14% | OK (ONNX) |
+| Face Alignment | ~20ms | 9% | OK |
+| Running Median | ~5ms | 2% | OK (Cython) |
+| Face Detection (RetinaFace) | ~2ms avg | 1% | OK (skipped 99%) |
 | **TOTAL** | **~217ms** | **100%** | |
 
 ### Key Bottlenecks Identified
@@ -143,10 +143,10 @@ Output: 17 AU intensities
 
 ## What We've Already Optimized
 
-✅ **Face Detection:** CoreML acceleration + face tracking → 99% reduction
-✅ **Running Median:** Cython implementation → 260x faster than Python
-✅ **Queue Architecture:** Proper threading for macOS CoreML
-✅ **Face Tracking:** "Detect on failure" strategy working perfectly
+**Face Detection:** CoreML acceleration + face tracking → 99% reduction
+**Running Median:** Cython implementation → 260x faster than Python
+**Queue Architecture:** Proper threading for macOS CoreML
+**Face Tracking:** "Detect on failure" strategy working perfectly
 
 ---
 
@@ -289,11 +289,11 @@ timings['calc_params'] = time.perf_counter() - t0
 
 ### Must Maintain
 
-✅ **100% Python** - No C++ compilation required
-✅ **Cross-platform** - Works on Windows/Mac/Linux
-✅ **Accuracy** - Must match OpenFace 2.2 outputs
-✅ **All 17 AUs** - Complete AU extraction
-✅ **Face tracking** - Keep the optimization we have
+**100% Python** - No C++ compilation required
+**Cross-platform** - Works on Windows/Mac/Linux
+**Accuracy** - Must match OpenFace 2.2 outputs
+**All 17 AUs** - Complete AU extraction
+**Face tracking** - Keep the optimization we have
 
 ### Can Relax (with validation)
 
@@ -516,4 +516,4 @@ Let's get those 125 glasses! 💧💧💧
 2. `calc_params.py` - Biggest bottleneck
 3. `coreml_only_test.py` - Performance test script
 
-**Happy optimizing!** 🚀
+**Happy optimizing!** 

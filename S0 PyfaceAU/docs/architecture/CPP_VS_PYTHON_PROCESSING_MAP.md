@@ -29,7 +29,7 @@ landmarks_68[:, 0] = cpp_row[x_cols].values
 landmarks_68[:, 1] = cpp_row[y_cols].values
 ```
 
-**Status:** ✅ IDENTICAL (using same C++ landmarks)
+**Status:** IDENTICAL (using same C++ landmarks)
 
 ---
 
@@ -59,7 +59,7 @@ params_local = params_result['params_local']    # (34,)
 - Global params: p_rx correlation = 0.9923 (below 0.995 target)
 - Local params: mean correlation = 0.9824 (below 0.995 target)
 
-**Status:** ⚠️ MOSTLY CORRECT (98%+ correlation, but not 99.5%+)
+**Status:** Warning: MOSTLY CORRECT (98%+ correlation, but not 99.5%+)
 - Could affect geometric features slightly
 
 ---
@@ -81,7 +81,7 @@ aligned_face = face_aligner.align_face(frame, landmarks_68)
 # Uses sim_scale=0.7, output=(112, 112)
 ```
 
-**Status:** ✅ LIKELY CORRECT
+**Status:** LIKELY CORRECT
 - Need to verify exact similarity transform parameters
 - Need to verify interpolation method (C++ uses cv::warpAffine)
 
@@ -107,7 +107,7 @@ hog_features = extract_hog_features(aligned_face, visualize=False)
 # Uses pyfhog (C binding to C++ FHOG implementation)
 ```
 
-**Status:** ✅ ASSUMED CORRECT
+**Status:** ASSUMED CORRECT
 - Uses same C++ FHOG library via pyfhog
 - Should be bit-identical
 
@@ -147,7 +147,7 @@ def extract_geom_features(params_global, params_local, pdm):
     return np.concatenate([shape_3d.flatten(), params_local.flatten()])
 ```
 
-**Status:** ⚠️ VERIFY ORDER
+**Status:** Warning: VERIFY ORDER
 - C++ concatenates `[locs.t(), params_local]`
 - Need to confirm `locs = princ_comp * params_local.t()` produces shape in same order
 
@@ -205,7 +205,7 @@ def update(self, hog_features, geom_features, update_histogram=True):
     self.geom_tracker.update(geom_features, update_histogram)
 ```
 
-**Status:** ⚠️ VERIFY TIMING
+**Status:** Warning: VERIFY TIMING
 - C++ updates HOG every frame, geometric every other frame
 - Python updates both every frame
 - **THIS COULD BE THE ISSUE!**
@@ -240,7 +240,7 @@ predictions = np.sum(centered * self.all_support_vectors, axis=1) + self.all_bia
 predictions = np.clip(predictions, 0.0, 5.0)
 ```
 
-**Status:** ✅ CORRECT (verified from C++ source)
+**Status:** CORRECT (verified from C++ source)
 
 ---
 
@@ -273,7 +273,7 @@ for result in results:
     result['aus'] = au_results_repredicted
 ```
 
-**Status:** ✅ IMPLEMENTED (fixed major correlation issues)
+**Status:** IMPLEMENTED (fixed major correlation issues)
 
 ---
 
@@ -286,7 +286,7 @@ for result in results:
 
 This difference could cause geometric feature normalization to diverge!
 
-### ⚠️ MEDIUM: CalcParams Accuracy
+### Warning: MEDIUM: CalcParams Accuracy
 
 **Issue:** CalcParams correlations are slightly below target (98% vs 99.5%)
 - p_rx: 0.9923 (should be > 0.995)
@@ -294,7 +294,7 @@ This difference could cause geometric feature normalization to diverge!
 
 **Impact:** Small errors in params_local could accumulate in geometric features
 
-### ⚠️ LOW: Geometric Feature Construction Order
+### Warning: LOW: Geometric Feature Construction Order
 
 **Need to verify:** Does `shape_3d = mean_shape + princ_comp @ params_local` match C++ `locs = princ_comp * params_local.t()`?
 

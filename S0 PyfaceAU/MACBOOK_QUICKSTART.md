@@ -6,18 +6,18 @@
 
 ## TL;DR
 
-✅ **What works on your MacBook:**
+**What works on your MacBook:**
 - Parallel processing (6x speedup) - Already implemented
 - Batched SVR predictions (2-5x speedup on AU step) - Implemented, ready to use
 - Apple Accelerate BLAS (1.5-2x on CalcParams) - Just verify
 - PyTorch Metal (2-4x on CalcParams) - Advanced option
 
-❌ **What doesn't work:**
+**What doesn't work:**
 - CUDA/CuPy (needs NVIDIA GPU)
 - JAX GPU (no Metal backend)
 - Most "GPU" optimizations in general guides
 
-✅ **All optimizations preserve 100% accuracy vs C++ OpenFace**
+**All optimizations preserve 100% accuracy vs C++ OpenFace**
 
 ---
 
@@ -48,7 +48,7 @@ Component                 Mean       % of Total
 pose_estimation          80.45ms    37.0%  🔴 CRITICAL
 hog_extraction           50.23ms    23.1%  🟡 MAJOR
 au_prediction            29.87ms    13.8%  🟡 MAJOR
-landmark_detection       30.12ms    13.9%  ⚠️ MINOR
+landmark_detection       30.12ms    13.9%  Warning: MINOR
 ...
 ```
 
@@ -68,8 +68,8 @@ python pyfaceau/prediction/batched_au_predictor.py
 
 # Expected output:
 # Max difference: 1.23e-07  (essentially zero)
-# All match: ✅ YES
-# Speedup: 3.45x faster ⚡
+# All match: YES
+# Speedup: 3.45x faster 
 ```
 
 ### Integrate into pipeline:
@@ -152,10 +152,10 @@ python -c "import torch; print(f'MPS available: {torch.backends.mps.is_available
 | Stage | FPS | Speedup | Time | Accuracy |
 |-------|-----|---------|------|----------|
 | **Current (sequential)** | 4.6 | 1x | - | 100% |
-| **+ Parallel (6 workers)** | 28 | 6x | ✅ Done | 100% |
-| **+ Batched SVR** | 32 | 7x | 10 min | 100% ✅ |
-| **+ Accelerate BLAS** | 36 | 8x | 2 min | 100% ✅ |
-| **+ PyTorch Metal** | 48 | 10x | 1-2 days | 100% ✅ |
+| **+ Parallel (6 workers)** | 28 | 6x | Done | 100% |
+| **+ Batched SVR** | 32 | 7x | 10 min | 100% |
+| **+ Accelerate BLAS** | 36 | 8x | 2 min | 100% |
+| **+ PyTorch Metal** | 48 | 10x | 1-2 days | 100% |
 
 **Realistic quick win: 32-36 FPS in ~15 minutes of work**
 
@@ -163,9 +163,9 @@ python -c "import torch; print(f'MPS available: {torch.backends.mps.is_available
 
 ## What About Your 30-50 FPS Goal?
 
-✅ **30 FPS minimum:** Already achieved with parallel processing (28 FPS) + batched SVR (32 FPS)
+**30 FPS minimum:** Already achieved with parallel processing (28 FPS) + batched SVR (32 FPS)
 
-✅ **50 FPS stretch:** Achievable with PyTorch Metal CalcParams (48 FPS)
+**50 FPS stretch:** Achievable with PyTorch Metal CalcParams (48 FPS)
 
 ---
 
@@ -194,7 +194,7 @@ python -c "import torch; print(f'MPS available: {torch.backends.mps.is_available
 
 ## Things to AVOID (These Change Accuracy)
 
-❌ **Do NOT:**
+**Do NOT:**
 1. Reduce HOG cell_size (8 → 12)
 2. Reduce aligned face size (112 → 96)
 3. Reduce CalcParams iterations
@@ -236,4 +236,4 @@ You should see ~32-36 FPS with these quick optimizations!
 - Run `python benchmark_detailed.py --help` for options
 - Test batched predictor: `python pyfaceau/prediction/batched_au_predictor.py`
 
-**Happy optimizing! 🚀**
+**Happy optimizing! **

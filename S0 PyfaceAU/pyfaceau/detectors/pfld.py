@@ -45,9 +45,9 @@ class CunjianPFLDDetector:
         # Check which provider is active
         active_providers = self.session.get_providers()
         if 'CoreMLExecutionProvider' in active_providers:
-            print("✓ PFLD using CoreML Neural Engine acceleration (2-3x speedup)")
+            print("PFLD using CoreML Neural Engine acceleration (2-3x speedup)")
         else:
-            print("⚠ PFLD using CPU execution (CoreML unavailable)")
+            print("Warning: PFLD using CPU execution (CoreML unavailable)")
 
         self.input_name = self.session.get_inputs()[0].name
 

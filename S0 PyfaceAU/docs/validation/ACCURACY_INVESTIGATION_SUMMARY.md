@@ -44,7 +44,7 @@ for result in results:
     result['aus'] = au_results
 ```
 
-**Status:** ✅ IMPLEMENTED - Major improvement
+**Status:** IMPLEMENTED - Major improvement
 
 ### 2. Median Update Frequency Fix (No Impact)
 
@@ -56,7 +56,7 @@ for result in results:
 
 **Conclusion:** Update frequency is just a "small speedup optimization" (per C++ comment) and doesn't affect accuracy
 
-**Status:** ✅ IMPLEMENTED (but not limiting factor)
+**Status:** IMPLEMENTED (but not limiting factor)
 
 ---
 
@@ -65,35 +65,35 @@ for result in results:
 ### Top Performers (99%+)
 | AU | Name | Correlation | Status |
 |----|------|-------------|--------|
-| AU12 | Lip Corner Puller | 99.78% | ✅ |
-| AU06 | Cheek Raiser | 99.77% | ✅ |
-| AU45 | Blink | 99.43% | ✅ |
-| AU25 | Lips Part | 98.92% | ✅ |
-| AU10 | Upper Lip Raiser | 98.82% | ✅ |
+| AU12 | Lip Corner Puller | 99.78% | |
+| AU06 | Cheek Raiser | 99.77% | |
+| AU45 | Blink | 99.43% | |
+| AU25 | Lips Part | 98.92% | |
+| AU10 | Upper Lip Raiser | 98.82% | |
 
 ### Good Performers (90-98%)
 | AU | Name | Correlation | Status |
 |----|------|-------------|--------|
-| AU04 | Brow Lowerer | 98.24% | ✅ |
-| AU07 | Lid Tightener | 97.85% | ✅ |
-| AU14 | Dimpler | 97.76% | ✅ |
-| AU26 | Jaw Drop | 96.61% | ✅ |
-| AU01 | Inner Brow Raiser | 96.19% | ✅ |
-| AU09 | Nose Wrinkler | 94.15% | ✅ |
-| AU17 | Chin Raiser | 92.06% | ✅ |
+| AU04 | Brow Lowerer | 98.24% | |
+| AU07 | Lid Tightener | 97.85% | |
+| AU14 | Dimpler | 97.76% | |
+| AU26 | Jaw Drop | 96.61% | |
+| AU01 | Inner Brow Raiser | 96.19% | |
+| AU09 | Nose Wrinkler | 94.15% | |
+| AU17 | Chin Raiser | 92.06% | |
 
 ### Acceptable Performers (83-90%)
 | AU | Name | Correlation | Status |
 |----|------|-------------|--------|
-| AU02 | Outer Brow Raiser | 87.77% | ✅ |
-| AU23 | Lip Tightener | 85.82% | ✅ |
+| AU02 | Outer Brow Raiser | 87.77% | |
+| AU23 | Lip Tightener | 85.82% | |
 
 ### Under performers (<83%)
 | AU | Name | Correlation | Active % | Status |
 |----|------|-------------|----------|--------|
-| AU20 | Lip Stretcher | 74.73% | 26.3% | ❌ |
-| AU05 | Upper Lid Raiser | 72.68% | 15.3% | ❌ |
-| AU15 | Lip Corner Depressor | 60.22% | 25.3% | ❌ |
+| AU20 | Lip Stretcher | 74.73% | 26.3% | |
+| AU05 | Upper Lid Raiser | 72.68% | 15.3% | |
+| AU15 | Lip Corner Depressor | 60.22% | 25.3% | |
 
 **Pattern:** All 3 failing AUs have sparse/weak activity in test video (15-26% active frames, mean intensity 0.08-0.10)
 
@@ -101,27 +101,27 @@ for result in results:
 
 ## Verified C++ Matches
 
-### ✅ Histogram Parameters
+### Histogram Parameters
 - HOG: 1000 bins, range [-0.005, 1.0]
 - Geometric: 10000 bins, range [-60, 60]
 - **Status:** Match C++ exactly
 
-### ✅ HOG Median Clamping
+### HOG Median Clamping
 - Python: `hog_median[hog_median < 0] = 0.0`
 - C++: `hog_desc_median.setTo(0, hog_desc_median < 0)`
 - **Status:** Implemented correctly
 
-### ✅ SVR Prediction Formula
+### SVR Prediction Formula
 - Python: `(features - means - running_median) * support_vectors + bias`
 - C++: `(input - this->means - run_med) * this->support_vectors + this->biases`
 - **Status:** Match exactly
 
-### ✅ Two-Pass Processing
+### Two-Pass Processing
 - Python: Re-predicts all frames with final median
 - C++: Re-predicts frames 0-3000 with final median
 - **Status:** Implemented (Python does all frames for thoroughness)
 
-### ✅ Median Update Frequency
+### Median Update Frequency
 - Python & C++: Both medians update every other frame
 - **Status:** Matches (but doesn't affect accuracy)
 
@@ -141,9 +141,9 @@ for result in results:
 - Total: 238 geometric features affected
 
 **Evidence:**
-- Static AUs (HOG only): 98.70% mean ✅
-- High-activity dynamic AUs: 87-96% ✅
-- Low-activity dynamic AUs: 60-75% ❌
+- Static AUs (HOG only): 98.70% mean 
+- High-activity dynamic AUs: 87-96% 
+- Low-activity dynamic AUs: 60-75% 
 
 **Hypothesis:** CalcParams errors have minimal impact on strong signals but accumulate in weak signals
 

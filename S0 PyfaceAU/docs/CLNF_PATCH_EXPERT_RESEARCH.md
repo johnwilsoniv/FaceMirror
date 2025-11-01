@@ -272,9 +272,9 @@ def targeted_clnf_refinement(image, pfld_landmarks, patch_experts):
 
 | Component | Lines of Code | Complexity | Similarity |
 |-----------|---------------|------------|------------|
-| **AU SVR Prediction** | ~100 | Medium | ✅ 95% similar |
-| **CalcParams Optimization** | ~300 | High | ⚠️ 50% similar (different optimization target) |
-| **CLNF Patch Experts** | ~200 (est) | Medium | ✅ Reuses AU SVR code |
+| **AU SVR Prediction** | ~100 | Medium | 95% similar |
+| **CalcParams Optimization** | ~300 | High | Warning: 50% similar (different optimization target) |
+| **CLNF Patch Experts** | ~200 (est) | Medium | Reuses AU SVR code |
 
 **Key Advantage:** Patch expert SVR evaluation is nearly identical to AU prediction!
 
@@ -400,12 +400,12 @@ Speed reduction: ~25% (still well above real-time)
 
 ## Key Advantages of This Approach
 
-✅ **No dlib dependency** - Uses PFLD for initialization
-✅ **Reuses existing code** - SVR evaluation identical to AU prediction
-✅ **Focused effort** - Only 12/68 landmarks need refinement
-✅ **PDM constraints** - Existing infrastructure ensures valid shapes
-✅ **Moderate complexity** - Similar difficulty to AU prediction
-✅ **Measurable ROI** - Clear target: 85.62% → 88-90%
+**No dlib dependency** - Uses PFLD for initialization
+**Reuses existing code** - SVR evaluation identical to AU prediction
+**Focused effort** - Only 12/68 landmarks need refinement
+**PDM constraints** - Existing infrastructure ensures valid shapes
+**Moderate complexity** - Similar difficulty to AU prediction
+**Measurable ROI** - Clear target: 85.62% → 88-90%
 
 ---
 
@@ -423,6 +423,6 @@ Speed reduction: ~25% (still well above real-time)
 
 ---
 
-**Document Status:** ✅ RESEARCH COMPLETE
+**Document Status:** RESEARCH COMPLETE
 **Next Action:** Implement SVR patch expert loader
 **Expected Outcome:** 88-90% mean AU correlation (vs current 85.62%)

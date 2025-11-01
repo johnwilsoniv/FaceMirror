@@ -7,7 +7,7 @@ lip corners (48, 54) to improve AU01, AU02, and AU23 detection accuracy.
 
 import numpy as np
 import cv2
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Any
 
 # Handle both relative and absolute imports
 if __name__ == '__main__':
@@ -26,26 +26,39 @@ class TargetedCLNFRefiner:
     Refines only brow landmarks (17-26) and lip corners (48, 54) using
     OpenFace SVR patch experts. This focused approach maintains speed
     while improving accuracy for AU01, AU02, and AU23.
+
+    Optionally enforces PDM (Point Distribution Model) constraints to ensure
+    refined landmarks remain anatomically plausible.
     """
 
     # Critical landmarks for AU improvement
     CRITICAL_LANDMARKS = [17, 18, 19, 20, 21, 22, 26, 48, 54]
 
-    def __init__(self, patch_expert_file: str, search_window: int = 3):
+    def __init__(self, patch_expert_file: str, search_window: int = 3,
+                 pdm: Optional[Any] = None, enforce_pdm: bool = False):
         """
         Initialize targeted CLNF refiner.
 
         Args:
             patch_expert_file: Path to svr_patches_*.txt file
             search_window: Search radius around initial landmark (pixels)
+            pdm: Optional PDM for shape constraint enforcement
+            enforce_pdm: Whether to project refined landmarks onto PDM
         """
         self.search_window = search_window
+        self.pdm = pdm
+        self.enforce_pdm = enforce_pdm
 
         # Load only critical patch experts
         loader = SVRPatchExpertLoader(patch_expert_file)
         self.patch_experts = loader.load(target_landmarks=self.CRITICAL_LANDMARKS)
 
-        print(f"Loaded {len(self.patch_experts)} patch experts for refinement")
+        if self.enforce_pdm and self.pdm is None:
+            print("⚠️ Warning: enforce_pdm=True but no PDM provided. PDM constraints disabled.")
+            self.enforce_pdm = False
+
+        pdm_status = " + PDM constraints" if self.enforce_pdm else ""
+        print(f"Loaded {len(self.patch_experts)} patch experts for refinement{pdm_status}")
 
     def refine_landmarks(self, image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
         """
@@ -88,7 +101,41 @@ class TargetedCLNFRefiner:
 
             refined[landmark_idx] = refined_pos
 
+        # Optional: Enforce PDM constraints to ensure anatomically plausible shape
+        if self.enforce_pdm and self.pdm is not None:
+            refined = self._project_to_pdm(refined)
+
         return refined
+
+    def _project_to_pdm(self, landmarks: np.ndarray) -> np.ndarray:
+        """
+        Project refined landmarks onto PDM to enforce shape constraints.
+
+        This ensures refined landmarks remain anatomically plausible by:
+        1. Finding best-fit PDM parameters using calc_params
+        2. Reconstructing landmarks from those parameters using calc_shape_3d
+
+        Args:
+            landmarks: Refined landmarks (68, 2)
+
+        Returns:
+            PDM-constrained landmarks (68, 2)
+        """
+        # Find best PDM parameters (calc_params accepts (68, 2) landmarks)
+        params_global, params_local = self.pdm.calc_params(landmarks)
+
+        # Reconstruct 3D landmarks from parameters
+        # calc_shape_3d returns flat array (204,) = 68 landmarks * 3 coords (X, Y, Z)
+        landmarks_3d_flat = self.pdm.calc_shape_3d(params_local)
+
+        # Reshape to (68, 3)
+        landmarks_3d = landmarks_3d_flat.reshape(68, 3)
+
+        # Project back to 2D using global params
+        # For simplicity, just use X and Y coordinates
+        constrained = landmarks_3d[:, :2]  # Take only X, Y (drop Z)
+
+        return constrained
 
     def _search_for_best_position(
         self,
@@ -308,7 +355,7 @@ def test_refiner():
     print(f"   Max displacement: {np.max(displacements):.2f} pixels")
     print(f"   Min displacement: {np.min(displacements):.2f} pixels")
 
-    print("\n✓ Targeted CLNF refiner test complete!")
+    print("\nTargeted CLNF refiner test complete!")
 
 
 if __name__ == '__main__':

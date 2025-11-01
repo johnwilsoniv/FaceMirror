@@ -275,7 +275,7 @@ def test_histogram_tracker():
             print(f"  Running median: {median[:3]}...")
             print(f"  MAE: {error:.6f}")
 
-    print("\n✓ Tracker converges to true mean!")
+    print("\nTracker converges to true mean!")
 
     # Test dual tracker
     print("\n" + "="*80)
@@ -305,8 +305,8 @@ def test_histogram_tracker():
         dual_tracker.update(hog_feat, geom_feat, update_histogram=(i % 2 == 0))
 
     combined = dual_tracker.get_combined_median()
-    print(f"✓ Combined median shape: {combined.shape}")
-    print(f"✓ Expected: (4702,)")
+    print(f"Combined median shape: {combined.shape}")
+    print(f"Expected: (4702,)")
     assert combined.shape == (4702,), f"Expected (4702,), got {combined.shape}"
 
     print("\n" + "="*80)

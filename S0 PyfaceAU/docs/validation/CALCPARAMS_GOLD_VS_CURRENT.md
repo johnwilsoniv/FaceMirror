@@ -153,7 +153,7 @@ from cython_rotation_update import update_rotation_cython
 
 ## Detailed Algorithm Verification
 
-### ✅ Regularization
+### Regularization
 
 **Gold (line 493-496):**
 ```python
@@ -171,9 +171,9 @@ regularisation[6:] = reg_factor / self.eigen_values
 regularisation = np.diag(regularisation)
 ```
 
-**Status:** IDENTICAL ✅
+**Status:** IDENTICAL 
 
-### ✅ Convergence Criteria
+### Convergence Criteria
 
 **Gold (line 602-605):**
 ```python
@@ -191,9 +191,9 @@ if 0.999 * curr_error < new_error:
         break
 ```
 
-**Status:** IDENTICAL ✅
+**Status:** IDENTICAL 
 
-### ✅ Hessian Solving
+### Hessian Solving
 
 **Gold (line 538-577):**
 ```python
@@ -227,13 +227,13 @@ try:
         # Tikhonov regularization fallback
 ```
 
-**Status:** IDENTICAL ✅
+**Status:** IDENTICAL 
 
-### ✅ Rotation Update (Cython or Python)
+### Rotation Update (Cython or Python)
 
 **Both versions:** Identical logic for Cython optimization and Python fallback
 
-**Status:** IDENTICAL ✅
+**Status:** IDENTICAL 
 
 ---
 
@@ -273,8 +273,8 @@ Despite 0.7% accuracy drop, current version gains **2-5x speedup**:
 
 **Evidence:** From today's pipeline run:
 ```
-✓ Numba CalcParams accelerator loaded - targeting 2-5x speedup
-✓ Processing complete!
+Numba CalcParams accelerator loaded - targeting 2-5x speedup
+Processing complete!
   Frames: 972
   Success: 972
   Time: 6.9s (140.4 fps)
@@ -288,7 +288,7 @@ Despite 0.7% accuracy drop, current version gains **2-5x speedup**:
 
 ## Recommendations
 
-### Option 1: Accept Current Performance ✅ RECOMMENDED
+### Option 1: Accept Current Performance RECOMMENDED
 
 **Rationale:**
 - 98.24% correlation is still excellent for practical use
@@ -324,7 +324,7 @@ def __init__(self, pdm_parser, use_numba=True):
 
 ## Conclusion
 
-### What We Verified ✅
+### What We Verified 
 
 1. **Algorithm is identical** - No logic changes between gold and current
 2. **Core components match** - Jacobian, Hessian, convergence, regularization all identical
@@ -339,9 +339,9 @@ def __init__(self, pdm_parser, use_numba=True):
 - Main issue is sparse AU activity in test video (AU05, AU15, AU20)
 
 **Evidence:**
-- Static AUs (HOG only): 98.70% mean - excellent ✅
-- High-activity dynamic AUs: 96-99% - excellent ✅
-- Low-activity dynamic AUs: 60-75% - limited by weak signal, not CalcParams ❌
+- Static AUs (HOG only): 98.70% mean - excellent 
+- High-activity dynamic AUs: 96-99% - excellent 
+- Low-activity dynamic AUs: 60-75% - limited by weak signal, not CalcParams 
 
 ### Final Assessment
 

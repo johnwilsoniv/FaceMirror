@@ -62,8 +62,8 @@ assert iou > 0.9  # Allow some variation in detector
 ```
 
 ### Optimization Applied:
-- ✅ ONNX Runtime with attempted CoreML (falls back to CPU)
-- ✅ Face tracking (skip detection on subsequent frames)
+- ONNX Runtime with attempted CoreML (falls back to CPU)
+- Face tracking (skip detection on subsequent frames)
 
 ### Expected Accuracy:
 - **Not directly comparable** - OpenFace 2.2 uses different detector
@@ -106,8 +106,8 @@ assert nme < 0.05
 ```
 
 ### Optimization Applied:
-- ✅ ONNX Runtime with CoreML acceleration (91.5% ops on Neural Engine)
-- ✅ 5.0x speedup (4.9ms → 0.98ms)
+- ONNX Runtime with CoreML acceleration (91.5% ops on Neural Engine)
+- 5.0x speedup (4.9ms → 0.98ms)
 
 ### Expected Accuracy:
 - **Moderate correlation expected** - Different landmark detector
@@ -149,8 +149,8 @@ assert psnr > 30
 ```
 
 ### Optimization Applied:
-- ✅ Vectorized NumPy operations
-- ✅ Pre-computed reference points
+- Vectorized NumPy operations
+- Pre-computed reference points
 
 ### Expected Accuracy:
 - **High correlation expected** - Standard similarity transform
@@ -191,8 +191,8 @@ assert r_local > 0.995  # Should be very high
 ```
 
 ### Optimization Applied:
-- ✅ Numba JIT compilation (13.3x speedup: 42.5ms → 3.2ms)
-- ✅ Cython rotation update (99.9% accuracy guaranteed)
+- Numba JIT compilation (13.3x speedup: 42.5ms → 3.2ms)
+- Cython rotation update (99.9% accuracy guaranteed)
 
 ### Expected Accuracy:
 - **CRITICAL COMPONENT** - Must match C++ exactly
@@ -232,7 +232,7 @@ assert cpp_hog.shape == py_hog.shape == (4464,)
 ```
 
 ### Optimization Applied:
-- ✅ NumPy/OpenCV optimized operations
+- NumPy/OpenCV optimized operations
 
 ### Expected Accuracy:
 - **High correlation expected** - Deterministic algorithm
@@ -273,8 +273,8 @@ assert cpp_geom.shape == py_geom.shape == (238,)
 ```
 
 ### Optimization Applied:
-- ✅ Vectorized NumPy operations
-- ✅ Minimal overhead (0.01ms)
+- Vectorized NumPy operations
+- Minimal overhead (0.01ms)
 
 ### Expected Accuracy:
 - **Very high correlation expected** - Deterministic computation
@@ -311,7 +311,7 @@ assert r_median > 0.99
 ```
 
 ### Optimization Applied:
-- ✅ Cython JIT compilation (179x speedup: 161ms → 0.9ms)
+- Cython JIT compilation (179x speedup: 161ms → 0.9ms)
 
 ### Expected Accuracy:
 - **High correlation expected** - Deterministic histogram algorithm
@@ -373,8 +373,8 @@ assert r_overall > 0.83
 ```
 
 ### Optimization Applied:
-- ✅ Batched vectorized SVR prediction (2-5x speedup)
-- ✅ Single matrix operation for all 17 AUs
+- Batched vectorized SVR prediction (2-5x speedup)
+- Single matrix operation for all 17 AUs
 
 ### Expected Accuracy:
 - **CRITICAL COMPONENT** - This is our final output!
@@ -433,10 +433,10 @@ assert r_overall > 0.83
 ### Phase 3: Accuracy Certification
 
 **Success Criteria:**
-- ✅ Overall AU correlation: **r > 0.83** (matches OpenFace 2.2 benchmark)
-- ✅ Per-AU correlation: **r > 0.83** for at least 15/17 AUs
-- ✅ CalcParams correlation: **r > 0.995** (critical component)
-- ✅ No systematic bias (mean error ≈ 0)
+- Overall AU correlation: **r > 0.83** (matches OpenFace 2.2 benchmark)
+- Per-AU correlation: **r > 0.83** for at least 15/17 AUs
+- CalcParams correlation: **r > 0.995** (critical component)
+- No systematic bias (mean error ≈ 0)
 
 ---
 
@@ -571,14 +571,14 @@ def visualize_au_comparison(cpp_aus, py_aus, au_name):
 
 | Component | Optimization | Speed | Accuracy Validated |
 |-----------|-------------|-------|-------------------|
-| Face Detection | ✅ ONNX + Tracking | 1.5ms | ⏳ N/A (different detector) |
-| Landmark Detection | ✅ ONNX + CoreML | 1.0ms | ⏳ Pending |
-| Face Alignment | ✅ Vectorized | 0.4ms | ⏳ Pending |
-| Pose Estimation | ✅ Numba JIT | 2.9ms | ⏳ Pending (CRITICAL) |
-| HOG Extraction | ✅ NumPy | 0.15ms | ⏳ Pending |
-| Geometric Features | ✅ Vectorized | 0.01ms | ⏳ Pending |
-| Running Median | ✅ Cython | 0.9ms | ✅ 99.9% (verified) |
-| AU Prediction | ✅ Batched | 0.22ms | ⏳ Pending (CRITICAL) |
+| Face Detection | ONNX + Tracking | 1.5ms | ⏳ N/A (different detector) |
+| Landmark Detection | ONNX + CoreML | 1.0ms | ⏳ Pending |
+| Face Alignment | Vectorized | 0.4ms | ⏳ Pending |
+| Pose Estimation | Numba JIT | 2.9ms | ⏳ Pending (CRITICAL) |
+| HOG Extraction | NumPy | 0.15ms | ⏳ Pending |
+| Geometric Features | Vectorized | 0.01ms | ⏳ Pending |
+| Running Median | Cython | 0.9ms | 99.9% (verified) |
+| AU Prediction | Batched | 0.22ms | ⏳ Pending (CRITICAL) |
 
 **Overall Pipeline:** 87.4 FPS, 11.4ms per frame, 100% success rate
 

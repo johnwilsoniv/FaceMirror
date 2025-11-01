@@ -2,7 +2,7 @@
 
 ## Version 0.2.0 (2025-10-31) - Major Performance Update
 
-### 🚀 NEW: Parallel Processing Pipeline
+###  NEW: Parallel Processing Pipeline
 
 **Headline**: Achieve **30-50 FPS** with multiprocessing support (6-10x speedup!)
 
@@ -53,7 +53,7 @@ python benchmark_parallel.py --video test.mp4 --workers 6 --max-frames 100
 # Expected output:
 # Overall FPS: 28 FPS
 # Speedup vs sequential: 6.1x
-# ✅ MINIMUM GOAL ACHIEVED! (30+ FPS)
+# MINIMUM GOAL ACHIEVED! (30+ FPS)
 ```
 
 ### 📝 Renaming: PyfaceAU → pyAUface
@@ -84,7 +84,7 @@ All documentation, code, and imports updated accordingly.
    - Compare against sequential baseline
    - Verify 30-50 FPS target is met
 
-### 🔧 Technical Details
+###  Technical Details
 
 #### Why Not TensorFlow/GPU?
 
@@ -99,8 +99,8 @@ We evaluated TensorFlow for parallelization but chose **Python multiprocessing**
 **Results:**
 - 6 workers on 8-core CPU: ~28 FPS (6x speedup)
 - 8 workers on 12-core CPU: ~37 FPS (8x speedup)
-- Meets 30 FPS minimum target ✅
-- Approaches 50 FPS stretch goal ✅
+- Meets 30 FPS minimum target 
+- Approaches 50 FPS stretch goal 
 
 #### Performance Breakdown (Per Frame)
 
@@ -116,14 +116,14 @@ We evaluated TensorFlow for parallelization but chose **Python multiprocessing**
 | AU Prediction | 25ms | 25ms (sequential) | 1x |
 | **Total** | **217ms** | **36ms** | **6x** |
 
-### 🎯 Goals Achieved
+###  Goals Achieved
 
-✅ **Renamed to pyAUface** - More descriptive name
-✅ **30 FPS minimum target** - Achieved with 6 workers
-✅ **50 FPS stretch goal** - Approachable with 10+ workers
-✅ **6-10x speedup** - Multiprocessing scales with CPU cores
-✅ **100% Python** - No compilation or GPU required
-✅ **Easy to use** - Drop-in replacement for FullPythonAUPipeline
+**Renamed to pyAUface** - More descriptive name
+**30 FPS minimum target** - Achieved with 6 workers
+**50 FPS stretch goal** - Approachable with 10+ workers
+**6-10x speedup** - Multiprocessing scales with CPU cores
+**100% Python** - No compilation or GPU required
+**Easy to use** - Drop-in replacement for FullPythonAUPipeline
 
 ### 🔮 Future Enhancements
 
@@ -136,7 +136,7 @@ Potential improvements for even faster processing:
 
 **Estimated with optimizations**: 50-100 FPS
 
-### 📦 Files Added/Modified
+###  Files Added/Modified
 
 #### New Files
 - `pyauface/parallel_pipeline.py` - Parallel processing implementation

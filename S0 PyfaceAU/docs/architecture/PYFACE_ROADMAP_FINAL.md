@@ -6,7 +6,7 @@
 
 ---
 
-## Current Standings 📊
+## Current Standings 
 
 ### Performance Scoreboard
 
@@ -18,12 +18,12 @@
 
 **Gap to close:** 7.1x slower than C++
 
-### What We've Achieved ✅
+### What We've Achieved 
 
-1. ✅ **CoreML + Queue Architecture** - Working perfectly
-2. ✅ **Face Tracking** - 99/100 frames skip detection
-3. ✅ **100% Success Rate** - No crashes, all AUs extracting
-4. ✅ **Pure Python** - Zero C++ compilation
+1. **CoreML + Queue Architecture** - Working perfectly
+2. **Face Tracking** - 99/100 frames skip detection
+3. **100% Success Rate** - No crashes, all AUs extracting
+4. **Pure Python** - Zero C++ compilation
 
 **The Good News:** It works!
 **The Bad News:** It's SLOW.
@@ -165,15 +165,15 @@ predictions = (centered @ all_svs) + all_biases  # All 17 AUs at once!
 | + CalcParams solvePnP | 50ms | 6.0 FPS |
 | + PyFHOG cell_size=12 | 25ms | 7.0 FPS |
 | + SVR batching | 15ms | 7.9 FPS |
-| **TOTAL** | **90ms** | **~8 FPS** ✅ |
+| **TOTAL** | **90ms** | **~8 FPS** |
 
 **Final Target:** 127ms/frame = **7.9 FPS**
 
 **Success Criteria:**
-- 🎯 2x faster than current (4.6 → 8+ FPS)
-- ✅ Maintains >95% AU accuracy correlation
-- ✅ Still 100% Python
-- ✅ Still works cross-platform
+-  2x faster than current (4.6 → 8+ FPS)
+- Maintains >95% AU accuracy correlation
+- Still 100% Python
+- Still works cross-platform
 
 ---
 
@@ -232,9 +232,9 @@ predictions = (centered @ all_svs) + all_biases  # All 17 AUs at once!
 3. **17 SVRs** - reliable closer (14% of time)
 
 ### Bench (Already Optimized)
-- ✅ Face Detection (CoreML + tracking)
-- ✅ Running Median (Cython)
-- ✅ Queue Architecture (macOS threading)
+- Face Detection (CoreML + tracking)
+- Running Median (Cython)
+- Queue Architecture (macOS threading)
 
 ### Farm System (Future Optimizations)
 - PFLD landmark detection
@@ -269,11 +269,11 @@ Compared to C++:      4.1x slower (acceptable!)
 
 **What We Win If We Hit 8-10 FPS:**
 
-✅ **Viable Python Alternative** - Good enough for real use
-✅ **No Compilation Hell** - Works everywhere
-✅ **Easy Installation** - `pip install pyface-au`
-✅ **Research Friendly** - Interpretable SVR models
-✅ **Respectable Performance** - Not C++, but acceptable
+**Viable Python Alternative** - Good enough for real use
+**No Compilation Hell** - Works everywhere
+**Easy Installation** - `pip install pyface-au`
+**Research Friendly** - Interpretable SVR models
+**Respectable Performance** - Not C++, but acceptable
 
 **Market Position:**
 - **C++ OpenFace (33 FPS):** Professional league - max performance
@@ -308,9 +308,9 @@ Compared to C++:      4.1x slower (acceptable!)
 ### Immediate Next Steps
 
 **Today:**
-1. ✅ Document performance problem ✓
-2. ✅ Benchmark real C++ OpenFace ✓
-3. ✅ Update roadmap ✓
+1. Document performance problem 
+2. Benchmark real C++ OpenFace 
+3. Update roadmap 
 
 **This Week:**
 1. 🔴 Implement solvePnP replacement for CalcParams
@@ -357,7 +357,7 @@ Compared to C++:      4.1x slower (acceptable!)
 
 ---
 
-## Let's Go! 🚀
+## Let's Go! 
 
 Three optimizations:
 1. **CalcParams → solvePnP** (50ms saved)

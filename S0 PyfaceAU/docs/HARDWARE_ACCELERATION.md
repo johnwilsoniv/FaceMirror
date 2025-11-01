@@ -18,11 +18,11 @@ Current performance: **4.6 FPS (217ms/frame)** sequential, **~30 FPS** with mult
 |-----------|------|------------|----------------------|
 | **CalcParams (Pose)** | 80ms | 37% | 🔥 5-15x with GPU/JIT |
 | **PyFHOG (HOG)** | 50ms | 23% | 🔥 2-5x with GPU |
-| **AU Prediction** | 30ms | 14% | ⚡ 2-10x with GPU/batching |
-| PFLD (Landmarks) | 30ms | 14% | ⚡ 2-5x with GPU ONNX |
-| Face Alignment | 20ms | 9% | ⚡ 2-3x with Numba |
-| Running Median | 5ms | 2% | ✅ Already optimized (Cython) |
-| Face Detection | 2ms | 1% | ✅ Already optimized (tracking) |
+| **AU Prediction** | 30ms | 14% |  2-10x with GPU/batching |
+| PFLD (Landmarks) | 30ms | 14% |  2-5x with GPU ONNX |
+| Face Alignment | 20ms | 9% |  2-3x with Numba |
+| Running Median | 5ms | 2% | Already optimized (Cython) |
+| Face Detection | 2ms | 1% | Already optimized (tracking) |
 
 ---
 
@@ -456,7 +456,7 @@ def kabsch_transform(source, target):
    - Impact: 80ms → 16-40ms
    - Dependencies: `pip install numba`
 
-### ⚡ HIGH (GPU Required)
+###  HIGH (GPU Required)
 
 3. **CuPy GPU CalcParams** - 5-10x speedup on pose estimation
    - Effort: 2-3 days
@@ -468,7 +468,7 @@ def kabsch_transform(source, target):
    - Impact: 30ms → 10-15ms
    - Dependencies: `onnxruntime-gpu`
 
-### 🚀 ADVANCED (Maximum Performance)
+###  ADVANCED (Maximum Performance)
 
 5. **JAX GPU CalcParams** - 10-15x speedup on pose estimation
    - Effort: 1 week (rewrite)

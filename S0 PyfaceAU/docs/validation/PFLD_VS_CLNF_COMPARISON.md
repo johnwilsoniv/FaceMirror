@@ -23,7 +23,7 @@ PyFaceAU loses **5.60% mean AU correlation** when using PFLD landmarks instead o
 
 ## Per-AU Performance Comparison
 
-### Category 1: Still Passing with PFLD (11 AUs) ✅
+### Category 1: Still Passing with PFLD (11 AUs) 
 
 These AUs remain above the r > 0.83 threshold with both landmark detectors:
 
@@ -43,7 +43,7 @@ These AUs remain above the r > 0.83 threshold with both landmark detectors:
 
 **Analysis:** Core expression AUs (smile, blink, jaw drop) are robust to landmark detector choice.
 
-### Category 2: Degraded from Passing to Failing (3 AUs) ⚠️
+### Category 2: Degraded from Passing to Failing (3 AUs) 
 
 These AUs crossed below the r > 0.83 threshold with PFLD:
 
@@ -55,7 +55,7 @@ These AUs crossed below the r > 0.83 threshold with PFLD:
 
 **Analysis:** Dynamic AUs requiring precise brow/lip landmark placement are most affected by PFLD's lower precision.
 
-### Category 3: Still Failing with Both Detectors (3 AUs) ❌
+### Category 3: Still Failing with Both Detectors (3 AUs) 
 
 These AUs were already below threshold with CLNF:
 
@@ -110,7 +110,7 @@ Both landmark detectors achieve **140 fps** on MacBook M2:
 
 ## Production Deployment Recommendations
 
-### Recommendation 1: Use PFLD for Most Applications ✅
+### Recommendation 1: Use PFLD for Most Applications 
 
 **Rationale:**
 - 85.62% mean correlation is excellent for practical use
@@ -200,6 +200,6 @@ for au in ['AU01', 'AU02', ..., 'AU45']:
 
 ---
 
-**Status:** ✅ COMPARISON COMPLETE
+**Status:** COMPARISON COMPLETE
 **Date:** 2025-11-01
 **PyFaceAU Production Status:** Ready with PFLD (85.62%) or CLNF (91.22%)

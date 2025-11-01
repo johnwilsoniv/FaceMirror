@@ -88,20 +88,20 @@ class OpenFace22AUPredictor:
             use_recommended=use_recommended,
             use_combined=use_combined
         )
-        print(f"✓ Loaded {len(self.models)} AU models")
+        print(f"Loaded {len(self.models)} AU models")
 
         # Load PDM
         print(f"Loading PDM shape model from {self.pdm_file.name}...")
         self.pdm_parser = PDMParser(str(self.pdm_file))
-        print("✓ PDM loaded")
+        print("PDM loaded")
 
         # Report performance optimization status
         if USING_CYTHON:
-            print("✓ Using Cython-optimized running median (234x faster!) 🚀")
+            print("Using Cython-optimized running median (234x faster!) ")
         else:
-            print("⚠ Using Python running median (Cython not available)")
+            print("Warning: Using Python running median (Cython not available)")
 
-        print("\n✅ OpenFace 2.2 AU Predictor ready!")
+        print("\nOpenFace 2.2 AU Predictor ready!")
         print(f"   Available AUs: {sorted(self.models.keys())}")
 
     def predict_video(
@@ -170,7 +170,7 @@ class OpenFace22AUPredictor:
             results_df = self._format_results(predictions, csv_data)
 
             if verbose:
-                print(f"\n✓ Processed {len(results_df)} frames")
+                print(f"\nProcessed {len(results_df)} frames")
                 print(f"  Predicted AUs: {[col for col in results_df.columns if col.startswith('AU')]}")
 
             return results_df
@@ -223,8 +223,8 @@ class OpenFace22AUPredictor:
             raise FileNotFoundError(f"CSV file not created: {csv_file}")
 
         if verbose:
-            print(f"   ✓ HOG features: {hog_file.name}")
-            print(f"   ✓ CSV data: {csv_file.name}")
+            print(f"   HOG features: {hog_file.name}")
+            print(f"   CSV data: {csv_file.name}")
 
         return hog_file, csv_file
 
@@ -244,9 +244,9 @@ class OpenFace22AUPredictor:
         csv_data = pd.read_csv(csv_file)
 
         if verbose:
-            print(f"   ✓ Loaded {len(frame_indices)} frames")
-            print(f"   ✓ HOG dimensions: {hog_features.shape[1]}")
-            print(f"   ✓ CSV columns: {len(csv_data.columns)}")
+            print(f"   Loaded {len(frame_indices)} frames")
+            print(f"   HOG dimensions: {hog_features.shape[1]}")
+            print(f"   CSV columns: {len(csv_data.columns)}")
 
         return hog_features, csv_data
 
@@ -427,7 +427,7 @@ def main():
     # Save results
     output_path = Path(video_path).stem + "_python_aus.csv"
     results.to_csv(output_path, index=False)
-    print(f"\n✓ Results saved to: {output_path}")
+    print(f"\nResults saved to: {output_path}")
 
 
 if __name__ == "__main__":

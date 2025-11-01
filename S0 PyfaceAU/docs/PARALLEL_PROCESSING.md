@@ -177,17 +177,17 @@ python benchmark_parallel.py --video test.mp4 --workers 6 --max-frames 100
 # Expected output:
 # Overall FPS: 28 FPS
 # Speedup vs sequential: 6.1x
-# ✅ MINIMUM GOAL ACHIEVED! (30+ FPS)
+# MINIMUM GOAL ACHIEVED! (30+ FPS)
 ```
 
 ### Interpret Results
 
 | FPS Range | Status | Action |
 |-----------|--------|--------|
-| **50+ FPS** | ✅ Excellent | Stretch goal achieved! |
-| **30-49 FPS** | ✅ Good | Minimum goal met |
-| **20-29 FPS** | ⚠️ Acceptable | Consider more workers or faster CPU |
-| **< 20 FPS** | ❌ Below target | Reduce workers or check bottlenecks |
+| **50+ FPS** | Excellent | Stretch goal achieved! |
+| **30-49 FPS** | Good | Minimum goal met |
+| **20-29 FPS** | Warning: Acceptable | Consider more workers or faster CPU |
+| **< 20 FPS** | Below target | Reduce workers or check bottlenecks |
 
 ---
 
@@ -275,7 +275,7 @@ for video_path in video_dir.glob('*.mp4'):
         output_csv=output_csv
     )
 
-    print(f"✓ {video_path.name}: {len(results)} frames")
+    print(f"{video_path.name}: {len(results)} frames")
 ```
 
 ---
@@ -295,10 +295,10 @@ Potential improvements for even faster processing:
 
 ## Summary
 
-✅ **Parallel processing achieves 6-10x speedup**
-✅ **Target 30-50 FPS is achievable with 6-10 workers**
-✅ **Easy to use - just switch from `FullPythonAUPipeline` to `ParallelAUPipeline`**
-✅ **Scales with CPU cores**
+**Parallel processing achieves 6-10x speedup**
+**Target 30-50 FPS is achievable with 6-10 workers**
+**Easy to use - just switch from `FullPythonAUPipeline` to `ParallelAUPipeline`**
+**Scales with CPU cores**
 
 **Recommended configuration for most users:**
 ```python

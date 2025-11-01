@@ -13,13 +13,13 @@ pyAUface is a pure Python reimplementation of the [OpenFace 2.2](https://github.
 
 ### Key Features
 
-- **🐍 100% Python** - No C++ compilation required
-- **📦 Easy Installation** - `pip install` and go
-- **🎯 High Accuracy** - r=0.83 overall, r=0.94 for static AUs
-- **⚡ High Performance** - 30-50 FPS with parallel processing (6-10x speedup!)
-- **🚀 Multi-Core Support** - Automatic parallelization across CPU cores
-- **🔧 Modular** - Use individual components independently
-- **📊 17 Action Units** - Full AU extraction (AU01, AU02, AU04, etc.)
+- ** 100% Python** - No C++ compilation required
+- ** Easy Installation** - `pip install` and go
+- ** High Accuracy** - r=0.83 overall, r=0.94 for static AUs
+- ** High Performance** - 30-50 FPS with parallel processing (6-10x speedup!)
+- ** Multi-Core Support** - Automatic parallelization across CPU cores
+- ** Modular** - Use individual components independently
+- ** 17 Action Units** - Full AU extraction (AU01, AU02, AU04, etc.)
 
 ---
 
@@ -150,8 +150,8 @@ See [docs/CPP_VS_PYTHON.md](docs/CPP_VS_PYTHON.md) for detailed comparison.
 |---------------|-----|-----------|---------|
 | CPU Mode (Sequential) | 1.9 | 531ms | 1x |
 | CoreML + Tracking | 4.6 | 217ms | 2.4x |
-| **Parallel (6 workers)** | **~28** | **~36ms** | **15x** ⚡ |
-| **Parallel (8 workers)** | **~37** | **~27ms** | **19x** 🚀 |
+| **Parallel (6 workers)** | **~28** | **~36ms** | **15x**  |
+| **Parallel (8 workers)** | **~37** | **~27ms** | **19x**  |
 | C++ OpenFace 2.2 | 32.9 | 30ms | 17x |
 
 **Note:** pyAUface achieves near-C++ performance with parallel processing while remaining 100% Python!

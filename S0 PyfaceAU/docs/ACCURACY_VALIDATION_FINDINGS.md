@@ -11,9 +11,9 @@
 After extensive investigation, we discovered that poor correlations between Python PyFaceAU and C++ OpenFace 2.2 outputs are **not caused by bugs in our implementation**, but rather by **fundamental differences in landmark detection algorithms**.
 
 **Key Findings**:
-1. ✅ Eigenvalue normalization bug was fixed (params went from 789 → 27.454)
-2. ✅ CalcParams implementation is mathematically correct
-3. ❌ Python (PFLD) produces different results than C++ (DLib) by design
+1. Eigenvalue normalization bug was fixed (params went from 789 → 27.454)
+2. CalcParams implementation is mathematically correct
+3. Python (PFLD) produces different results than C++ (DLib) by design
 4. **Conclusion**: Cannot achieve 99.9% fidelity when using different landmark detectors
 
 ---
@@ -136,7 +136,7 @@ Input difference: 2 pixels
 
 ## Implications for Validation Strategy
 
-### ❌ **Invalid Comparison**: Python (PFLD) vs C++ (DLib)
+### **Invalid Comparison**: Python (PFLD) vs C++ (DLib)
 ```
 Python PFLD → CalcParams → Python params
          vs
@@ -145,7 +145,7 @@ C++ DLib   → CalcParams → C++ params
 Expected correlation: LOW (0.05-0.30)
 ```
 
-### ✅ **Valid Comparison**: Python vs Python
+### **Valid Comparison**: Python vs Python
 ```
 Python PFLD → CalcParams → 3D shape → Reproject → 2D landmarks
          ↓
@@ -158,22 +158,22 @@ Expected correlation: HIGH (r > 0.99)
 
 ## Bugs Fixed During Investigation
 
-### 1. **Missing Eigenvalue Normalization** ✅ FIXED
+### 1. **Missing Eigenvalue Normalization** FIXED
 - **File**: `pyfaceau/alignment/calc_params.py`
 - **Lines**: 649-653
 - **Impact**: CalcParams now outputs correctly normalized parameters
 
-### 2. **Frame Indexing Mismatch** ✅ FIXED
+### 2. **Frame Indexing Mismatch** FIXED
 - **File**: `validate_accuracy.py`
 - **Line**: 116
 - **Fix**: Convert Python 0-indexed frames to 1-indexed for C++ CSV comparison
 
-### 3. **3D Landmarks Reshape Bug** ✅ FIXED
+### 3. **3D Landmarks Reshape Bug** FIXED
 - **File**: `validate_accuracy.py`
 - **Line**: 119
 - **Fix**: Reshape `shape_3d` from (204,) to (68, 3) for validation
 
-### 4. **Validation Script API Issues** ✅ FIXED
+### 4. **Validation Script API Issues** FIXED
 - Multiple API mismatches with pipeline components
 - Fixed by referencing `benchmark_detailed.py` for correct usage patterns
 
@@ -260,9 +260,9 @@ correlation = pearsonr(known_params, recovered_params)
 
 ## Conclusion
 
-**CalcParams is implemented correctly** ✅
-**Eigenvalue normalization is fixed** ✅
-**Poor correlation vs C++ is EXPECTED** ✅
+**CalcParams is implemented correctly** 
+**Eigenvalue normalization is fixed** 
+**Poor correlation vs C++ is EXPECTED** 
 
 The "poor accuracy" we observed is **not a bug** - it's the natural consequence of using different landmark detectors. Both PFLD and DLib are accurate detectors (~4-5% NME), but they produce systematically different landmark positions, leading to different CalcParams outputs.
 

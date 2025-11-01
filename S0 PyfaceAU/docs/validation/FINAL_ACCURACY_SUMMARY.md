@@ -10,17 +10,17 @@
 
 **Test Configuration:** Using identical C++ CLNF landmarks from OpenFace to isolate AU prediction accuracy
 
-### AU Performance: **91.22% Mean Correlation** ✅
+### AU Performance: **91.22% Mean Correlation** 
 
 **Passing AUs (14/17):**
-- ✓ **99%+ Excellent (5 AUs):**
+- **99%+ Excellent (5 AUs):**
   - AU12 (Lip Corner Puller): 99.78%
   - AU06 (Cheek Raiser): 99.77%
   - AU45 (Blink): 99.43%
   - AU25 (Lips Part): 98.92%
   - AU10 (Upper Lip Raiser): 98.82%
 
-- ✓ **90-98% Very Good (9 AUs):**
+- **90-98% Very Good (9 AUs):**
   - AU04 (Brow Lowerer): 98.24%
   - AU07 (Lid Tightener): 97.85%
   - AU14 (Dimpler): 97.76%
@@ -44,20 +44,20 @@
 
 **Test Configuration:** Using Python's PFLD CoreML landmark detector (production configuration)
 
-### AU Performance: **85.62% Mean Correlation** ✅
+### AU Performance: **85.62% Mean Correlation** 
 
 **Passing AUs (11/17):**
-- ✓ AU12 (Lip Corner Puller): 99.73%
-- ✓ AU06 (Cheek Raiser): 99.69%
-- ✓ AU45 (Blink): 99.32%
-- ✓ AU25 (Lips Part): 98.51%
-- ✓ AU10 (Upper Lip Raiser): 98.63%
-- ✓ AU04 (Brow Lowerer): 97.89%
-- ✓ AU07 (Lid Tightener): 97.31%
-- ✓ AU14 (Dimpler): 96.98%
-- ✓ AU26 (Jaw Drop): 95.14%
-- ✓ AU09 (Nose Wrinkler): 92.87%
-- ✓ AU17 (Chin Raiser): 89.43%
+- AU12 (Lip Corner Puller): 99.73%
+- AU06 (Cheek Raiser): 99.69%
+- AU45 (Blink): 99.32%
+- AU25 (Lips Part): 98.51%
+- AU10 (Upper Lip Raiser): 98.63%
+- AU04 (Brow Lowerer): 97.89%
+- AU07 (Lid Tightener): 97.31%
+- AU14 (Dimpler): 96.98%
+- AU26 (Jaw Drop): 95.14%
+- AU09 (Nose Wrinkler): 92.87%
+- AU17 (Chin Raiser): 89.43%
 
 **Failing AUs (6/17):**
 - ✗ AU01 (Inner Brow Raiser): 82.01% (passing with CLNF: 96.19%, -14.18%)
@@ -76,12 +76,12 @@
 ### CalcParams Performance
 
 **Global Parameters (99.79% mean):**
-- ✓ p_scale: 99.97%
+- p_scale: 99.97%
 - ✗ p_rx: 99.23% (rotation X - weakest parameter)
-- ✓ p_ry: 99.56%
-- ✓ p_rz: 99.95%
-- ✓ p_tx: 100.00%
-- ✓ p_ty: 100.00%
+- p_ry: 99.56%
+- p_rz: 99.95%
+- p_tx: 100.00%
+- p_ty: 100.00%
 
 **Local Parameters:**
 - Mean: 98.24%
@@ -99,7 +99,7 @@
 
 ## Investigation Results
 
-### Major Fix Implemented: Two-Pass Processing ✅
+### Major Fix Implemented: Two-Pass Processing 
 
 **Problem:** Validation script was missing two-pass re-prediction logic found in C++ OpenFace
 
@@ -111,22 +111,22 @@
 
 **Implementation:** Re-predict all frames using final stabilized running median
 
-### C++ Parity Verification ✅
+### C++ Parity Verification 
 
 All core algorithms verified to match C++ OpenFace 2.2 exactly:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| CalcParams algorithm | ✅ Identical | Gauss-Newton optimization matches exactly |
-| Histogram parameters | ✅ Identical | HOG: 1000 bins [-0.005, 1.0], Geom: 10000 bins [-60, 60] |
-| HOG median clamping | ✅ Identical | `hog_median[hog_median < 0] = 0.0` |
-| SVR prediction | ✅ Identical | `(features - means - running_median) * SV + bias` |
-| Median calculation | ✅ Identical | 50th percentile (true median) |
-| Two-pass processing | ✅ Implemented | Re-predicts all frames with final median |
-| Median update frequency | ✅ Identical | Both medians update every other frame |
-| Convergence criteria | ✅ Identical | `0.999 * curr_error < new_error`, stop after 3 iterations |
-| Regularization | ✅ Identical | `1.0 / eigenvalues` for local params |
-| Hessian solver | ✅ Identical | OpenCV Cholesky → Tikhonov → scipy lstsq |
+| CalcParams algorithm | Identical | Gauss-Newton optimization matches exactly |
+| Histogram parameters | Identical | HOG: 1000 bins [-0.005, 1.0], Geom: 10000 bins [-60, 60] |
+| HOG median clamping | Identical | `hog_median[hog_median < 0] = 0.0` |
+| SVR prediction | Identical | `(features - means - running_median) * SV + bias` |
+| Median calculation | Identical | 50th percentile (true median) |
+| Two-pass processing | Implemented | Re-predicts all frames with final median |
+| Median update frequency | Identical | Both medians update every other frame |
+| Convergence criteria | Identical | `0.999 * curr_error < new_error`, stop after 3 iterations |
+| Regularization | Identical | `1.0 / eigenvalues` for local params |
+| Hessian solver | Identical | OpenCV Cholesky → Tikhonov → scipy lstsq |
 
 ### CalcParams Accuracy Gap Analysis
 
@@ -167,7 +167,7 @@ All core algorithms verified to match C++ OpenFace 2.2 exactly:
 
 ## Conclusions
 
-### What We Achieved ✅
+### What We Achieved 
 
 1. **Verified C++ parity** - All algorithms match OpenFace 2.2 exactly
 2. **Fixed critical bug** - Implemented two-pass processing (+8.32% improvement)
@@ -181,7 +181,7 @@ All core algorithms verified to match C++ OpenFace 2.2 exactly:
 2. **Sparse AU detection** - Low-activity AUs (AU05, AU15, AU20) underperform
 3. **Test video bias** - Single video may not represent all AU patterns
 
-### Is PyFaceAU Production-Ready? **YES** ✅
+### Is PyFaceAU Production-Ready? **YES** 
 
 **Rationale:**
 - **91.22% mean correlation** is excellent for practical facial expression analysis
@@ -191,11 +191,11 @@ All core algorithms verified to match C++ OpenFace 2.2 exactly:
 - **Failing AUs have inherent challenges** - Sparse/weak signals in test video
 
 **Recommendation:**
-- ✅ Deploy for facial expression analysis
-- ✅ Use for emotion recognition applications
-- ✅ Suitable for real-world video processing
-- ⚠️ Consider testing on additional videos to validate AU05/15/20 performance
-- ⚠️ For applications requiring 99%+ on all AUs, may need to:
+- Deploy for facial expression analysis
+- Use for emotion recognition applications
+- Suitable for real-world video processing
+- Warning: Consider testing on additional videos to validate AU05/15/20 performance
+- Warning: For applications requiring 99%+ on all AUs, may need to:
   - Test on videos with stronger AU05/15/20 activity
   - Consider using C++ CLNF landmarks instead of PFLD (adds accuracy, reduces speed)
 
@@ -224,7 +224,7 @@ All core algorithms verified to match C++ OpenFace 2.2 exactly:
 
 ## Next Steps (Optional)
 
-### Option A: Accept Current Performance ✅ RECOMMENDED
+### Option A: Accept Current Performance RECOMMENDED
 
 **Rationale:**
 - 91.22% is excellent for practical use
@@ -256,19 +256,19 @@ All core algorithms verified to match C++ OpenFace 2.2 exactly:
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Mean AU Correlation | 91.22% | ✅ Excellent |
-| AUs Passing (r > 0.83) | 14/17 (82.4%) | ✅ Strong |
-| AUs at 99%+ | 5/17 (29.4%) | ✅ Excellent |
-| AUs at 90%+ | 14/17 (82.4%) | ✅ Excellent |
-| CalcParams Global Mean | 99.79% | ✅ Excellent |
-| CalcParams Local Mean | 98.24% | ✅ Very Good |
-| Processing Speed | 140 fps | ✅ Real-time |
-| Algorithm Correctness | 100% match | ✅ Verified |
+| Mean AU Correlation | 91.22% | Excellent |
+| AUs Passing (r > 0.83) | 14/17 (82.4%) | Strong |
+| AUs at 99%+ | 5/17 (29.4%) | Excellent |
+| AUs at 90%+ | 14/17 (82.4%) | Excellent |
+| CalcParams Global Mean | 99.79% | Excellent |
+| CalcParams Local Mean | 98.24% | Very Good |
+| Processing Speed | 140 fps | Real-time |
+| Algorithm Correctness | 100% match | Verified |
 
 **Overall Assessment:** PyFaceAU is production-ready with excellent performance suitable for real-world facial expression analysis applications.
 
 ---
 
-**Investigation Status:** ✅ COMPLETE
+**Investigation Status:** COMPLETE
 **Certification:** Ready for production use
 **Date:** 2025-11-01

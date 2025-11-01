@@ -354,7 +354,7 @@ def test_loader():
         print(f"  Weights dtype: {expert.weights.dtype}")
         print(f"  Weights range: [{expert.weights.min():.4f}, {expert.weights.max():.4f}]")
 
-    print("\n✓ Patch expert loader test complete!")
+    print("\nPatch expert loader test complete!")
 
 
 if __name__ == '__main__':

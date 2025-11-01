@@ -224,7 +224,7 @@ class OF22ModelParser:
                 use_dynamic = None if use_recommended else True
                 model = self.load_au_model(au_name, use_dynamic=use_dynamic, use_combined=use_combined)
                 models[au_name] = model
-                print(f"✓ Loaded {au_name} ({model['model_type']}): cutoff={model['cutoff']:.2f}, "
+                print(f"Loaded {au_name} ({model['model_type']}): cutoff={model['cutoff']:.2f}, "
                       f"means={model['means'].shape}, SV={model['support_vectors'].shape}, "
                       f"bias={model['bias']:.4f} [{model['filename']}]")
             except FileNotFoundError as e:

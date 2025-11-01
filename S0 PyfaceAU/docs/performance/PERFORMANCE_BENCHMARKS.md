@@ -36,15 +36,15 @@ RetinaFace (face detection)
 | **Failing (< 75%)** | 3/17 | AU05 (68.45%), AU23 (61.07%), AU15 (55.89%) |
 
 **Strengths:**
-- ✅ Fast (140 fps enables real-time applications)
-- ✅ Pure Python/CoreML (no C++ dependencies)
-- ✅ Excellent on core expressions (smile, blink, jaw)
-- ✅ Easy to deploy cross-platform
+- Fast (140 fps enables real-time applications)
+- Pure Python/CoreML (no C++ dependencies)
+- Excellent on core expressions (smile, blink, jaw)
+- Easy to deploy cross-platform
 
 **Weaknesses:**
-- ⚠️ Brow movements (AU01, AU02) just below threshold
-- ⚠️ Lip precision movements (AU23) underperforming
-- ⚠️ Sparse AUs (AU05, AU15, AU20) struggling
+- Warning: Brow movements (AU01, AU02) just below threshold
+- Warning: Lip precision movements (AU23) underperforming
+- Warning: Sparse AUs (AU05, AU15, AU20) struggling
 
 ---
 
@@ -76,15 +76,15 @@ RetinaFace (face detection)
 | **Failing (< 75%)** | 3/17 | AU20 (74.73%), AU05 (72.68%), AU15 (60.22%) |
 
 **Strengths:**
-- ✅ Best AU accuracy (91.22% mean)
-- ✅ 14/17 AUs passing (vs 11/17 with PFLD)
-- ✅ Excellent on brow movements (AU01: 96.19%, AU02: 87.77%)
-- ✅ Much better lip precision (AU23: 85.82%)
+- Best AU accuracy (91.22% mean)
+- 14/17 AUs passing (vs 11/17 with PFLD)
+- Excellent on brow movements (AU01: 96.19%, AU02: 87.77%)
+- Much better lip precision (AU23: 85.82%)
 
 **Weaknesses:**
-- ⚠️ Requires C++ OpenFace library
-- ⚠️ Complex deployment (dlib, OpenCV, OpenFace)
-- ⚠️ CLNF detection slower than PFLD (not measured standalone)
+- Warning: Requires C++ OpenFace library
+- Warning: Complex deployment (dlib, OpenCV, OpenFace)
+- Warning: CLNF detection slower than PFLD (not measured standalone)
 
 ---
 
@@ -105,9 +105,9 @@ RetinaFace (face detection)
 
 | AU | Description | PFLD | CLNF | Gain | Status Change |
 |----|-------------|------|------|------|---------------|
-| **AU01** | Inner Brow Raiser | 82.01% | 96.19% | **+14.18%** | Fail → Pass ✅ |
-| **AU02** | Outer Brow Raiser | 78.93% | 87.77% | **+8.84%** | Fail → Pass ✅ |
-| **AU23** | Lip Tightener | 61.07% | 85.82% | **+24.75%** | Fail → Pass ✅ |
+| **AU01** | Inner Brow Raiser | 82.01% | 96.19% | **+14.18%** | Fail → Pass |
+| **AU02** | Outer Brow Raiser | 78.93% | 87.77% | **+8.84%** | Fail → Pass |
+| **AU23** | Lip Tightener | 61.07% | 85.82% | **+24.75%** | Fail → Pass |
 
 **AUs Stable with Both (< 2% difference):**
 
@@ -157,10 +157,10 @@ Pipeline:
 ```
 
 **Why This Works:**
-- ✅ Focus computational effort where it matters (brows, lip corners)
-- ✅ Leverage PFLD for 82% of landmarks (already accurate)
-- ✅ Add CLNF precision only where PFLD struggles
-- ✅ Maintain speed by refining small subset of points
+- Focus computational effort where it matters (brows, lip corners)
+- Leverage PFLD for 82% of landmarks (already accurate)
+- Add CLNF precision only where PFLD struggles
+- Maintain speed by refining small subset of points
 
 ### Implementation Components
 
@@ -209,9 +209,9 @@ class TargetedCLNFRefiner:
 **Conservative Estimate:**
 | AU | Current (PFLD) | Expected (PFLD+CLNF) | Target |
 |----|----------------|----------------------|--------|
-| AU01 | 82.01% | 88-92% ✅ | Pass (> 83%) |
-| AU02 | 78.93% | 84-88% ✅ | Pass (> 83%) |
-| AU23 | 61.07% | 70-78% ⚠️ | May pass |
+| AU01 | 82.01% | 88-92% | Pass (> 83%) |
+| AU02 | 78.93% | 84-88% | Pass (> 83%) |
+| AU23 | 61.07% | 70-78% Warning: | May pass |
 
 **Optimistic Estimate:**
 - Mean AU Correlation: 89-91% (within 0-2% of CLNF)
@@ -224,10 +224,10 @@ class TargetedCLNFRefiner:
 ### For Production Applications
 
 **Use PFLD (Current Default):**
-- ✅ 85.62% correlation is excellent for most use cases
-- ✅ 140 fps enables real-time processing
-- ✅ Pure Python deployment (no C++ compilation)
-- ✅ Cross-platform (macOS, Linux, Windows)
+- 85.62% correlation is excellent for most use cases
+- 140 fps enables real-time processing
+- Pure Python deployment (no C++ compilation)
+- Cross-platform (macOS, Linux, Windows)
 
 **Applications:**
 - General facial expression analysis
@@ -239,10 +239,10 @@ class TargetedCLNFRefiner:
 ### For Research/High-Precision Applications
 
 **Use PFLD + Targeted CLNF Refinement (Planned):**
-- ✅ 88-90% expected correlation
-- ✅ 100-120 fps (still real-time)
-- ✅ Better brow and lip precision
-- ✅ Still pure Python (no dlib)
+- 88-90% expected correlation
+- 100-120 fps (still real-time)
+- Better brow and lip precision
+- Still pure Python (no dlib)
 
 **Applications:**
 - Clinical facial analysis
@@ -254,9 +254,9 @@ class TargetedCLNFRefiner:
 ### For Maximum Accuracy
 
 **Use Full C++ CLNF Landmarks:**
-- ✅ 91.22% correlation (best available)
-- ⚠️ Requires C++ OpenFace integration
-- ⚠️ Complex deployment
+- 91.22% correlation (best available)
+- Warning: Requires C++ OpenFace integration
+- Warning: Complex deployment
 
 **Applications:**
 - Ground truth dataset creation
@@ -271,8 +271,8 @@ Both PFLD and CLNF achieve similar CalcParams accuracy (3D pose estimation):
 
 | Parameter Type | Correlation | Status |
 |----------------|-------------|--------|
-| **Global Mean** | 99.79% | ✅ Excellent |
-| **Local Mean** | 98.24% | ✅ Very Good |
+| **Global Mean** | 99.79% | Excellent |
+| **Local Mean** | 98.24% | Very Good |
 
 **Conclusion:** CalcParams accuracy is not significantly affected by landmark detector choice. The AU prediction differences are due to landmark precision, not pose estimation.
 
@@ -311,9 +311,9 @@ Total:                         ~9-11ms → 90-110 fps
 
 | Configuration | Mean AU Corr | AUs Passing | Speed | Deployment | Status |
 |---------------|--------------|-------------|-------|------------|--------|
-| **PFLD Only** | 85.62% | 11/17 | 140 fps | Easy | ✅ Available |
+| **PFLD Only** | 85.62% | 11/17 | 140 fps | Easy | Available |
 | **PFLD + CLNF (Targeted)** | 88-90% (est) | 12-13/17 (est) | 100-120 fps (est) | Easy | 🚧 Planned |
-| **Full C++ CLNF** | 91.22% | 14/17 | ~140 fps* | Hard | ✅ Validated |
+| **Full C++ CLNF** | 91.22% | 14/17 | ~140 fps* | Hard | Validated |
 
 *Speed measurement based on pre-extracted landmarks
 
@@ -337,7 +337,7 @@ Total:                         ~9-11ms → 90-110 fps
 
 ---
 
-**Document Status:** ✅ CURRENT
+**Document Status:** CURRENT
 **Last Updated:** 2025-11-01
 **PyFaceAU Version:** 1.0 (Production Ready with PFLD)
 **Next Version:** 1.1 (Planned: PFLD + Targeted CLNF Refinement)

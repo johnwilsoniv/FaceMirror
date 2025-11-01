@@ -217,10 +217,10 @@
 
 | Component | Validation Method | Result |
 |-----------|-------------------|--------|
-| **PyFHOG** | Feature-level comparison | **r = 1.0** ✅ PERFECT |
-| **CalcParams** | Parameter-level comparison | **r = 0.9945** ✅ Gold Standard |
-| **Face Alignment** | Static AU validation | r = 0.94 ✅ Excellent |
-| **Running Median** | Two-pass validation | Working correctly ✅ |
+| **PyFHOG** | Feature-level comparison | **r = 1.0** PERFECT |
+| **CalcParams** | Parameter-level comparison | **r = 0.9945** Gold Standard |
+| **Face Alignment** | Static AU validation | r = 0.94 Excellent |
+| **Running Median** | Two-pass validation | Working correctly |
 | **AU Models** | Frame-by-frame comparison | r = 0.83 overall |
 
 ---
@@ -231,13 +231,13 @@
 
 | AU | Name | Correlation (r) | Status |
 |----|------|-----------------|--------|
-| AU04 | Brow Lowerer | 0.87 | ✅ Good |
-| AU06 | Cheek Raiser | 0.97 | ✅ Excellent |
-| AU07 | Lid Tightener | 0.91 | ✅ Excellent |
-| AU10 | Upper Lip Raiser | 0.97 | ✅ Excellent |
-| AU12 | Lip Corner Puller | **0.99** | ✅ **Near-Perfect** |
-| AU14 | Dimpler | 0.95 | ✅ Excellent |
-| **Mean** | | **0.94** | ✅ **Excellent** |
+| AU04 | Brow Lowerer | 0.87 | Good |
+| AU06 | Cheek Raiser | 0.97 | Excellent |
+| AU07 | Lid Tightener | 0.91 | Excellent |
+| AU10 | Upper Lip Raiser | 0.97 | Excellent |
+| AU12 | Lip Corner Puller | **0.99** | **Near-Perfect** |
+| AU14 | Dimpler | 0.95 | Excellent |
+| **Mean** | | **0.94** | **Excellent** |
 
 **Conclusion:** Face alignment and HOG extraction working correctly!
 
@@ -245,17 +245,17 @@
 
 | AU | Name | Correlation (r) | Status |
 |----|------|-----------------|--------|
-| AU01 | Inner Brow Raiser | 0.82 | ✅ Good |
-| AU02 | Outer Brow Raiser | 0.58 | ⚠️ Poor |
+| AU01 | Inner Brow Raiser | 0.82 | Good |
+| AU02 | Outer Brow Raiser | 0.58 | Warning: Poor |
 | AU05 | Upper Lid Raiser | 0.66 | ~ Acceptable |
-| AU09 | Nose Wrinkler | 0.90 | ✅ Excellent |
+| AU09 | Nose Wrinkler | 0.90 | Excellent |
 | AU15 | Lip Corner Depressor | 0.49 | 🔴 Poor |
-| AU17 | Chin Raiser | 0.86 | ✅ Good |
+| AU17 | Chin Raiser | 0.86 | Good |
 | AU20 | Lip Stretcher | 0.49 | 🔴 Poor |
 | AU23 | Lip Tightener | 0.72 | ~ Acceptable |
-| AU25 | Lips Part | 0.97 | ✅ Excellent |
-| AU26 | Jaw Drop | 0.98 | ✅ Excellent |
-| AU45 | Blink | **0.99** | ✅ **Near-Perfect** |
+| AU25 | Lips Part | 0.97 | Excellent |
+| AU26 | Jaw Drop | 0.98 | Excellent |
+| AU45 | Blink | **0.99** | **Near-Perfect** |
 | **Mean** | | **0.77** | ~ **Acceptable** |
 
 **Problem AUs:** AU02, AU15, AU20 show massive variance over-prediction (280-516% of C++ variance)
@@ -274,16 +274,16 @@ Alignment → FHOG (C++) → PDM → Running Median (C++) → SVR → AUs
 ```
 
 **Strengths:**
-- ✅ Highly optimized C++ throughout
-- ✅ CLNF considered gold standard for landmarks
-- ✅ Very fast (32.9 FPS)
-- ✅ Production-tested
+- Highly optimized C++ throughout
+- CLNF considered gold standard for landmarks
+- Very fast (32.9 FPS)
+- Production-tested
 
 **Weaknesses:**
-- ❌ Requires C++ compilation
-- ❌ Platform-specific builds
-- ❌ Difficult to modify
-- ❌ MTCNN is slow
+- Requires C++ compilation
+- Platform-specific builds
+- Difficult to modify
+- MTCNN is slow
 
 ### pyAUface Python Architecture
 
@@ -293,17 +293,17 @@ Alignment → PyFHOG (C ext) → PDM → Running Median (Cython) → SVR → AUs
 ```
 
 **Strengths:**
-- ✅ No compilation required
-- ✅ Cross-platform (Windows, Mac, Linux)
-- ✅ Easy to modify (Python)
-- ✅ Modular components
-- ✅ Some components FASTER (RetinaFace + tracking, Running Median)
+- No compilation required
+- Cross-platform (Windows, Mac, Linux)
+- Easy to modify (Python)
+- Modular components
+- Some components FASTER (RetinaFace + tracking, Running Median)
 
 **Weaknesses:**
-- ❌ Slower overall (7x)
-- ❌ PFLD less accurate than CLNF
-- ❌ 3 dynamic AUs underperform
-- ❌ CalcParams bottleneck
+- Slower overall (7x)
+- PFLD less accurate than CLNF
+- 3 dynamic AUs underperform
+- CalcParams bottleneck
 
 ---
 
@@ -352,20 +352,20 @@ pip install pyfhog
 ## Use Case Recommendations
 
 ### Use OpenFace C++ 2.2 When:
-- ✅ Maximum performance required (real-time processing)
-- ✅ Linux environment available
-- ✅ C++ expertise available
-- ✅ Production deployment with fixed requirements
-- ✅ Need CLNF landmark accuracy
+- Maximum performance required (real-time processing)
+- Linux environment available
+- C++ expertise available
+- Production deployment with fixed requirements
+- Need CLNF landmark accuracy
 
 ### Use pyAUface Python When:
-- ✅ Cross-platform support needed (especially Windows)
-- ✅ Easy installation required
-- ✅ Research/exploration (modifiable code)
-- ✅ Batch processing (speed less critical)
-- ✅ Integration with Python ML pipelines
-- ✅ Teaching/learning facial AU extraction
-- ✅ Need to modify AU extraction logic
+- Cross-platform support needed (especially Windows)
+- Easy installation required
+- Research/exploration (modifiable code)
+- Batch processing (speed less critical)
+- Integration with Python ML pipelines
+- Teaching/learning facial AU extraction
+- Need to modify AU extraction logic
 
 ---
 

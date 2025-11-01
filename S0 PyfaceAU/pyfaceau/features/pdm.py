@@ -36,7 +36,7 @@ class PDMParser:
         # Load PDM components
         self.mean_shape, self.princ_comp, self.eigen_values = self._parse_pdm()
 
-        print(f"✓ Loaded PDM from {self.pdm_file_path.name}")
+        print(f"Loaded PDM from {self.pdm_file_path.name}")
         print(f"  Mean shape: {self.mean_shape.shape}")
         print(f"  Principal components: {self.princ_comp.shape}")
         print(f"  Eigenvalues: {self.eigen_values.shape}")
@@ -217,7 +217,7 @@ def test_pdm_parser():
     # Reconstruct landmarks
     print("\nReconstructing landmarks...")
     reconstructed = pdm.reconstruct_from_params(pdm_params)
-    print(f"✓ Reconstructed landmarks: {reconstructed.shape}")
+    print(f"Reconstructed landmarks: {reconstructed.shape}")
     print(f"  First 5 values: {reconstructed[:5]}")
 
     # Check range
@@ -247,7 +247,7 @@ def test_pdm_parser():
     # Extract geometric features
     print("\nExtracting geometric features...")
     geom_features = pdm.extract_geometric_features(pdm_params)
-    print(f"✓ Geometric features: {geom_features.shape}")
+    print(f"Geometric features: {geom_features.shape}")
     print(f"  Expected: (238,) = 204 (landmarks) + 34 (params)")
 
     # Check if reconstructed landmarks fit in histogram range [-60, 60]

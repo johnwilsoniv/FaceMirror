@@ -230,7 +230,7 @@ def test_batched_predictor():
 
     print("-" * 60)
     print(f"Max difference: {max_diff:.2e}")
-    print(f"All match: {'✅ YES' if all_match else '❌ NO'}")
+    print(f"All match: {'YES' if all_match else 'NO'}")
 
     # Performance comparison
     print("\nPerformance test (1000 iterations):")
@@ -259,7 +259,7 @@ def test_batched_predictor():
 
     print(f"Sequential: {seq_time:.3f}s ({seq_time/1000*1000:.2f}ms per iteration)")
     print(f"Batched:    {batch_time:.3f}s ({batch_time/1000*1000:.2f}ms per iteration)")
-    print(f"Speedup:    {speedup:.2f}x faster ⚡")
+    print(f"Speedup:    {speedup:.2f}x faster ")
 
     return all_match
 

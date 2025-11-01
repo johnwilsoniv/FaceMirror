@@ -35,7 +35,7 @@ class TriangulationParser:
 
         self.triangles = np.array(triangles, dtype=np.int32)
 
-        print(f"✓ Loaded {len(self.triangles)} triangles from {tris_file}")
+        print(f"Loaded {len(self.triangles)} triangles from {tris_file}")
 
     def create_face_mask(self, landmarks: np.ndarray, img_width: int, img_height: int) -> np.ndarray:
         """
