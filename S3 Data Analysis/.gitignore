@@ -1,48 +1,49 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-*.egg-info/
-dist/
+# Build artifacts
 build/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
 
-# Virtual environments
-venv/
-env/
-ENV/
-.venv/
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+*.cache
+
+# Test outputs
+test_output/
+
+# Analysis results (generated during processing)
+analysis_results/*.txt
+analysis_results/*.xlsx
+analysis_results/*.csv
+
+# Performance data
+performance_analysis_results/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
 *~
 
-# OS
-.DS_Store
-Thumbs.db
+# Backup files
+*.backup
 
-# Training and analysis logs
-*.log
-retrain_*.log
-training_output.log
-main_output.log
+# PyInstaller spec files
+*.spec
 
-# Temporary cleanup files
-CLEANUP_*.md
-cleanup_*.py
-
-# Keep important logs
-!logs/facial_au_analyzer.log
-!logs/predictive_au_analysis.log
-!logs/predictive_au_analysis_per_action.log
-
-# Data outputs (keep CSV and visualizations)
-# Videos if any
-*.mp4
-*.avi
-*.mov
-*.mkv
+# Test data files (if not essential)
+batch_test.log
+combined_results.csv
