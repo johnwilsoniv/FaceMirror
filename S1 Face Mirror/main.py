@@ -704,7 +704,7 @@ def workflow_mirror_openface():
         root.destroy()
         return
 
-    debug_mode = True
+    debug_mode = False
 
     # Auto-detect GPU for entire pipeline
     device = auto_detect_device()

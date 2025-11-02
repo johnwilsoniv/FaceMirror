@@ -437,3 +437,20 @@ class PyFaceAU68LandmarkDetector:
 
         overall_quality = (yaw_quality * 0.9) + (stability * 0.1)
         return overall_quality
+
+    def print_performance_summary(self):
+        """
+        Print performance summary (compatibility method).
+
+        PyFaceAU uses internal profiling. This method is kept for API
+        compatibility with the video processor.
+        """
+        # No-op: PyFaceAU reports performance during processing
+        # This is kept to prevent AttributeError when called by video_processor
+        pass
+
+    def cleanup_memory(self):
+        """Cleanup GPU memory (compatibility method for old interface)"""
+        # PyFaceAU doesn't require explicit GPU memory cleanup
+        # This is kept for API compatibility with OpenFace3
+        pass
