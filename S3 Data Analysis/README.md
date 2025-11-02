@@ -1,6 +1,6 @@
 # Data Analysis - Facial Paralysis Detection
 
-This application analyzes facial action unit (AU) data to automatically detect and quantify facial paralysis using machine learning. Designed to work with OpenFace 3.0 output data.
+This application analyzes facial action unit (AU) data to automatically detect and quantify facial paralysis using machine learning. Designed to work with PyFaceAU output data.
 
 ## Quick Start
 
@@ -26,31 +26,38 @@ python main.py --batch --data-dir /path/to/data --skip-visuals
 Analyzes facial AU data from mirrored left/right video recordings to detect paralysis severity (None/Partial/Complete) across three facial regions:
 
 - **Upper Face**: Eyebrows, forehead (AU01, AU02)
-- **Mid Face**: Eyes, cheeks (AU45, AU06)
+- **Mid Face**: Eyes, eyelids (AU45, AU07)
 - **Lower Face**: Mouth, lips (AU12, AU25)
 
-## OpenFace 3.0 Compatibility
+## PyFaceAU Compatibility
 
-This system is configured for **OpenFace 3.0**, which provides 9 Action Units (down from 18 in OpenFace 2.2).
+This system is configured for **PyFaceAU** (Pure Python OpenFace 2.2 implementation), which provides 17 functional Action Units with r=0.8640 correlation to original OpenFace 2.2.
 
-### Available AUs in OpenFace 3.0
+### Available AUs in PyFaceAU
 - AU01 (Inner Brow Raiser)
 - AU02 (Outer Brow Raiser)
 - AU04 (Brow Lowerer)
+- AU05 (Upper Lid Raiser)
 - AU06 (Cheek Raiser)
+- AU07 (Lid Tightener)
+- AU09 (Nose Wrinkler)
+- AU10 (Upper Lip Raiser)
 - AU12 (Lip Corner Puller/Smile)
+- AU14 (Dimpler)
 - AU15 (Lip Corner Depressor)
+- AU17 (Chin Raiser)
 - AU20 (Lip Stretcher)
+- AU23 (Lip Tightener)
 - AU25 (Lips Part)
+- AU26 (Jaw Drop)
 - AU45 (Blink)
 
-### Key Adaptations from OpenFace 2.2
-- **Midface detection**: AU07 (Lid Tightener) → AU06 (Cheek Raiser)
-- **Big Smile/Close Eyes Tightly**: Use AU06 instead of AU07
-- **Wrinkle Nose**: Use AU06 instead of AU09
-- **Lower Teeth**: Use AU15 instead of AU16
-- **Say O**: Use AU25 only (AU26 unavailable)
-- **Pucker Lips/Blow Cheeks**: Use median frame selection (AU17/AU23 unavailable)
+### AU Mappings for Detection
+- **Mid-face detection (eyes)**: AU07 (Lid Tightener), AU45 (Blink)
+- **Close Eyes Tightly/Big Smile**: AU07 (Lid Tightener) for eye component
+- **Wrinkle Nose**: AU09 (Nose Wrinkler)
+- **Pucker Lips**: Median frame fallback (AU17 detection challenging)
+- **Blow Cheeks**: Median frame fallback (AU23 detection challenging)
 
 ## Analyzed Actions
 
@@ -114,7 +121,7 @@ Key parameters in `facial_au_constants.py`:
 ```python
 FACIAL_ZONES = {
     'upper': ['AU01_r', 'AU02_r'],
-    'mid': ['AU45_r', 'AU06_r'],
+    'mid': ['AU45_r', 'AU07_r'],
     'lower': ['AU12_r', 'AU25_r']
 }
 ```
@@ -127,7 +134,7 @@ Defines which AUs are used to find peak frames for each action. See `ACTION_TO_A
 - `ASYMMETRY_THRESHOLDS` - Percent difference and ratio cutoffs
 - `CONFIDENCE_THRESHOLDS` - ML model confidence requirements
 
-**Note:** Thresholds are currently calibrated for OpenFace 2.2. Recalibration recommended after testing with OpenFace 3.0 data.
+**Note:** Models must be retrained with PyFaceAU data to use corrected AU07 mappings for mid-face detection.
 
 ## Architecture
 
