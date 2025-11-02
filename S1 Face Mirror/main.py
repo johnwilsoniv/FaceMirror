@@ -713,6 +713,35 @@ def workflow_mirror_openface():
     print(f"Available CPU cores: {cpu_count()}")
     print(f"Using device: {device.upper()}")
 
+    # Pre-warm CoreML models in main thread before starting worker
+    # This prevents CoreML compilation from hanging in the background thread
+    print("\n" + "="*60)
+    print("WARMING UP COREML MODELS (ONE-TIME COMPILATION)")
+    print("="*60)
+    print("Initializing face detection models...")
+    print("This may take 30-60 seconds on first run (models are cached)")
+    print("="*60 + "\n")
+
+    try:
+        from pyfaceau_detector import PyFaceAU68LandmarkDetector
+        import numpy as np
+        warmup_detector = PyFaceAU68LandmarkDetector(
+            debug_mode=False,
+            device=device,
+            skip_face_detection=False,
+            use_clnf_refinement=True
+        )
+        # Run dummy inference to trigger CoreML compilation
+        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        _ = warmup_detector.get_face_mesh(dummy_frame)
+        del warmup_detector
+        gc.collect()
+        print("CoreML models compiled and cached successfully!")
+        print("Subsequent initializations will be instant.\n")
+    except Exception as e:
+        print(f"Warning: CoreML warmup failed: {e}")
+        print("Continuing anyway...\n")
+
     # Create progress window with OpenFace stage enabled
     progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=True)
 
