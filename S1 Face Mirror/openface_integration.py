@@ -70,6 +70,24 @@ class OpenFace3Processor(PyFaceAUProcessor):
             print("  AU Models: SVR-based (17 AUs)")
             print("="*60 + "\n")
 
+    def process_video(self, video_path, output_csv=None, progress_callback=None):
+        """
+        Process video with progress_callback support (API compatibility wrapper).
+
+        PyFaceAU's process_video doesn't accept progress_callback, so we wrap it
+        and ignore the callback parameter.
+
+        Args:
+            video_path: Path to input video
+            output_csv: Path to output CSV file
+            progress_callback: Ignored (kept for API compatibility)
+
+        Returns:
+            int: Number of frames processed
+        """
+        # Call parent's process_video without progress_callback
+        return super().process_video(video_path, output_csv)
+
 
 def process_videos(directory_path, specific_files=None, output_dir=None, **kwargs):
     """
