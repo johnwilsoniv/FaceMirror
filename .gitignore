@@ -18,6 +18,7 @@ output/
 *.csv
 *.txt
 !requirements.txt
+*.xlsx
 *.log
 logs/
 

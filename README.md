@@ -1,17 +1,17 @@
 # SplitFace v2.0.0
 
-A comprehensive suite for facial video processing, action coding, and paralysis detection using OpenFace 3.0 and machine learning.
+A comprehensive suite for facial video processing, action coding, and paralysis detection using PyFaceAU and machine learning.
 
 ## Overview
 
 SplitFace consists of three integrated applications:
 
 ### S1: Face Mirror
-Processes facial videos using OpenFace 3.0 to extract Action Units (AUs) and create mirrored comparison videos.
+Processes facial videos using PyFaceAU to extract Action Units (AUs) and create mirrored comparison videos.
 
 **Key Features:**
-- OpenFace 3.0 facial landmark detection
-- AU intensity extraction (18 AUs)
+- PyFaceAU facial landmark detection (Pure Python OpenFace 2.2)
+- AU intensity extraction (17 AUs)
 - Left/right face mirroring for asymmetry analysis
 - Patient-based batch processing
 - Progress tracking with existing output detection
@@ -155,7 +155,7 @@ The typical workflow through all three applications:
 
 ```
 1. S1 Face Mirror
-   └─> Process raw videos with OpenFace 3.0
+   └─> Process raw videos with PyFaceAU
        └─> Extract AUs and create mirrored videos
 
 2. S2 Action Coder
@@ -196,12 +196,12 @@ All applications output to a standardized location:
 
 ## Key Technologies
 
-- **OpenFace 3.0**: Facial landmark detection and AU extraction
+- **PyFaceAU**: Pure Python facial landmark detection and AU extraction (OpenFace 2.2 implementation)
 - **faster-whisper**: Speech-to-text for action detection
 - **PyQt5**: GUI framework for S2
 - **tkinter**: GUI framework for S3
 - **scikit-learn**: Machine learning for paralysis detection
-- **PyTorch**: Deep learning models in OpenFace
+- **ONNX Runtime**: Deep learning inference
 - **OpenCV**: Video processing
 - **pandas**: Data manipulation
 - **matplotlib**: Visualization
@@ -290,17 +290,17 @@ If you use SplitFace in your research, please cite:
 ## Changelog
 
 ### v2.0.0 (Current)
-- Upgraded to OpenFace 3.0
+- Migrated to PyFaceAU (Pure Python OpenFace 2.2 implementation)
 - Native Apple Silicon (ARM64) support
 - Standardized output directory structure
-- Improved memory management
+- Improved memory management and performance
 - Enhanced GUI for S2
 - ML-based paralysis detection in S3
 - Fixed PyInstaller bundling (includes all required dependencies)
 - DMG installer for easy distribution
 
 ### v1.0.0 (Previous)
-- Initial release with OpenFace 2.2
+- Initial release
 - Basic S1, S2, S3 functionality
 
 ## Contributors
@@ -309,6 +309,6 @@ If you use SplitFace in your research, please cite:
 
 ## Acknowledgments
 
-- OpenFace team for the facial analysis toolkit
-- Hugging Face for transformer models
+- OpenFace 2.2 team for the original facial analysis toolkit
 - faster-whisper contributors for speech recognition
+- ONNX Runtime team for efficient model inference
