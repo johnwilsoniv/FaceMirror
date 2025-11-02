@@ -75,19 +75,40 @@ class OpenFace3Processor(PyFaceAUProcessor):
         """
         Process video with progress_callback support (API compatibility wrapper).
 
-        PyFaceAU's process_video doesn't accept progress_callback, so we wrap it
-        and ignore the callback parameter.
+        Wraps PyFaceAU's process_video to provide progress updates to S1's GUI.
 
         Args:
             video_path: Path to input video
             output_csv: Path to output CSV file
-            progress_callback: Ignored (kept for API compatibility)
+            progress_callback: Function(current_frame, total_frames, fps) for progress updates
 
         Returns:
             int: Number of frames processed
         """
-        # Call parent's process_video without progress_callback
-        return super().process_video(video_path, output_csv)
+        import cv2
+        from pathlib import Path
+
+        # Get total frames for progress reporting
+        video_path = Path(video_path)
+        cap = cv2.VideoCapture(str(video_path))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        cap.release()
+
+        # Store callback in pipeline for worker thread access
+        if progress_callback and hasattr(self, 'pipeline'):
+            self.pipeline._progress_callback = progress_callback
+            self.pipeline._total_frames = total_frames
+            self.pipeline._video_fps = fps
+
+        # Call parent's process_video
+        result = super().process_video(video_path, output_csv)
+
+        # Clean up callback reference
+        if hasattr(self, 'pipeline'):
+            self.pipeline._progress_callback = None
+
+        return result
 
 
 def process_videos(directory_path, specific_files=None, output_dir=None, **kwargs):
