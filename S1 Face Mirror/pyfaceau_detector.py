@@ -261,19 +261,21 @@ class PyFaceAU68LandmarkDetector:
                 return smoothed_points, None
 
             except Exception as e:
-                # Landmark detection failed - reuse previous or fail
-                if self.last_landmarks is not None and self.skip_face_detection:
+                # Landmark detection failed - ALWAYS try to reuse previous landmarks first
+                if self.last_landmarks is not None:
                     if self.debug_mode:
-                        print(f"  Landmark detection failed, reusing previous")
+                        print(f"  Landmark/CLNF failed (frame {self.frame_count}), reusing previous: {type(e).__name__}")
                     return self.last_landmarks.copy(), None
 
+                # No previous landmarks available
                 if self.debug_mode:
-                    print(f"Landmark detection error: {e}")
+                    print(f"Landmark detection error (frame {self.frame_count}): {type(e).__name__}: {e}")
 
                 # Try re-detecting face if not in skip mode
                 if not self.skip_face_detection and not self.skip_redetection:
                     self.cached_bbox = None
-                    return None, None
+
+                return None, None
 
         return None, None
 

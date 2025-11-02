@@ -228,9 +228,17 @@ class VideoProcessor:
             if landmarks is not None:
                 right_face, left_face = self.face_mirror.create_mirrored_faces(frame, landmarks)
                 debug_frame = self.face_mirror.create_debug_frame(frame, landmarks)
+                # Cache last successful landmarks for fallback
+                self.landmark_detector.last_landmarks = landmarks.copy()
             else:
-                right_face, left_face = frame.copy(), frame.copy()
-                debug_frame = frame.copy()
+                # Fallback: reuse last successful landmarks to create NEW mirrored frame
+                if self.landmark_detector.last_landmarks is not None:
+                    right_face, left_face = self.face_mirror.create_mirrored_faces(frame, self.landmark_detector.last_landmarks)
+                    debug_frame = self.face_mirror.create_debug_frame(frame, self.landmark_detector.last_landmarks)
+                else:
+                    # No previous landmarks available (very first frames)
+                    right_face, left_face = frame.copy(), frame.copy()
+                    debug_frame = frame.copy()
 
             return (frame_index, right_face, left_face, debug_frame)
 
@@ -452,10 +460,21 @@ class VideoProcessor:
                 process_start = time.time()
                 batch_results = {}
 
+                # CRITICAL FIX: Process frame 0 separately to initialize face detection
+                # Frame 0 must complete BEFORE parallel processing starts to set cached_bbox
+                if batch_num == 1 and len(current_batch) > 0 and current_batch[0][0] == 0:
+                    idx, right, left, debug = self._process_frame_batch(current_batch[0])
+                    batch_results[idx] = (right, left, debug)
+                    pbar.update(1)
+                    # Remove frame 0 from batch
+                    frames_to_process = current_batch[1:]
+                else:
+                    frames_to_process = current_batch
+
                 with ThreadPoolExecutor(max_workers=self.num_threads) as executor:
-                    # Submit all frames in current batch for parallel processing
+                    # Submit remaining frames for parallel processing
                     futures = {executor.submit(self._process_frame_batch, frame_data): frame_data[0]
-                              for frame_data in current_batch}
+                              for frame_data in frames_to_process}
 
                     # Collect results as they complete
                     for future in as_completed(futures):

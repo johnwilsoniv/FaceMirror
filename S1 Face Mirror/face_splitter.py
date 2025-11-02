@@ -19,6 +19,8 @@ class StableFaceSplitter:
             skip_face_detection: Skip RetinaFace entirely, use default bbox (experimental)
         """
         # Create PyFaceAU 68-point landmark detector with CLNF refinement
+        # CLNF improves eyebrow accuracy which is critical for glabella/midline calculation
+        # Frame 0 is now processed separately to avoid race conditions
         # skip_redetection=True: Only run RetinaFace once (first frame), then track
         # skip_face_detection=True: Skip RetinaFace entirely (experimental, uses default bbox)
         self.landmark_detector = PyFaceAU68LandmarkDetector(
@@ -26,7 +28,7 @@ class StableFaceSplitter:
             device=device,
             skip_redetection=not skip_face_detection,  # If skipping detection, also skip redetection
             skip_face_detection=skip_face_detection,
-            use_clnf_refinement=True  # Enable CLNF for better midline accuracy
+            use_clnf_refinement=True  # Re-enabled: Race condition fixed, testing if TLS issue resolved
         )
         if debug_mode:
             print("Using PyFaceAU 68-point detector with CLNF refinement")
