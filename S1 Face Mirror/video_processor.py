@@ -317,30 +317,45 @@ class VideoProcessor:
 
         # Track actual write performance
         write_thread_stats = {'frames_written': 0, 'total_write_time': 0.0}
+        write_thread_error = {'error': None}  # Store exceptions from writer thread
 
         def video_writer_thread():
             """Background thread that writes frames to video files"""
-            while write_thread_running.is_set() or not write_queue.empty():
-                try:
-                    item = write_queue.get(timeout=0.1)
-                    if item is None:  # Poison pill to stop thread
+            try:
+                while write_thread_running.is_set() or not write_queue.empty():
+                    try:
+                        item = write_queue.get(timeout=0.1)
+                        if item is None:  # Poison pill to stop thread
+                            break
+
+                        idx, right_face, left_face, debug_frame = item
+
+                        # Time actual write operations
+                        write_start = time.time()
+                        right_writer.write(right_face.astype(np.uint8))
+                        left_writer.write(left_face.astype(np.uint8))
+                        debug_writer.write(debug_frame)
+                        write_elapsed = time.time() - write_start
+
+                        write_thread_stats['frames_written'] += 1
+                        write_thread_stats['total_write_time'] += write_elapsed
+
+                        write_queue.task_done()
+                    except queue.Empty:
+                        continue
+            except Exception as e:
+                # Catch ANY exception from write operations (BrokenPipeError, RuntimeError, etc.)
+                print(f"\n[ERROR] Video writer thread crashed: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
+                write_thread_error['error'] = e
+                # Drain queue to unblock main thread
+                while not write_queue.empty():
+                    try:
+                        write_queue.get_nowait()
+                        write_queue.task_done()
+                    except queue.Empty:
                         break
-
-                    idx, right_face, left_face, debug_frame = item
-
-                    # Time actual write operations
-                    write_start = time.time()
-                    right_writer.write(right_face.astype(np.uint8))
-                    left_writer.write(left_face.astype(np.uint8))
-                    debug_writer.write(debug_frame)
-                    write_elapsed = time.time() - write_start
-
-                    write_thread_stats['frames_written'] += 1
-                    write_thread_stats['total_write_time'] += write_elapsed
-
-                    write_queue.task_done()
-                except queue.Empty:
-                    continue
 
         # Start background writer thread
         writer_thread = threading.Thread(target=video_writer_thread, daemon=False, name="VideoWriter")
@@ -464,8 +479,12 @@ class VideoProcessor:
                 write_start = time.time()
 
                 for write_idx in sorted(batch_results.keys()):
+                    # Check if writer thread has crashed before attempting to queue
+                    if write_thread_error['error'] is not None:
+                        raise write_thread_error['error']
+
                     right_face, left_face, debug_frame = batch_results[write_idx]
-                    # Queue for background writing (non-blocking)
+                    # Queue for background writing (may block if queue is full)
                     write_queue.put((write_idx, right_face, left_face, debug_frame))
 
                 write_elapsed = time.time() - write_start
@@ -555,6 +574,11 @@ class VideoProcessor:
         cap.release()
         print(f"\nMirroring complete: {global_frame_count} frames processed")
 
+        # Check if writer thread encountered any errors during processing
+        if write_thread_error['error'] is not None:
+            print(f"\n[ERROR] Video writing failed during processing")
+            raise write_thread_error['error']
+
         # ============================================================================
         # Wait for background writer thread to finish and close video files
         # ============================================================================
@@ -574,6 +598,10 @@ class VideoProcessor:
 
         if writer_thread.is_alive():
             print("  Warning: Writer thread still running after 10s timeout")
+
+        # Final check for writer thread errors
+        if write_thread_error['error'] is not None:
+            raise write_thread_error['error']
 
         # Now release writers to finalize video files
         # OPTIMIZATION: Finalize all videos in parallel using threading

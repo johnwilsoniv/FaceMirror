@@ -1,4 +1,4 @@
-from openface3_detector import OpenFace3LandmarkDetector
+from pyfaceau_detector import PyFaceAU68LandmarkDetector
 from face_mirror import FaceMirror
 from video_processor import VideoProcessor
 import numpy as np
@@ -9,26 +9,27 @@ class StableFaceSplitter:
 
     def __init__(self, debug_mode=False, device='cpu', num_threads=6, progress_callback=None, skip_face_detection=False):
         """
-        Initialize with OpenFace 3.0 detector
+        Initialize with PyFaceAU 68-point detector
 
         Args:
             debug_mode: Enable debug output
-            device: 'cpu' or 'cuda' for GPU acceleration
+            device: 'cpu' or 'cuda' (ignored - PyFaceAU auto-detects)
             num_threads: Number of threads for parallel frame processing (default: 6)
             progress_callback: Optional callback function for progress updates (stage, current, total, message)
             skip_face_detection: Skip RetinaFace entirely, use default bbox (experimental)
         """
-        # Create OpenFace 3.0 landmark detector with mirroring mode optimization
+        # Create PyFaceAU 68-point landmark detector with CLNF refinement
         # skip_redetection=True: Only run RetinaFace once (first frame), then track
         # skip_face_detection=True: Skip RetinaFace entirely (experimental, uses default bbox)
-        self.landmark_detector = OpenFace3LandmarkDetector(
+        self.landmark_detector = PyFaceAU68LandmarkDetector(
             debug_mode=debug_mode,
             device=device,
             skip_redetection=not skip_face_detection,  # If skipping detection, also skip redetection
-            skip_face_detection=skip_face_detection
+            skip_face_detection=skip_face_detection,
+            use_clnf_refinement=True  # Enable CLNF for better midline accuracy
         )
         if debug_mode:
-            print("Using OpenFace 3.0 detector")
+            print("Using PyFaceAU 68-point detector with CLNF refinement")
 
         # Create component objects
         self.face_mirror = FaceMirror(self.landmark_detector)

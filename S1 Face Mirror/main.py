@@ -22,7 +22,7 @@ import threading
 import config_paths
 from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
-from openface_integration import OpenFace3Processor
+from openface_integration import OpenFace3Processor  # Now uses PyFaceAU backend
 from progress_window import ProcessingProgressWindow, ProgressUpdate
 from performance_profiler import get_profiler, set_pipeline_context
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
 def auto_detect_device():
     """
-    Auto-detect best available device for processing.O
+    Auto-detect best available device for processing.
 
     Device selection hierarchy:
     1. CUDA (NVIDIA GPU) - Best for PyTorch models on NVIDIA hardware

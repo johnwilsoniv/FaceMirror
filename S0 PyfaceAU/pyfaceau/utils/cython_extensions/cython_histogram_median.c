@@ -4,25 +4,24 @@
 {
     "distutils": {
         "depends": [
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include/numpy/arrayobject.h",
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include/numpy/arrayscalars.h",
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include/numpy/ndarrayobject.h",
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include/numpy/ndarraytypes.h",
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include/numpy/ufuncobject.h"
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include/numpy/arrayobject.h",
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include/numpy/arrayscalars.h",
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include/numpy/ndarrayobject.h",
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include/numpy/ndarraytypes.h",
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include/numpy/ufuncobject.h"
         ],
         "extra_compile_args": [
-            "-O3",
-            "-march=native"
+            "-O3"
         ],
         "include_dirs": [
-            "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/_core/include"
+            "/private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/_core/include"
         ],
-        "name": "cython_histogram_median",
+        "name": "pyfaceau.cython_histogram_median",
         "sources": [
-            "cython_histogram_median.pyx"
+            "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx"
         ]
     },
-    "module_name": "cython_histogram_median"
+    "module_name": "pyfaceau.cython_histogram_median"
 }
 END: Cython Metadata */
 
@@ -1149,8 +1148,8 @@ static CYTHON_INLINE float __PYX_NAN() {
   #endif
 #endif
 
-#define __PYX_HAVE__cython_histogram_median
-#define __PYX_HAVE_API__cython_histogram_median
+#define __PYX_HAVE__pyfaceau__cython_histogram_median
+#define __PYX_HAVE_API__pyfaceau__cython_histogram_median
 /* Early includes */
 #include <string.h>
 #include <stdio.h>
@@ -1395,9 +1394,9 @@ static const char *__pyx_filename;
 /* #### Code section: filename_table ### */
 
 static const char* const __pyx_f[] = {
-  "cython_histogram_median.pyx",
+  "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx",
   "<stringsource>",
-  "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd",
+  "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd",
   "cpython/type.pxd",
 };
 /* #### Code section: utility_code_proto_before_types ### */
@@ -1620,7 +1619,7 @@ typedef struct {
 
 /* #### Code section: numeric_typedefs ### */
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":787
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":743
  * # in Cython to enable them only on the right systems.
  * 
  * ctypedef npy_int8       int8_t             # <<<<<<<<<<<<<<
@@ -1629,7 +1628,7 @@ typedef struct {
 */
 typedef npy_int8 __pyx_t_5numpy_int8_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":788
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":744
  * 
  * ctypedef npy_int8       int8_t
  * ctypedef npy_int16      int16_t             # <<<<<<<<<<<<<<
@@ -1638,26 +1637,26 @@ typedef npy_int8 __pyx_t_5numpy_int8_t;
 */
 typedef npy_int16 __pyx_t_5numpy_int16_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":789
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":745
  * ctypedef npy_int8       int8_t
  * ctypedef npy_int16      int16_t
  * ctypedef npy_int32      int32_t             # <<<<<<<<<<<<<<
  * ctypedef npy_int64      int64_t
- * #ctypedef npy_int96      int96_t
+ * 
 */
 typedef npy_int32 __pyx_t_5numpy_int32_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":790
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":746
  * ctypedef npy_int16      int16_t
  * ctypedef npy_int32      int32_t
  * ctypedef npy_int64      int64_t             # <<<<<<<<<<<<<<
- * #ctypedef npy_int96      int96_t
- * #ctypedef npy_int128     int128_t
+ * 
+ * ctypedef npy_uint8      uint8_t
 */
 typedef npy_int64 __pyx_t_5numpy_int64_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":794
- * #ctypedef npy_int128     int128_t
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":748
+ * ctypedef npy_int64      int64_t
  * 
  * ctypedef npy_uint8      uint8_t             # <<<<<<<<<<<<<<
  * ctypedef npy_uint16     uint16_t
@@ -1665,7 +1664,7 @@ typedef npy_int64 __pyx_t_5numpy_int64_t;
 */
 typedef npy_uint8 __pyx_t_5numpy_uint8_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":795
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":749
  * 
  * ctypedef npy_uint8      uint8_t
  * ctypedef npy_uint16     uint16_t             # <<<<<<<<<<<<<<
@@ -1674,26 +1673,26 @@ typedef npy_uint8 __pyx_t_5numpy_uint8_t;
 */
 typedef npy_uint16 __pyx_t_5numpy_uint16_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":796
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":750
  * ctypedef npy_uint8      uint8_t
  * ctypedef npy_uint16     uint16_t
  * ctypedef npy_uint32     uint32_t             # <<<<<<<<<<<<<<
  * ctypedef npy_uint64     uint64_t
- * #ctypedef npy_uint96     uint96_t
+ * 
 */
 typedef npy_uint32 __pyx_t_5numpy_uint32_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":797
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":751
  * ctypedef npy_uint16     uint16_t
  * ctypedef npy_uint32     uint32_t
  * ctypedef npy_uint64     uint64_t             # <<<<<<<<<<<<<<
- * #ctypedef npy_uint96     uint96_t
- * #ctypedef npy_uint128    uint128_t
+ * 
+ * ctypedef npy_float32    float32_t
 */
 typedef npy_uint64 __pyx_t_5numpy_uint64_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":801
- * #ctypedef npy_uint128    uint128_t
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":753
+ * ctypedef npy_uint64     uint64_t
  * 
  * ctypedef npy_float32    float32_t             # <<<<<<<<<<<<<<
  * ctypedef npy_float64    float64_t
@@ -1701,7 +1700,7 @@ typedef npy_uint64 __pyx_t_5numpy_uint64_t;
 */
 typedef npy_float32 __pyx_t_5numpy_float32_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":802
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":754
  * 
  * ctypedef npy_float32    float32_t
  * ctypedef npy_float64    float64_t             # <<<<<<<<<<<<<<
@@ -1710,7 +1709,7 @@ typedef npy_float32 __pyx_t_5numpy_float32_t;
 */
 typedef npy_float64 __pyx_t_5numpy_float64_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":809
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":761
  * ctypedef double complex complex128_t
  * 
  * ctypedef npy_longlong   longlong_t             # <<<<<<<<<<<<<<
@@ -1719,7 +1718,7 @@ typedef npy_float64 __pyx_t_5numpy_float64_t;
 */
 typedef npy_longlong __pyx_t_5numpy_longlong_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":810
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":762
  * 
  * ctypedef npy_longlong   longlong_t
  * ctypedef npy_ulonglong  ulonglong_t             # <<<<<<<<<<<<<<
@@ -1728,7 +1727,7 @@ typedef npy_longlong __pyx_t_5numpy_longlong_t;
 */
 typedef npy_ulonglong __pyx_t_5numpy_ulonglong_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":812
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":764
  * ctypedef npy_ulonglong  ulonglong_t
  * 
  * ctypedef npy_intp       intp_t             # <<<<<<<<<<<<<<
@@ -1737,7 +1736,7 @@ typedef npy_ulonglong __pyx_t_5numpy_ulonglong_t;
 */
 typedef npy_intp __pyx_t_5numpy_intp_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":813
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":765
  * 
  * ctypedef npy_intp       intp_t
  * ctypedef npy_uintp      uintp_t             # <<<<<<<<<<<<<<
@@ -1746,7 +1745,7 @@ typedef npy_intp __pyx_t_5numpy_intp_t;
 */
 typedef npy_uintp __pyx_t_5numpy_uintp_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":815
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":767
  * ctypedef npy_uintp      uintp_t
  * 
  * ctypedef npy_double     float_t             # <<<<<<<<<<<<<<
@@ -1755,7 +1754,7 @@ typedef npy_uintp __pyx_t_5numpy_uintp_t;
 */
 typedef npy_double __pyx_t_5numpy_float_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":816
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":768
  * 
  * ctypedef npy_double     float_t
  * ctypedef npy_double     double_t             # <<<<<<<<<<<<<<
@@ -1764,7 +1763,7 @@ typedef npy_double __pyx_t_5numpy_float_t;
 */
 typedef npy_double __pyx_t_5numpy_double_t;
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":817
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":769
  * ctypedef npy_double     float_t
  * ctypedef npy_double     double_t
  * ctypedef npy_longdouble longdouble_t             # <<<<<<<<<<<<<<
@@ -1773,32 +1772,32 @@ typedef npy_double __pyx_t_5numpy_double_t;
 */
 typedef npy_longdouble __pyx_t_5numpy_longdouble_t;
 
-/* "cython_histogram_median.pyx":27
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":27
  * 
  * # Type definitions
  * ctypedef cnp.float32_t FLOAT32             # <<<<<<<<<<<<<<
  * ctypedef cnp.float64_t FLOAT64
  * ctypedef cnp.int32_t INT32
 */
-typedef __pyx_t_5numpy_float32_t __pyx_t_23cython_histogram_median_FLOAT32;
+typedef __pyx_t_5numpy_float32_t __pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32;
 
-/* "cython_histogram_median.pyx":28
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":28
  * # Type definitions
  * ctypedef cnp.float32_t FLOAT32
  * ctypedef cnp.float64_t FLOAT64             # <<<<<<<<<<<<<<
  * ctypedef cnp.int32_t INT32
  * 
 */
-typedef __pyx_t_5numpy_float64_t __pyx_t_23cython_histogram_median_FLOAT64;
+typedef __pyx_t_5numpy_float64_t __pyx_t_8pyfaceau_23cython_histogram_median_FLOAT64;
 
-/* "cython_histogram_median.pyx":29
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":29
  * ctypedef cnp.float32_t FLOAT32
  * ctypedef cnp.float64_t FLOAT64
  * ctypedef cnp.int32_t INT32             # <<<<<<<<<<<<<<
  * 
  * 
 */
-typedef __pyx_t_5numpy_int32_t __pyx_t_23cython_histogram_median_INT32;
+typedef __pyx_t_5numpy_int32_t __pyx_t_8pyfaceau_23cython_histogram_median_INT32;
 /* #### Code section: complex_type_declarations ### */
 /* Declarations.proto */
 #if CYTHON_CCOMPLEX && (1) && (!0 || __cplusplus)
@@ -1839,21 +1838,21 @@ static CYTHON_INLINE __pyx_t_long_double_complex __pyx_t_long_double_complex_fro
 /* #### Code section: type_declarations ### */
 
 /*--- Type declarations ---*/
-struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython;
-struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython;
+struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython;
+struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython;
 struct __pyx_array_obj;
 struct __pyx_MemviewEnum_obj;
 struct __pyx_memoryview_obj;
 struct __pyx_memoryviewslice_obj;
 
-/* "cython_histogram_median.pyx":117
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":117
  * 
  * 
  * cdef class HistogramMedianTrackerCython:             # <<<<<<<<<<<<<<
  *     """
  *     Cython-optimized histogram-based running median tracker
 */
-struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython {
+struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython {
   PyObject_HEAD
   int feature_dim;
   int num_bins;
@@ -1867,17 +1866,17 @@ struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython {
 };
 
 
-/* "cython_histogram_median.pyx":224
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":224
  * 
  * 
  * cdef class DualHistogramMedianTrackerCython:             # <<<<<<<<<<<<<<
  *     """
  *     Cython-optimized dual histogram median tracker
 */
-struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython {
+struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython {
   PyObject_HEAD
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *hog_tracker;
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *geom_tracker;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *hog_tracker;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *geom_tracker;
   int hog_dim;
   int geom_dim;
 };
@@ -3276,7 +3275,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void); /*proto*/
 
 /* Module declarations from "cython" */
 
-/* Module declarations from "cython_histogram_median" */
+/* Module declarations from "pyfaceau.cython_histogram_median" */
 static PyObject *__pyx_collections_abc_Sequence = 0;
 static PyObject *generic = 0;
 static PyObject *strided = 0;
@@ -3285,10 +3284,10 @@ static PyObject *contiguous = 0;
 static PyObject *indirect_contiguous = 0;
 static int __pyx_memoryview_thread_locks_used;
 static PyThread_type_lock __pyx_memoryview_thread_locks[8];
-static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewslice, __Pyx_memviewslice, int, int, float, float, float); /*proto*/
-static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslice, __Pyx_memviewslice, int, int, int, float, float); /*proto*/
-static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *, PyObject *); /*proto*/
-static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *, PyObject *); /*proto*/
+static void __pyx_f_8pyfaceau_23cython_histogram_median_update_histogram_c(__Pyx_memviewslice, __Pyx_memviewslice, int, int, float, float, float); /*proto*/
+static void __pyx_f_8pyfaceau_23cython_histogram_median_compute_median_c(__Pyx_memviewslice, __Pyx_memviewslice, int, int, int, float, float); /*proto*/
+static PyObject *__pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *, PyObject *); /*proto*/
+static PyObject *__pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *, PyObject *); /*proto*/
 static int __pyx_array_allocate_buffer(struct __pyx_array_obj *); /*proto*/
 static struct __pyx_array_obj *__pyx_array_new(PyObject *, Py_ssize_t, char *, char const *, char *); /*proto*/
 static PyObject *__pyx_memoryview_new(PyObject *, int, int, __Pyx_TypeInfo const *); /*proto*/
@@ -3324,16 +3323,16 @@ static void __pyx_memoryview_slice_assign_scalar(__Pyx_memviewslice *, int, size
 static void __pyx_memoryview__slice_assign_scalar(char *, Py_ssize_t *, Py_ssize_t *, int, size_t, void *); /*proto*/
 static PyObject *__pyx_unpickle_Enum__set_state(struct __pyx_MemviewEnum_obj *, PyObject *); /*proto*/
 /* #### Code section: typeinfo ### */
-static const __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_23cython_histogram_median_FLOAT32 = { "FLOAT32", NULL, sizeof(__pyx_t_23cython_histogram_median_FLOAT32), { 0 }, 0, 'R', 0, 0 };
+static const __Pyx_TypeInfo __Pyx_TypeInfo_nn___pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32 = { "FLOAT32", NULL, sizeof(__pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32), { 0 }, 0, 'R', 0, 0 };
 static const __Pyx_TypeInfo __Pyx_TypeInfo_int = { "int", NULL, sizeof(int), { 0 }, 0, __PYX_IS_UNSIGNED(int) ? 'U' : 'I', __PYX_IS_UNSIGNED(int), 0 };
 static const __Pyx_TypeInfo __Pyx_TypeInfo_float = { "float", NULL, sizeof(float), { 0 }, 0, 'R', 0, 0 };
 static const __Pyx_TypeInfo __Pyx_TypeInfo_double = { "double", NULL, sizeof(double), { 0 }, 0, 'R', 0, 0 };
 /* #### Code section: before_global_var ### */
-#define __Pyx_MODULE_NAME "cython_histogram_median"
-extern int __pyx_module_is_main_cython_histogram_median;
-int __pyx_module_is_main_cython_histogram_median = 0;
+#define __Pyx_MODULE_NAME "pyfaceau.cython_histogram_median"
+extern int __pyx_module_is_main_pyfaceau__cython_histogram_median;
+int __pyx_module_is_main_pyfaceau__cython_histogram_median = 0;
 
-/* Implementation of "cython_histogram_median" */
+/* Implementation of "pyfaceau.cython_histogram_median" */
 /* #### Code section: global_var ### */
 static PyObject *__pyx_builtin_range;
 static PyObject *__pyx_builtin_ValueError;
@@ -3500,12 +3499,10 @@ static const char __pyx_k_Invalid_shape_in_axis[] = "Invalid shape in axis ";
 static const char __pyx_k_contiguous_and_direct[] = "<contiguous and direct>";
 static const char __pyx_k_Cannot_index_with_type[] = "Cannot index with type '";
 static const char __pyx_k_contiguous_and_indirect[] = "<contiguous and indirect>";
-static const char __pyx_k_cython_histogram_median[] = "cython_histogram_median";
 static const char __pyx_k_A_L_q_a_E_at1_as_A_q_Q_M[] = "\200A\360\006\000&'\360\022\000\t\r\210L\230\007\230q\240\016\250a\360\010\000\t*\250\024\250\\\270\021\340\010\014\210E\220\025\220a\220t\2301\330\014\017\210\177\230a\230s\240\"\240A\330\020\037\230q\240\005\240Q\340\010\014\210M\230\027\240\001\240\037\260\001";
 static const char __pyx_k_Dimension_d_is_not_direct[] = "Dimension %d is not direct";
 static const char __pyx_k_Index_out_of_bounds_axis_d[] = "Index out of bounds (axis %d)";
 static const char __pyx_k_Step_may_not_be_zero_axis_d[] = "Step may not be zero (axis %d)";
-static const char __pyx_k_cython_histogram_median_pyx[] = "cython_histogram_median.pyx";
 static const char __pyx_k_itemsize_0_for_cython_array[] = "itemsize <= 0 for cython.array";
 static const char __pyx_k_HistogramMedianTrackerCython[] = "HistogramMedianTrackerCython";
 static const char __pyx_k_hk_A_1_Q_Q_S_S_T_xq_7_a_llm_1[] = "\200\001\360\006\000\005\010\200\177\220h\230k\250\033\260A\330\010\r\210^\2301\330\010\016\320\016!\360\000\000\"Q\003\360\000\000Q\003S\003\360\000\000S\003T\003\330\004\023\320\023/\250x\260q\270\001\330\004\007\200|\2207\230!\330\010>\270a\320?^\320^l\320lm\330\004\013\2101";
@@ -3541,6 +3538,8 @@ static const char __pyx_k_got_differing_extents_in_dimensi[] = "got differing ex
 static const char __pyx_k_no_default___reduce___due_to_non[] = "no default __reduce__ due to non-trivial __cinit__";
 static const char __pyx_k_numpy__core_multiarray_failed_to[] = "numpy._core.multiarray failed to import";
 static const char __pyx_k_numpy__core_umath_failed_to_impo[] = "numpy._core.umath failed to import";
+static const char __pyx_k_pyfaceau_cython_histogram_median[] = "pyfaceau.cython_histogram_median";
+static const char __pyx_k_pyfaceau_utils_cython_extensions[] = "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx";
 static const char __pyx_k_unable_to_allocate_shape_and_str[] = "unable to allocate shape and strides.";
 static const char __pyx_k_DualHistogramMedianTrackerCython_2[] = "DualHistogramMedianTrackerCython.update";
 static const char __pyx_k_DualHistogramMedianTrackerCython_3[] = "DualHistogramMedianTrackerCython.get_combined_median";
@@ -3593,26 +3592,26 @@ static void __pyx_memoryviewslice___pyx_pf_15View_dot_MemoryView_16_memoryviewsl
 static PyObject *__pyx_pf___pyx_memoryviewslice___reduce_cython__(CYTHON_UNUSED struct __pyx_memoryviewslice_obj *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf___pyx_memoryviewslice_2__setstate_cython__(CYTHON_UNUSED struct __pyx_memoryviewslice_obj *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
 static PyObject *__pyx_pf_15View_dot_MemoryView___pyx_unpickle_Enum(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
-static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___init__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, float __pyx_v_max_val); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_2update(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_features, int __pyx_v_update_histogram); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state); /* proto */
-static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_hog_dim, int __pyx_v_geom_dim, int __pyx_v_hog_bins, float __pyx_v_hog_min, float __pyx_v_hog_max, int __pyx_v_geom_bins, float __pyx_v_geom_min, float __pyx_v_geom_max); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_hog_features, PyArrayObject *__pyx_v_geom_features, int __pyx_v_update_histogram); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
-static PyObject *__pyx_tp_new_23cython_histogram_median_HistogramMedianTrackerCython(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
-static PyObject *__pyx_tp_new_23cython_histogram_median_DualHistogramMedianTrackerCython(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
+static int __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, float __pyx_v_max_val); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_features, int __pyx_v_update_histogram); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state); /* proto */
+static int __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_hog_dim, int __pyx_v_geom_dim, int __pyx_v_hog_bins, float __pyx_v_hog_min, float __pyx_v_hog_max, int __pyx_v_geom_bins, float __pyx_v_geom_min, float __pyx_v_geom_max); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_hog_features, PyArrayObject *__pyx_v_geom_features, int __pyx_v_update_histogram); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_tp_new_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
+static PyObject *__pyx_tp_new_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_array(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_Enum(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
 static PyObject *__pyx_tp_new_memoryview(PyTypeObject *t, PyObject *a, PyObject *k); /*proto*/
@@ -3671,14 +3670,14 @@ typedef struct {
   PyTypeObject *__pyx_ptype_5numpy_flexible;
   PyTypeObject *__pyx_ptype_5numpy_character;
   PyTypeObject *__pyx_ptype_5numpy_ufunc;
-  PyObject *__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython;
-  PyObject *__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython;
+  PyObject *__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython;
+  PyObject *__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython;
   PyObject *__pyx_type___pyx_array;
   PyObject *__pyx_type___pyx_MemviewEnum;
   PyObject *__pyx_type___pyx_memoryview;
   PyObject *__pyx_type___pyx_memoryviewslice;
-  PyTypeObject *__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython;
-  PyTypeObject *__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython;
+  PyTypeObject *__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython;
+  PyTypeObject *__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython;
   PyTypeObject *__pyx_array_type;
   PyTypeObject *__pyx_MemviewEnum_type;
   PyTypeObject *__pyx_memoryview_type;
@@ -3810,82 +3809,82 @@ static __pyx_mstatetype * const __pyx_mstate_global = &__pyx_mstate_global_stati
 #define __pyx_kp_u_contiguous_and_indirect __pyx_string_tab[69]
 #define __pyx_n_u_copy __pyx_string_tab[70]
 #define __pyx_n_u_count __pyx_string_tab[71]
-#define __pyx_n_u_cython_histogram_median __pyx_string_tab[72]
-#define __pyx_kp_u_cython_histogram_median_pyx __pyx_string_tab[73]
-#define __pyx_n_u_dict __pyx_string_tab[74]
-#define __pyx_n_u_dict_2 __pyx_string_tab[75]
-#define __pyx_kp_u_disable __pyx_string_tab[76]
-#define __pyx_n_u_dtype __pyx_string_tab[77]
-#define __pyx_n_u_dtype_is_object __pyx_string_tab[78]
-#define __pyx_kp_u_enable __pyx_string_tab[79]
-#define __pyx_n_u_encode __pyx_string_tab[80]
-#define __pyx_n_u_enumerate __pyx_string_tab[81]
-#define __pyx_n_u_error __pyx_string_tab[82]
-#define __pyx_n_u_feat_view __pyx_string_tab[83]
-#define __pyx_n_u_feature_dim __pyx_string_tab[84]
-#define __pyx_n_u_features __pyx_string_tab[85]
-#define __pyx_kp_u_features_got __pyx_string_tab[86]
-#define __pyx_n_u_fill __pyx_string_tab[87]
-#define __pyx_n_u_flags __pyx_string_tab[88]
-#define __pyx_n_u_float64 __pyx_string_tab[89]
-#define __pyx_n_u_format __pyx_string_tab[90]
-#define __pyx_n_u_fortran __pyx_string_tab[91]
-#define __pyx_n_u_func __pyx_string_tab[92]
-#define __pyx_kp_u_gc __pyx_string_tab[93]
-#define __pyx_n_u_geom_bins __pyx_string_tab[94]
-#define __pyx_n_u_geom_dim __pyx_string_tab[95]
-#define __pyx_n_u_geom_features __pyx_string_tab[96]
-#define __pyx_n_u_geom_max __pyx_string_tab[97]
-#define __pyx_n_u_geom_median __pyx_string_tab[98]
-#define __pyx_n_u_geom_min __pyx_string_tab[99]
-#define __pyx_n_u_get_combined_median __pyx_string_tab[100]
-#define __pyx_n_u_get_geom_median __pyx_string_tab[101]
-#define __pyx_n_u_get_hog_median __pyx_string_tab[102]
-#define __pyx_n_u_get_median __pyx_string_tab[103]
-#define __pyx_n_u_getstate __pyx_string_tab[104]
-#define __pyx_kp_u_got __pyx_string_tab[105]
-#define __pyx_kp_u_got_differing_extents_in_dimensi __pyx_string_tab[106]
-#define __pyx_n_u_hist_view __pyx_string_tab[107]
-#define __pyx_n_u_hog_bins __pyx_string_tab[108]
-#define __pyx_n_u_hog_dim __pyx_string_tab[109]
-#define __pyx_n_u_hog_features __pyx_string_tab[110]
-#define __pyx_n_u_hog_max __pyx_string_tab[111]
-#define __pyx_n_u_hog_median __pyx_string_tab[112]
-#define __pyx_n_u_hog_median_view __pyx_string_tab[113]
-#define __pyx_n_u_hog_min __pyx_string_tab[114]
-#define __pyx_n_u_i __pyx_string_tab[115]
-#define __pyx_n_u_id __pyx_string_tab[116]
-#define __pyx_n_u_import __pyx_string_tab[117]
-#define __pyx_n_u_index __pyx_string_tab[118]
-#define __pyx_n_u_initializing __pyx_string_tab[119]
-#define __pyx_n_u_int32 __pyx_string_tab[120]
-#define __pyx_n_u_is_coroutine __pyx_string_tab[121]
-#define __pyx_kp_u_isenabled __pyx_string_tab[122]
-#define __pyx_n_u_itemsize __pyx_string_tab[123]
-#define __pyx_kp_u_itemsize_0_for_cython_array __pyx_string_tab[124]
-#define __pyx_n_u_main __pyx_string_tab[125]
-#define __pyx_n_u_max_val __pyx_string_tab[126]
-#define __pyx_n_u_median_view __pyx_string_tab[127]
-#define __pyx_n_u_memview __pyx_string_tab[128]
-#define __pyx_n_u_min_val __pyx_string_tab[129]
-#define __pyx_n_u_mode __pyx_string_tab[130]
-#define __pyx_n_u_module __pyx_string_tab[131]
-#define __pyx_n_u_name __pyx_string_tab[132]
-#define __pyx_n_u_name_2 __pyx_string_tab[133]
-#define __pyx_n_u_ndim __pyx_string_tab[134]
-#define __pyx_n_u_new __pyx_string_tab[135]
-#define __pyx_kp_u_no_default___reduce___due_to_non __pyx_string_tab[136]
-#define __pyx_n_u_np __pyx_string_tab[137]
-#define __pyx_n_u_num_bins __pyx_string_tab[138]
-#define __pyx_n_u_numpy __pyx_string_tab[139]
-#define __pyx_kp_u_numpy__core_multiarray_failed_to __pyx_string_tab[140]
-#define __pyx_kp_u_numpy__core_umath_failed_to_impo __pyx_string_tab[141]
-#define __pyx_n_u_obj __pyx_string_tab[142]
-#define __pyx_kp_u_object __pyx_string_tab[143]
-#define __pyx_n_u_order __pyx_string_tab[144]
-#define __pyx_n_u_pack __pyx_string_tab[145]
-#define __pyx_n_u_pickle __pyx_string_tab[146]
-#define __pyx_n_u_pop __pyx_string_tab[147]
+#define __pyx_n_u_dict __pyx_string_tab[72]
+#define __pyx_n_u_dict_2 __pyx_string_tab[73]
+#define __pyx_kp_u_disable __pyx_string_tab[74]
+#define __pyx_n_u_dtype __pyx_string_tab[75]
+#define __pyx_n_u_dtype_is_object __pyx_string_tab[76]
+#define __pyx_kp_u_enable __pyx_string_tab[77]
+#define __pyx_n_u_encode __pyx_string_tab[78]
+#define __pyx_n_u_enumerate __pyx_string_tab[79]
+#define __pyx_n_u_error __pyx_string_tab[80]
+#define __pyx_n_u_feat_view __pyx_string_tab[81]
+#define __pyx_n_u_feature_dim __pyx_string_tab[82]
+#define __pyx_n_u_features __pyx_string_tab[83]
+#define __pyx_kp_u_features_got __pyx_string_tab[84]
+#define __pyx_n_u_fill __pyx_string_tab[85]
+#define __pyx_n_u_flags __pyx_string_tab[86]
+#define __pyx_n_u_float64 __pyx_string_tab[87]
+#define __pyx_n_u_format __pyx_string_tab[88]
+#define __pyx_n_u_fortran __pyx_string_tab[89]
+#define __pyx_n_u_func __pyx_string_tab[90]
+#define __pyx_kp_u_gc __pyx_string_tab[91]
+#define __pyx_n_u_geom_bins __pyx_string_tab[92]
+#define __pyx_n_u_geom_dim __pyx_string_tab[93]
+#define __pyx_n_u_geom_features __pyx_string_tab[94]
+#define __pyx_n_u_geom_max __pyx_string_tab[95]
+#define __pyx_n_u_geom_median __pyx_string_tab[96]
+#define __pyx_n_u_geom_min __pyx_string_tab[97]
+#define __pyx_n_u_get_combined_median __pyx_string_tab[98]
+#define __pyx_n_u_get_geom_median __pyx_string_tab[99]
+#define __pyx_n_u_get_hog_median __pyx_string_tab[100]
+#define __pyx_n_u_get_median __pyx_string_tab[101]
+#define __pyx_n_u_getstate __pyx_string_tab[102]
+#define __pyx_kp_u_got __pyx_string_tab[103]
+#define __pyx_kp_u_got_differing_extents_in_dimensi __pyx_string_tab[104]
+#define __pyx_n_u_hist_view __pyx_string_tab[105]
+#define __pyx_n_u_hog_bins __pyx_string_tab[106]
+#define __pyx_n_u_hog_dim __pyx_string_tab[107]
+#define __pyx_n_u_hog_features __pyx_string_tab[108]
+#define __pyx_n_u_hog_max __pyx_string_tab[109]
+#define __pyx_n_u_hog_median __pyx_string_tab[110]
+#define __pyx_n_u_hog_median_view __pyx_string_tab[111]
+#define __pyx_n_u_hog_min __pyx_string_tab[112]
+#define __pyx_n_u_i __pyx_string_tab[113]
+#define __pyx_n_u_id __pyx_string_tab[114]
+#define __pyx_n_u_import __pyx_string_tab[115]
+#define __pyx_n_u_index __pyx_string_tab[116]
+#define __pyx_n_u_initializing __pyx_string_tab[117]
+#define __pyx_n_u_int32 __pyx_string_tab[118]
+#define __pyx_n_u_is_coroutine __pyx_string_tab[119]
+#define __pyx_kp_u_isenabled __pyx_string_tab[120]
+#define __pyx_n_u_itemsize __pyx_string_tab[121]
+#define __pyx_kp_u_itemsize_0_for_cython_array __pyx_string_tab[122]
+#define __pyx_n_u_main __pyx_string_tab[123]
+#define __pyx_n_u_max_val __pyx_string_tab[124]
+#define __pyx_n_u_median_view __pyx_string_tab[125]
+#define __pyx_n_u_memview __pyx_string_tab[126]
+#define __pyx_n_u_min_val __pyx_string_tab[127]
+#define __pyx_n_u_mode __pyx_string_tab[128]
+#define __pyx_n_u_module __pyx_string_tab[129]
+#define __pyx_n_u_name __pyx_string_tab[130]
+#define __pyx_n_u_name_2 __pyx_string_tab[131]
+#define __pyx_n_u_ndim __pyx_string_tab[132]
+#define __pyx_n_u_new __pyx_string_tab[133]
+#define __pyx_kp_u_no_default___reduce___due_to_non __pyx_string_tab[134]
+#define __pyx_n_u_np __pyx_string_tab[135]
+#define __pyx_n_u_num_bins __pyx_string_tab[136]
+#define __pyx_n_u_numpy __pyx_string_tab[137]
+#define __pyx_kp_u_numpy__core_multiarray_failed_to __pyx_string_tab[138]
+#define __pyx_kp_u_numpy__core_umath_failed_to_impo __pyx_string_tab[139]
+#define __pyx_n_u_obj __pyx_string_tab[140]
+#define __pyx_kp_u_object __pyx_string_tab[141]
+#define __pyx_n_u_order __pyx_string_tab[142]
+#define __pyx_n_u_pack __pyx_string_tab[143]
+#define __pyx_n_u_pickle __pyx_string_tab[144]
+#define __pyx_n_u_pop __pyx_string_tab[145]
+#define __pyx_n_u_pyfaceau_cython_histogram_median __pyx_string_tab[146]
+#define __pyx_kp_u_pyfaceau_utils_cython_extensions __pyx_string_tab[147]
 #define __pyx_n_u_pyx_PickleError __pyx_string_tab[148]
 #define __pyx_n_u_pyx_checksum __pyx_string_tab[149]
 #define __pyx_n_u_pyx_result __pyx_string_tab[150]
@@ -3963,10 +3962,10 @@ static CYTHON_SMALL_CODE int __pyx_m_clear(PyObject *m) {
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_flexible);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_character);
   Py_CLEAR(clear_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_CLEAR(clear_module_state->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython);
-  Py_CLEAR(clear_module_state->__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython);
-  Py_CLEAR(clear_module_state->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython);
-  Py_CLEAR(clear_module_state->__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython);
+  Py_CLEAR(clear_module_state->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  Py_CLEAR(clear_module_state->__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  Py_CLEAR(clear_module_state->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython);
+  Py_CLEAR(clear_module_state->__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython);
   Py_CLEAR(clear_module_state->__pyx_array_type);
   Py_CLEAR(clear_module_state->__pyx_type___pyx_array);
   Py_CLEAR(clear_module_state->__pyx_MemviewEnum_type);
@@ -4028,10 +4027,10 @@ static CYTHON_SMALL_CODE int __pyx_m_traverse(PyObject *m, visitproc visit, void
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_flexible);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_character);
   Py_VISIT(traverse_module_state->__pyx_ptype_5numpy_ufunc);
-  Py_VISIT(traverse_module_state->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython);
-  Py_VISIT(traverse_module_state->__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython);
-  Py_VISIT(traverse_module_state->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython);
-  Py_VISIT(traverse_module_state->__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython);
+  Py_VISIT(traverse_module_state->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  Py_VISIT(traverse_module_state->__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  Py_VISIT(traverse_module_state->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython);
+  Py_VISIT(traverse_module_state->__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython);
   Py_VISIT(traverse_module_state->__pyx_array_type);
   Py_VISIT(traverse_module_state->__pyx_type___pyx_array);
   Py_VISIT(traverse_module_state->__pyx_MemviewEnum_type);
@@ -17424,7 +17423,7 @@ static PyObject *__pyx_unpickle_Enum__set_state(struct __pyx_MemviewEnum_obj *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":286
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":242
  *         cdef int type_num
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17435,7 +17434,7 @@ static PyObject *__pyx_unpickle_Enum__set_state(struct __pyx_MemviewEnum_obj *__
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_8itemsize_itemsize(PyArray_Descr *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":288
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":244
  *         @property
  *         cdef inline npy_intp itemsize(self) noexcept nogil:
  *             return PyDataType_ELSIZE(self)             # <<<<<<<<<<<<<<
@@ -17445,7 +17444,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_8itemsize_itemsize(PyArray_D
   __pyx_r = PyDataType_ELSIZE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":286
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":242
  *         cdef int type_num
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17458,7 +17457,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_8itemsize_itemsize(PyArray_D
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":290
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":246
  *             return PyDataType_ELSIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17469,7 +17468,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_8itemsize_itemsize(PyArray_D
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_9alignment_alignment(PyArray_Descr *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":292
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":248
  *         @property
  *         cdef inline npy_intp alignment(self) noexcept nogil:
  *             return PyDataType_ALIGNMENT(self)             # <<<<<<<<<<<<<<
@@ -17479,7 +17478,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_9alignment_alignment(PyArray
   __pyx_r = PyDataType_ALIGNMENT(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":290
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":246
  *             return PyDataType_ELSIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17492,7 +17491,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_5dtype_9alignment_alignment(PyArray
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":296
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":252
  *         # Use fields/names with care as they may be NULL.  You must check
  *         # for this using PyDataType_HASFIELDS.
  *         @property             # <<<<<<<<<<<<<<
@@ -17506,7 +17505,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_6fields_fields(PyArray_Desc
   PyObject *__pyx_t_1;
   __Pyx_RefNannySetupContext("fields", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":298
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":254
  *         @property
  *         cdef inline object fields(self):
  *             return <object>PyDataType_FIELDS(self)             # <<<<<<<<<<<<<<
@@ -17519,7 +17518,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_6fields_fields(PyArray_Desc
   __pyx_r = ((PyObject *)__pyx_t_1);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":296
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":252
  *         # Use fields/names with care as they may be NULL.  You must check
  *         # for this using PyDataType_HASFIELDS.
  *         @property             # <<<<<<<<<<<<<<
@@ -17534,7 +17533,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_6fields_fields(PyArray_Desc
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":300
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":256
  *             return <object>PyDataType_FIELDS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17548,7 +17547,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_5names_names(PyArray_Descr 
   PyObject *__pyx_t_1;
   __Pyx_RefNannySetupContext("names", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":302
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":258
  *         @property
  *         cdef inline tuple names(self):
  *             return <tuple>PyDataType_NAMES(self)             # <<<<<<<<<<<<<<
@@ -17561,7 +17560,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_5names_names(PyArray_Descr 
   __pyx_r = ((PyObject*)__pyx_t_1);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":300
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":256
  *             return <object>PyDataType_FIELDS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17576,7 +17575,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_5names_names(PyArray_Descr 
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":307
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":263
  *         # valid (the pointer can be NULL). Most users should access
  *         # this field via the inline helper method PyDataType_SHAPE.
  *         @property             # <<<<<<<<<<<<<<
@@ -17587,7 +17586,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_5dtype_5names_names(PyArray_Descr 
 static CYTHON_INLINE PyArray_ArrayDescr *__pyx_f_5numpy_5dtype_8subarray_subarray(PyArray_Descr *__pyx_v_self) {
   PyArray_ArrayDescr *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":309
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":265
  *         @property
  *         cdef inline PyArray_ArrayDescr* subarray(self) noexcept nogil:
  *             return PyDataType_SUBARRAY(self)             # <<<<<<<<<<<<<<
@@ -17597,7 +17596,7 @@ static CYTHON_INLINE PyArray_ArrayDescr *__pyx_f_5numpy_5dtype_8subarray_subarra
   __pyx_r = PyDataType_SUBARRAY(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":307
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":263
  *         # valid (the pointer can be NULL). Most users should access
  *         # this field via the inline helper method PyDataType_SHAPE.
  *         @property             # <<<<<<<<<<<<<<
@@ -17610,7 +17609,7 @@ static CYTHON_INLINE PyArray_ArrayDescr *__pyx_f_5numpy_5dtype_8subarray_subarra
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":311
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":267
  *             return PyDataType_SUBARRAY(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17621,7 +17620,7 @@ static CYTHON_INLINE PyArray_ArrayDescr *__pyx_f_5numpy_5dtype_8subarray_subarra
 static CYTHON_INLINE npy_uint64 __pyx_f_5numpy_5dtype_5flags_flags(PyArray_Descr *__pyx_v_self) {
   npy_uint64 __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":314
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":270
  *         cdef inline npy_uint64 flags(self) noexcept nogil:
  *             """The data types flags."""
  *             return PyDataType_FLAGS(self)             # <<<<<<<<<<<<<<
@@ -17631,7 +17630,7 @@ static CYTHON_INLINE npy_uint64 __pyx_f_5numpy_5dtype_5flags_flags(PyArray_Descr
   __pyx_r = PyDataType_FLAGS(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":311
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":267
  *             return PyDataType_SUBARRAY(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17644,7 +17643,7 @@ static CYTHON_INLINE npy_uint64 __pyx_f_5numpy_5dtype_5flags_flags(PyArray_Descr
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":323
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":279
  *     ctypedef class numpy.broadcast [object PyArrayMultiIterObject, check_size ignore]:
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17655,7 +17654,7 @@ static CYTHON_INLINE npy_uint64 __pyx_f_5numpy_5dtype_5flags_flags(PyArray_Descr
 static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_7numiter_numiter(PyArrayMultiIterObject *__pyx_v_self) {
   int __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":326
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":282
  *         cdef inline int numiter(self) noexcept nogil:
  *             """The number of arrays that need to be broadcast to the same shape."""
  *             return PyArray_MultiIter_NUMITER(self)             # <<<<<<<<<<<<<<
@@ -17665,7 +17664,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_7numiter_numiter(PyArrayMulti
   __pyx_r = PyArray_MultiIter_NUMITER(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":323
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":279
  *     ctypedef class numpy.broadcast [object PyArrayMultiIterObject, check_size ignore]:
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17678,7 +17677,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_7numiter_numiter(PyArrayMulti
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":328
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":284
  *             return PyArray_MultiIter_NUMITER(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17689,7 +17688,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_7numiter_numiter(PyArrayMulti
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_4size_size(PyArrayMultiIterObject *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":331
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":287
  *         cdef inline npy_intp size(self) noexcept nogil:
  *             """The total broadcasted size."""
  *             return PyArray_MultiIter_SIZE(self)             # <<<<<<<<<<<<<<
@@ -17699,7 +17698,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_4size_size(PyArrayMultiI
   __pyx_r = PyArray_MultiIter_SIZE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":328
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":284
  *             return PyArray_MultiIter_NUMITER(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17712,7 +17711,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_4size_size(PyArrayMultiI
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":333
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":289
  *             return PyArray_MultiIter_SIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17723,7 +17722,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_4size_size(PyArrayMultiI
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_5index_index(PyArrayMultiIterObject *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":336
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":292
  *         cdef inline npy_intp index(self) noexcept nogil:
  *             """The current (1-d) index into the broadcasted result."""
  *             return PyArray_MultiIter_INDEX(self)             # <<<<<<<<<<<<<<
@@ -17733,7 +17732,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_5index_index(PyArrayMult
   __pyx_r = PyArray_MultiIter_INDEX(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":333
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":289
  *             return PyArray_MultiIter_SIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17746,7 +17745,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_5index_index(PyArrayMult
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":338
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":294
  *             return PyArray_MultiIter_INDEX(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17757,7 +17756,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_9broadcast_5index_index(PyArrayMult
 static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_2nd_nd(PyArrayMultiIterObject *__pyx_v_self) {
   int __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":341
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":297
  *         cdef inline int nd(self) noexcept nogil:
  *             """The number of dimensions in the broadcasted result."""
  *             return PyArray_MultiIter_NDIM(self)             # <<<<<<<<<<<<<<
@@ -17767,7 +17766,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_2nd_nd(PyArrayMultiIterObject
   __pyx_r = PyArray_MultiIter_NDIM(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":338
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":294
  *             return PyArray_MultiIter_INDEX(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17780,7 +17779,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_2nd_nd(PyArrayMultiIterObject
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":343
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":299
  *             return PyArray_MultiIter_NDIM(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17791,7 +17790,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_9broadcast_2nd_nd(PyArrayMultiIterObject
 static CYTHON_INLINE npy_intp *__pyx_f_5numpy_9broadcast_10dimensions_dimensions(PyArrayMultiIterObject *__pyx_v_self) {
   npy_intp *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":346
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":302
  *         cdef inline npy_intp* dimensions(self) noexcept nogil:
  *             """The shape of the broadcasted result."""
  *             return PyArray_MultiIter_DIMS(self)             # <<<<<<<<<<<<<<
@@ -17801,7 +17800,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_9broadcast_10dimensions_dimensions
   __pyx_r = PyArray_MultiIter_DIMS(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":343
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":299
  *             return PyArray_MultiIter_NDIM(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17814,7 +17813,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_9broadcast_10dimensions_dimensions
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":348
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":304
  *             return PyArray_MultiIter_DIMS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17825,7 +17824,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_9broadcast_10dimensions_dimensions
 static CYTHON_INLINE void **__pyx_f_5numpy_9broadcast_5iters_iters(PyArrayMultiIterObject *__pyx_v_self) {
   void **__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":352
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":308
  *             """An array of iterator objects that holds the iterators for the arrays to be broadcast together.
  *             On return, the iterators are adjusted for broadcasting."""
  *             return PyArray_MultiIter_ITERS(self)             # <<<<<<<<<<<<<<
@@ -17835,7 +17834,7 @@ static CYTHON_INLINE void **__pyx_f_5numpy_9broadcast_5iters_iters(PyArrayMultiI
   __pyx_r = PyArray_MultiIter_ITERS(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":348
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":304
  *             return PyArray_MultiIter_DIMS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17848,7 +17847,7 @@ static CYTHON_INLINE void **__pyx_f_5numpy_9broadcast_5iters_iters(PyArrayMultiI
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":366
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":322
  *         # Instead, we use properties that map to the corresponding C-API functions.
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17859,7 +17858,7 @@ static CYTHON_INLINE void **__pyx_f_5numpy_9broadcast_5iters_iters(PyArrayMultiI
 static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject *__pyx_v_self) {
   PyObject *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":370
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":326
  *             """Returns a borrowed reference to the object owning the data/memory.
  *             """
  *             return PyArray_BASE(self)             # <<<<<<<<<<<<<<
@@ -17869,7 +17868,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject 
   __pyx_r = PyArray_BASE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":366
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":322
  *         # Instead, we use properties that map to the corresponding C-API functions.
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17882,7 +17881,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_7ndarray_4base_base(PyArrayObject 
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":372
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":328
  *             return PyArray_BASE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17896,7 +17895,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   PyArray_Descr *__pyx_t_1;
   __Pyx_RefNannySetupContext("descr", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":376
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":332
  *             """Returns an owned reference to the dtype of the array.
  *             """
  *             return <dtype>PyArray_DESCR(self)             # <<<<<<<<<<<<<<
@@ -17909,7 +17908,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   __pyx_r = ((PyArray_Descr *)__pyx_t_1);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":372
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":328
  *             return PyArray_BASE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17924,7 +17923,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":378
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":334
  *             return <dtype>PyArray_DESCR(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17935,7 +17934,7 @@ static CYTHON_INLINE PyArray_Descr *__pyx_f_5numpy_7ndarray_5descr_descr(PyArray
 static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx_v_self) {
   int __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":382
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":338
  *             """Returns the number of dimensions in the array.
  *             """
  *             return PyArray_NDIM(self)             # <<<<<<<<<<<<<<
@@ -17945,7 +17944,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
   __pyx_r = PyArray_NDIM(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":378
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":334
  *             return <dtype>PyArray_DESCR(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17958,7 +17957,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":384
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":340
  *             return PyArray_NDIM(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17969,7 +17968,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_7ndarray_4ndim_ndim(PyArrayObject *__pyx
 static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObject *__pyx_v_self) {
   npy_intp *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":390
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":346
  *             Can return NULL for 0-dimensional arrays.
  *             """
  *             return PyArray_DIMS(self)             # <<<<<<<<<<<<<<
@@ -17979,7 +17978,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
   __pyx_r = PyArray_DIMS(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":384
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":340
  *             return PyArray_NDIM(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -17992,7 +17991,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":392
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":348
  *             return PyArray_DIMS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18003,7 +18002,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_5shape_shape(PyArrayObjec
 static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayObject *__pyx_v_self) {
   npy_intp *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":397
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":353
  *             The number of elements matches the number of dimensions of the array (ndim).
  *             """
  *             return PyArray_STRIDES(self)             # <<<<<<<<<<<<<<
@@ -18013,7 +18012,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
   __pyx_r = PyArray_STRIDES(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":392
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":348
  *             return PyArray_DIMS(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18026,7 +18025,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":399
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":355
  *             return PyArray_STRIDES(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18037,7 +18036,7 @@ static CYTHON_INLINE npy_intp *__pyx_f_5numpy_7ndarray_7strides_strides(PyArrayO
 static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *__pyx_v_self) {
   npy_intp __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":403
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":359
  *             """Returns the total size (in number of elements) of the array.
  *             """
  *             return PyArray_SIZE(self)             # <<<<<<<<<<<<<<
@@ -18047,7 +18046,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
   __pyx_r = PyArray_SIZE(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":399
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":355
  *             return PyArray_STRIDES(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18060,7 +18059,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":405
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":361
  *             return PyArray_SIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18071,7 +18070,7 @@ static CYTHON_INLINE npy_intp __pyx_f_5numpy_7ndarray_4size_size(PyArrayObject *
 static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__pyx_v_self) {
   char *__pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":412
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":368
  *             of `PyArray_DATA()` instead, which returns a 'void*'.
  *             """
  *             return PyArray_BYTES(self)             # <<<<<<<<<<<<<<
@@ -18081,7 +18080,7 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
   __pyx_r = PyArray_BYTES(__pyx_v_self);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":405
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":361
  *             return PyArray_SIZE(self)
  * 
  *         @property             # <<<<<<<<<<<<<<
@@ -18094,7 +18093,7 @@ static CYTHON_INLINE char *__pyx_f_5numpy_7ndarray_4data_data(PyArrayObject *__p
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":824
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":776
  * ctypedef long double complex clongdouble_t
  * 
  * cdef inline object PyArray_MultiIterNew1(a):             # <<<<<<<<<<<<<<
@@ -18111,7 +18110,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew1", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":825
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":777
  * 
  * cdef inline object PyArray_MultiIterNew1(a):
  *     return PyArray_MultiIterNew(1, <void*>a)             # <<<<<<<<<<<<<<
@@ -18119,13 +18118,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
  * cdef inline object PyArray_MultiIterNew2(a, b):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyArray_MultiIterNew(1, ((void *)__pyx_v_a)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 825, __pyx_L1_error)
+  __pyx_t_1 = PyArray_MultiIterNew(1, ((void *)__pyx_v_a)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 777, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":824
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":776
  * ctypedef long double complex clongdouble_t
  * 
  * cdef inline object PyArray_MultiIterNew1(a):             # <<<<<<<<<<<<<<
@@ -18144,7 +18143,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew1(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":827
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":779
  *     return PyArray_MultiIterNew(1, <void*>a)
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):             # <<<<<<<<<<<<<<
@@ -18161,7 +18160,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew2", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":828
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":780
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)             # <<<<<<<<<<<<<<
@@ -18169,13 +18168,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
  * cdef inline object PyArray_MultiIterNew3(a, b, c):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyArray_MultiIterNew(2, ((void *)__pyx_v_a), ((void *)__pyx_v_b)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 828, __pyx_L1_error)
+  __pyx_t_1 = PyArray_MultiIterNew(2, ((void *)__pyx_v_a), ((void *)__pyx_v_b)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 780, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":827
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":779
  *     return PyArray_MultiIterNew(1, <void*>a)
  * 
  * cdef inline object PyArray_MultiIterNew2(a, b):             # <<<<<<<<<<<<<<
@@ -18194,7 +18193,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew2(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":830
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":782
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):             # <<<<<<<<<<<<<<
@@ -18211,7 +18210,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew3", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":831
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":783
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)             # <<<<<<<<<<<<<<
@@ -18219,13 +18218,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyArray_MultiIterNew(3, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 831, __pyx_L1_error)
+  __pyx_t_1 = PyArray_MultiIterNew(3, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 783, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":830
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":782
  *     return PyArray_MultiIterNew(2, <void*>a, <void*>b)
  * 
  * cdef inline object PyArray_MultiIterNew3(a, b, c):             # <<<<<<<<<<<<<<
@@ -18244,7 +18243,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew3(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":833
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":785
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):             # <<<<<<<<<<<<<<
@@ -18261,7 +18260,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew4", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":834
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":786
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)             # <<<<<<<<<<<<<<
@@ -18269,13 +18268,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyArray_MultiIterNew(4, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c), ((void *)__pyx_v_d)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 834, __pyx_L1_error)
+  __pyx_t_1 = PyArray_MultiIterNew(4, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c), ((void *)__pyx_v_d)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 786, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":833
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":785
  *     return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
  * 
  * cdef inline object PyArray_MultiIterNew4(a, b, c, d):             # <<<<<<<<<<<<<<
@@ -18294,7 +18293,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew4(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":836
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":788
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):             # <<<<<<<<<<<<<<
@@ -18311,7 +18310,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("PyArray_MultiIterNew5", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":837
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":789
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)             # <<<<<<<<<<<<<<
@@ -18319,13 +18318,13 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
  * cdef inline tuple PyDataType_SHAPE(dtype d):
 */
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyArray_MultiIterNew(5, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c), ((void *)__pyx_v_d), ((void *)__pyx_v_e)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 837, __pyx_L1_error)
+  __pyx_t_1 = PyArray_MultiIterNew(5, ((void *)__pyx_v_a), ((void *)__pyx_v_b), ((void *)__pyx_v_c), ((void *)__pyx_v_d), ((void *)__pyx_v_e)); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 789, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":836
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":788
  *     return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
  * 
  * cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):             # <<<<<<<<<<<<<<
@@ -18344,7 +18343,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyArray_MultiIterNew5(PyObject *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":839
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":791
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):             # <<<<<<<<<<<<<<
@@ -18359,7 +18358,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   PyObject *__pyx_t_2;
   __Pyx_RefNannySetupContext("PyDataType_SHAPE", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":840
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":792
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):             # <<<<<<<<<<<<<<
@@ -18369,7 +18368,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   __pyx_t_1 = PyDataType_HASSUBARRAY(__pyx_v_d);
   if (__pyx_t_1) {
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":841
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":793
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):
  *         return <tuple>d.subarray.shape             # <<<<<<<<<<<<<<
@@ -18382,7 +18381,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
     __pyx_r = ((PyObject*)__pyx_t_2);
     goto __pyx_L0;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":840
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":792
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):
  *     if PyDataType_HASSUBARRAY(d):             # <<<<<<<<<<<<<<
@@ -18391,7 +18390,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
 */
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":843
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":795
  *         return <tuple>d.subarray.shape
  *     else:
  *         return ()             # <<<<<<<<<<<<<<
@@ -18405,7 +18404,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
     goto __pyx_L0;
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":839
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":791
  *     return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
  * 
  * cdef inline tuple PyDataType_SHAPE(dtype d):             # <<<<<<<<<<<<<<
@@ -18420,7 +18419,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_PyDataType_SHAPE(PyArray_Descr *__
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1035
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":994
  *     int _import_umath() except -1
  * 
  * cdef inline void set_array_base(ndarray arr, object base) except *:             # <<<<<<<<<<<<<<
@@ -18434,7 +18433,7 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1036
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":995
  * 
  * cdef inline void set_array_base(ndarray arr, object base) except *:
  *     Py_INCREF(base) # important to do this before stealing the reference below!             # <<<<<<<<<<<<<<
@@ -18443,16 +18442,16 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
 */
   Py_INCREF(__pyx_v_base);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1037
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":996
  * cdef inline void set_array_base(ndarray arr, object base) except *:
  *     Py_INCREF(base) # important to do this before stealing the reference below!
  *     PyArray_SetBaseObject(arr, base)             # <<<<<<<<<<<<<<
  * 
  * cdef inline object get_array_base(ndarray arr):
 */
-  __pyx_t_1 = PyArray_SetBaseObject(__pyx_v_arr, __pyx_v_base); if (unlikely(__pyx_t_1 == ((int)-1))) __PYX_ERR(2, 1037, __pyx_L1_error)
+  __pyx_t_1 = PyArray_SetBaseObject(__pyx_v_arr, __pyx_v_base); if (unlikely(__pyx_t_1 == ((int)-1))) __PYX_ERR(2, 996, __pyx_L1_error)
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1035
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":994
  *     int _import_umath() except -1
  * 
  * cdef inline void set_array_base(ndarray arr, object base) except *:             # <<<<<<<<<<<<<<
@@ -18467,7 +18466,7 @@ static CYTHON_INLINE void __pyx_f_5numpy_set_array_base(PyArrayObject *__pyx_v_a
   __pyx_L0:;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1039
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":998
  *     PyArray_SetBaseObject(arr, base)
  * 
  * cdef inline object get_array_base(ndarray arr):             # <<<<<<<<<<<<<<
@@ -18482,7 +18481,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   int __pyx_t_1;
   __Pyx_RefNannySetupContext("get_array_base", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1040
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":999
  * 
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)             # <<<<<<<<<<<<<<
@@ -18491,7 +18490,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
 */
   __pyx_v_base = PyArray_BASE(__pyx_v_arr);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1041
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1000
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)
  *     if base is NULL:             # <<<<<<<<<<<<<<
@@ -18501,7 +18500,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   __pyx_t_1 = (__pyx_v_base == NULL);
   if (__pyx_t_1) {
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1042
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1001
  *     base = PyArray_BASE(arr)
  *     if base is NULL:
  *         return None             # <<<<<<<<<<<<<<
@@ -18512,7 +18511,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
     __pyx_r = Py_None; __Pyx_INCREF(Py_None);
     goto __pyx_L0;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1041
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1000
  * cdef inline object get_array_base(ndarray arr):
  *     base = PyArray_BASE(arr)
  *     if base is NULL:             # <<<<<<<<<<<<<<
@@ -18521,7 +18520,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
 */
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1043
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1002
  *     if base is NULL:
  *         return None
  *     return <object>base             # <<<<<<<<<<<<<<
@@ -18533,7 +18532,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   __pyx_r = ((PyObject *)__pyx_v_base);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1039
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":998
  *     PyArray_SetBaseObject(arr, base)
  * 
  * cdef inline object get_array_base(ndarray arr):             # <<<<<<<<<<<<<<
@@ -18548,7 +18547,7 @@ static CYTHON_INLINE PyObject *__pyx_f_5numpy_get_array_base(PyArrayObject *__py
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1047
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1006
  * # Versions of the import_* functions which are more suitable for
  * # Cython code.
  * cdef inline int import_array() except -1:             # <<<<<<<<<<<<<<
@@ -18575,7 +18574,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_array", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1048
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1007
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18591,16 +18590,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1049
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1008
  * cdef inline int import_array() except -1:
  *     try:
  *         __pyx_import_array()             # <<<<<<<<<<<<<<
  *     except Exception:
  *         raise ImportError("numpy._core.multiarray failed to import")
 */
-      __pyx_t_4 = _import_array(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1049, __pyx_L3_error)
+      __pyx_t_4 = _import_array(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1008, __pyx_L3_error)
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1048
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1007
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18614,7 +18613,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1050
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1009
  *     try:
  *         __pyx_import_array()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -18624,12 +18623,12 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     __pyx_t_4 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(((PyTypeObject*)PyExc_Exception))));
     if (__pyx_t_4) {
       __Pyx_AddTraceback("numpy.import_array", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1050, __pyx_L5_except_error)
+      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1009, __pyx_L5_except_error)
       __Pyx_XGOTREF(__pyx_t_5);
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1051
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1010
  *         __pyx_import_array()
  *     except Exception:
  *         raise ImportError("numpy._core.multiarray failed to import")             # <<<<<<<<<<<<<<
@@ -18645,16 +18644,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
         __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+__pyx_t_11, (2-__pyx_t_11) | (__pyx_t_11*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
         __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1051, __pyx_L5_except_error)
+        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1010, __pyx_L5_except_error)
         __Pyx_GOTREF(__pyx_t_8);
       }
       __Pyx_Raise(__pyx_t_8, 0, 0, 0);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __PYX_ERR(2, 1051, __pyx_L5_except_error)
+      __PYX_ERR(2, 1010, __pyx_L5_except_error)
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1048
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1007
  * # Cython code.
  * cdef inline int import_array() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18670,7 +18669,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1047
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1006
  * # Versions of the import_* functions which are more suitable for
  * # Cython code.
  * cdef inline int import_array() except -1:             # <<<<<<<<<<<<<<
@@ -18695,7 +18694,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_array(void) {
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1053
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1012
  *         raise ImportError("numpy._core.multiarray failed to import")
  * 
  * cdef inline int import_umath() except -1:             # <<<<<<<<<<<<<<
@@ -18722,7 +18721,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_umath", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1054
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1013
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18738,16 +18737,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1055
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1014
  * cdef inline int import_umath() except -1:
  *     try:
  *         _import_umath()             # <<<<<<<<<<<<<<
  *     except Exception:
  *         raise ImportError("numpy._core.umath failed to import")
 */
-      __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1055, __pyx_L3_error)
+      __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1014, __pyx_L3_error)
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1054
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1013
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18761,7 +18760,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1056
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1015
  *     try:
  *         _import_umath()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -18771,12 +18770,12 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     __pyx_t_4 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(((PyTypeObject*)PyExc_Exception))));
     if (__pyx_t_4) {
       __Pyx_AddTraceback("numpy.import_umath", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1056, __pyx_L5_except_error)
+      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1015, __pyx_L5_except_error)
       __Pyx_XGOTREF(__pyx_t_5);
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1057
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1016
  *         _import_umath()
  *     except Exception:
  *         raise ImportError("numpy._core.umath failed to import")             # <<<<<<<<<<<<<<
@@ -18792,16 +18791,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
         __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+__pyx_t_11, (2-__pyx_t_11) | (__pyx_t_11*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
         __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1057, __pyx_L5_except_error)
+        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1016, __pyx_L5_except_error)
         __Pyx_GOTREF(__pyx_t_8);
       }
       __Pyx_Raise(__pyx_t_8, 0, 0, 0);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __PYX_ERR(2, 1057, __pyx_L5_except_error)
+      __PYX_ERR(2, 1016, __pyx_L5_except_error)
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1054
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1013
  * 
  * cdef inline int import_umath() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18817,7 +18816,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1053
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1012
  *         raise ImportError("numpy._core.multiarray failed to import")
  * 
  * cdef inline int import_umath() except -1:             # <<<<<<<<<<<<<<
@@ -18842,7 +18841,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_umath(void) {
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1059
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1018
  *         raise ImportError("numpy._core.umath failed to import")
  * 
  * cdef inline int import_ufunc() except -1:             # <<<<<<<<<<<<<<
@@ -18869,7 +18868,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("import_ufunc", 0);
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1060
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1019
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18885,16 +18884,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     __Pyx_XGOTREF(__pyx_t_3);
     /*try:*/ {
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1061
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1020
  * cdef inline int import_ufunc() except -1:
  *     try:
  *         _import_umath()             # <<<<<<<<<<<<<<
  *     except Exception:
  *         raise ImportError("numpy._core.umath failed to import")
 */
-      __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1061, __pyx_L3_error)
+      __pyx_t_4 = _import_umath(); if (unlikely(__pyx_t_4 == ((int)-1))) __PYX_ERR(2, 1020, __pyx_L3_error)
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1060
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1019
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18908,7 +18907,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     goto __pyx_L8_try_end;
     __pyx_L3_error:;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1062
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1021
  *     try:
  *         _import_umath()
  *     except Exception:             # <<<<<<<<<<<<<<
@@ -18918,12 +18917,12 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     __pyx_t_4 = __Pyx_PyErr_ExceptionMatches(((PyObject *)(((PyTypeObject*)PyExc_Exception))));
     if (__pyx_t_4) {
       __Pyx_AddTraceback("numpy.import_ufunc", __pyx_clineno, __pyx_lineno, __pyx_filename);
-      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1062, __pyx_L5_except_error)
+      if (__Pyx_GetException(&__pyx_t_5, &__pyx_t_6, &__pyx_t_7) < 0) __PYX_ERR(2, 1021, __pyx_L5_except_error)
       __Pyx_XGOTREF(__pyx_t_5);
       __Pyx_XGOTREF(__pyx_t_6);
       __Pyx_XGOTREF(__pyx_t_7);
 
-      /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1063
+      /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1022
  *         _import_umath()
  *     except Exception:
  *         raise ImportError("numpy._core.umath failed to import")             # <<<<<<<<<<<<<<
@@ -18939,16 +18938,16 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
         __pyx_t_8 = __Pyx_PyObject_FastCall(__pyx_t_10, __pyx_callargs+__pyx_t_11, (2-__pyx_t_11) | (__pyx_t_11*__Pyx_PY_VECTORCALL_ARGUMENTS_OFFSET));
         __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
         __Pyx_DECREF(__pyx_t_10); __pyx_t_10 = 0;
-        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1063, __pyx_L5_except_error)
+        if (unlikely(!__pyx_t_8)) __PYX_ERR(2, 1022, __pyx_L5_except_error)
         __Pyx_GOTREF(__pyx_t_8);
       }
       __Pyx_Raise(__pyx_t_8, 0, 0, 0);
       __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-      __PYX_ERR(2, 1063, __pyx_L5_except_error)
+      __PYX_ERR(2, 1022, __pyx_L5_except_error)
     }
     goto __pyx_L5_except_error;
 
-    /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1060
+    /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1019
  * 
  * cdef inline int import_ufunc() except -1:
  *     try:             # <<<<<<<<<<<<<<
@@ -18964,7 +18963,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
     __pyx_L8_try_end:;
   }
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1059
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1018
  *         raise ImportError("numpy._core.umath failed to import")
  * 
  * cdef inline int import_ufunc() except -1:             # <<<<<<<<<<<<<<
@@ -18989,7 +18988,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1066
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1025
  * 
  * 
  * cdef inline bint is_timedelta64_object(object obj) noexcept:             # <<<<<<<<<<<<<<
@@ -19000,7 +18999,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_import_ufunc(void) {
 static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_obj) {
   int __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1078
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1037
  *     bool
  *     """
  *     return PyObject_TypeCheck(obj, &PyTimedeltaArrType_Type)             # <<<<<<<<<<<<<<
@@ -19010,7 +19009,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
   __pyx_r = PyObject_TypeCheck(__pyx_v_obj, (&PyTimedeltaArrType_Type));
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1066
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1025
  * 
  * 
  * cdef inline bint is_timedelta64_object(object obj) noexcept:             # <<<<<<<<<<<<<<
@@ -19023,7 +19022,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1081
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1040
  * 
  * 
  * cdef inline bint is_datetime64_object(object obj) noexcept:             # <<<<<<<<<<<<<<
@@ -19034,7 +19033,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_timedelta64_object(PyObject *__pyx_v_
 static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_obj) {
   int __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1093
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1052
  *     bool
  *     """
  *     return PyObject_TypeCheck(obj, &PyDatetimeArrType_Type)             # <<<<<<<<<<<<<<
@@ -19044,7 +19043,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
   __pyx_r = PyObject_TypeCheck(__pyx_v_obj, (&PyDatetimeArrType_Type));
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1081
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1040
  * 
  * 
  * cdef inline bint is_datetime64_object(object obj) noexcept:             # <<<<<<<<<<<<<<
@@ -19057,7 +19056,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1096
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1055
  * 
  * 
  * cdef inline npy_datetime get_datetime64_value(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19068,7 +19067,7 @@ static CYTHON_INLINE int __pyx_f_5numpy_is_datetime64_object(PyObject *__pyx_v_o
 static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *__pyx_v_obj) {
   npy_datetime __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1103
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1062
  *     also needed.  That can be found using `get_datetime64_unit`.
  *     """
  *     return (<PyDatetimeScalarObject*>obj).obval             # <<<<<<<<<<<<<<
@@ -19078,7 +19077,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
   __pyx_r = ((PyDatetimeScalarObject *)__pyx_v_obj)->obval;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1096
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1055
  * 
  * 
  * cdef inline npy_datetime get_datetime64_value(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19091,7 +19090,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1106
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1065
  * 
  * 
  * cdef inline npy_timedelta get_timedelta64_value(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19102,7 +19101,7 @@ static CYTHON_INLINE npy_datetime __pyx_f_5numpy_get_datetime64_value(PyObject *
 static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject *__pyx_v_obj) {
   npy_timedelta __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1110
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1069
  *     returns the int64 value underlying scalar numpy timedelta64 object
  *     """
  *     return (<PyTimedeltaScalarObject*>obj).obval             # <<<<<<<<<<<<<<
@@ -19112,7 +19111,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
   __pyx_r = ((PyTimedeltaScalarObject *)__pyx_v_obj)->obval;
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1106
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1065
  * 
  * 
  * cdef inline npy_timedelta get_timedelta64_value(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19125,7 +19124,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
   return __pyx_r;
 }
 
-/* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1113
+/* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1072
  * 
  * 
  * cdef inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19136,7 +19135,7 @@ static CYTHON_INLINE npy_timedelta __pyx_f_5numpy_get_timedelta64_value(PyObject
 static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObject *__pyx_v_obj) {
   NPY_DATETIMEUNIT __pyx_r;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1117
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1076
  *     returns the unit part of the dtype for a numpy datetime64 object.
  *     """
  *     return <NPY_DATETIMEUNIT>(<PyDatetimeScalarObject*>obj).obmeta.base             # <<<<<<<<<<<<<<
@@ -19146,7 +19145,7 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   __pyx_r = ((NPY_DATETIMEUNIT)((PyDatetimeScalarObject *)__pyx_v_obj)->obmeta.base);
   goto __pyx_L0;
 
-  /* "../../../../../../../../Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/numpy/__init__.cython-30.pxd":1113
+  /* "../../../../../private/var/folders/_3/bzljdnq935b361fcxb7_77mw0000gn/T/build-env-8my0tznd/lib/python3.13/site-packages/numpy/__init__.cython-30.pxd":1072
  * 
  * 
  * cdef inline NPY_DATETIMEUNIT get_datetime64_unit(object obj) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -19159,7 +19158,7 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":32
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":32
  * 
  * 
  * @cython.boundscheck(False)             # <<<<<<<<<<<<<<
@@ -19167,7 +19166,7 @@ static CYTHON_INLINE NPY_DATETIMEUNIT __pyx_f_5numpy_get_datetime64_unit(PyObjec
  * @cython.cdivision(True)
 */
 
-static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewslice __pyx_v_features, __Pyx_memviewslice __pyx_v_histogram, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, CYTHON_UNUSED float __pyx_v_bin_width, float __pyx_v_length) {
+static void __pyx_f_8pyfaceau_23cython_histogram_median_update_histogram_c(__Pyx_memviewslice __pyx_v_features, __Pyx_memviewslice __pyx_v_histogram, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, CYTHON_UNUSED float __pyx_v_bin_width, float __pyx_v_length) {
   int __pyx_v_i;
   int __pyx_v_bin_idx;
   float __pyx_v_converted;
@@ -19178,7 +19177,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
   int __pyx_t_5;
   Py_ssize_t __pyx_t_6;
 
-  /* "cython_histogram_median.pyx":59
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":59
  *     cdef float converted
  * 
  *     for i in range(feature_dim):             # <<<<<<<<<<<<<<
@@ -19190,7 +19189,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "cython_histogram_median.pyx":62
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":62
  *         # Convert feature value to bin index
  *         # Formula: (value - min_val) * num_bins / length
  *         converted = (features[i] - min_val) * num_bins / length             # <<<<<<<<<<<<<<
@@ -19200,7 +19199,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
     __pyx_t_4 = __pyx_v_i;
     __pyx_v_converted = ((((*((float *) ( /* dim=0 */ (__pyx_v_features.data + __pyx_t_4 * __pyx_v_features.strides[0]) ))) - __pyx_v_min_val) * __pyx_v_num_bins) / __pyx_v_length);
 
-    /* "cython_histogram_median.pyx":65
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":65
  * 
  *         # Clamp to [0, num_bins-1]
  *         if converted < 0.0:             # <<<<<<<<<<<<<<
@@ -19210,7 +19209,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
     __pyx_t_5 = (__pyx_v_converted < 0.0);
     if (__pyx_t_5) {
 
-      /* "cython_histogram_median.pyx":66
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":66
  *         # Clamp to [0, num_bins-1]
  *         if converted < 0.0:
  *             bin_idx = 0             # <<<<<<<<<<<<<<
@@ -19219,7 +19218,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
 */
       __pyx_v_bin_idx = 0;
 
-      /* "cython_histogram_median.pyx":65
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":65
  * 
  *         # Clamp to [0, num_bins-1]
  *         if converted < 0.0:             # <<<<<<<<<<<<<<
@@ -19229,7 +19228,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
       goto __pyx_L5;
     }
 
-    /* "cython_histogram_median.pyx":67
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":67
  *         if converted < 0.0:
  *             bin_idx = 0
  *         elif converted >= <float>(num_bins - 1):             # <<<<<<<<<<<<<<
@@ -19239,7 +19238,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
     __pyx_t_5 = (__pyx_v_converted >= ((float)(__pyx_v_num_bins - 1)));
     if (__pyx_t_5) {
 
-      /* "cython_histogram_median.pyx":68
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":68
  *             bin_idx = 0
  *         elif converted >= <float>(num_bins - 1):
  *             bin_idx = num_bins - 1             # <<<<<<<<<<<<<<
@@ -19248,7 +19247,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
 */
       __pyx_v_bin_idx = (__pyx_v_num_bins - 1);
 
-      /* "cython_histogram_median.pyx":67
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":67
  *         if converted < 0.0:
  *             bin_idx = 0
  *         elif converted >= <float>(num_bins - 1):             # <<<<<<<<<<<<<<
@@ -19258,7 +19257,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
       goto __pyx_L5;
     }
 
-    /* "cython_histogram_median.pyx":70
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":70
  *             bin_idx = num_bins - 1
  *         else:
  *             bin_idx = <int>converted  # Truncation (matches C++ cast)             # <<<<<<<<<<<<<<
@@ -19270,7 +19269,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
     }
     __pyx_L5:;
 
-    /* "cython_histogram_median.pyx":73
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":73
  * 
  *         # Increment histogram bin
  *         histogram[i, bin_idx] += 1             # <<<<<<<<<<<<<<
@@ -19282,7 +19281,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
     *((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_histogram.data + __pyx_t_4 * __pyx_v_histogram.strides[0]) ) + __pyx_t_6 * __pyx_v_histogram.strides[1]) )) += 1;
   }
 
-  /* "cython_histogram_median.pyx":32
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":32
  * 
  * 
  * @cython.boundscheck(False)             # <<<<<<<<<<<<<<
@@ -19293,7 +19292,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
   /* function exit code */
 }
 
-/* "cython_histogram_median.pyx":76
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":76
  * 
  * 
  * @cython.boundscheck(False)             # <<<<<<<<<<<<<<
@@ -19301,7 +19300,7 @@ static void __pyx_f_23cython_histogram_median_update_histogram_c(__Pyx_memviewsl
  * @cython.cdivision(True)
 */
 
-static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslice __pyx_v_histogram, __Pyx_memviewslice __pyx_v_median, int __pyx_v_feature_dim, int __pyx_v_num_bins, int __pyx_v_hist_count, float __pyx_v_min_val, float __pyx_v_bin_width) {
+static void __pyx_f_8pyfaceau_23cython_histogram_median_compute_median_c(__Pyx_memviewslice __pyx_v_histogram, __Pyx_memviewslice __pyx_v_median, int __pyx_v_feature_dim, int __pyx_v_num_bins, int __pyx_v_hist_count, float __pyx_v_min_val, float __pyx_v_bin_width) {
   int __pyx_v_i;
   int __pyx_v_j;
   int __pyx_v_cutoff_point;
@@ -19316,7 +19315,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
   Py_ssize_t __pyx_t_8;
   int __pyx_t_9;
 
-  /* "cython_histogram_median.pyx":102
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":102
  *     cdef int i, j, cutoff_point, cumulative_sum
  * 
  *     cutoff_point = (hist_count + 1) / 2  # Integer division             # <<<<<<<<<<<<<<
@@ -19325,7 +19324,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
 */
   __pyx_v_cutoff_point = ((__pyx_v_hist_count + 1) / 2);
 
-  /* "cython_histogram_median.pyx":104
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":104
  *     cutoff_point = (hist_count + 1) / 2  # Integer division
  * 
  *     for i in range(feature_dim):             # <<<<<<<<<<<<<<
@@ -19337,7 +19336,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
   for (__pyx_t_3 = 0; __pyx_t_3 < __pyx_t_2; __pyx_t_3+=1) {
     __pyx_v_i = __pyx_t_3;
 
-    /* "cython_histogram_median.pyx":105
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":105
  * 
  *     for i in range(feature_dim):
  *         cumulative_sum = 0             # <<<<<<<<<<<<<<
@@ -19346,7 +19345,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
 */
     __pyx_v_cumulative_sum = 0;
 
-    /* "cython_histogram_median.pyx":107
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":107
  *         cumulative_sum = 0
  * 
  *         for j in range(num_bins):             # <<<<<<<<<<<<<<
@@ -19358,7 +19357,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
     for (__pyx_t_6 = 0; __pyx_t_6 < __pyx_t_5; __pyx_t_6+=1) {
       __pyx_v_j = __pyx_t_6;
 
-      /* "cython_histogram_median.pyx":108
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":108
  * 
  *         for j in range(num_bins):
  *             cumulative_sum += histogram[i, j]             # <<<<<<<<<<<<<<
@@ -19369,7 +19368,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
       __pyx_t_8 = __pyx_v_j;
       __pyx_v_cumulative_sum = (__pyx_v_cumulative_sum + (*((int *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_histogram.data + __pyx_t_7 * __pyx_v_histogram.strides[0]) ) + __pyx_t_8 * __pyx_v_histogram.strides[1]) ))));
 
-      /* "cython_histogram_median.pyx":110
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":110
  *             cumulative_sum += histogram[i, j]
  * 
  *             if cumulative_sum >= cutoff_point:             # <<<<<<<<<<<<<<
@@ -19379,7 +19378,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
       __pyx_t_9 = (__pyx_v_cumulative_sum >= __pyx_v_cutoff_point);
       if (__pyx_t_9) {
 
-        /* "cython_histogram_median.pyx":113
+        /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":113
  *                 # Convert bin index back to value
  *                 # Formula: min_val + bin_idx * bin_width + 0.5 * bin_width
  *                 median[i] = min_val + <double>j * bin_width + 0.5 * bin_width             # <<<<<<<<<<<<<<
@@ -19389,7 +19388,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
         __pyx_t_8 = __pyx_v_i;
         *((double *) ( /* dim=0 */ (__pyx_v_median.data + __pyx_t_8 * __pyx_v_median.strides[0]) )) = ((__pyx_v_min_val + (((double)__pyx_v_j) * __pyx_v_bin_width)) + (0.5 * __pyx_v_bin_width));
 
-        /* "cython_histogram_median.pyx":114
+        /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":114
  *                 # Formula: min_val + bin_idx * bin_width + 0.5 * bin_width
  *                 median[i] = min_val + <double>j * bin_width + 0.5 * bin_width
  *                 break  # Early termination (critical for performance!)             # <<<<<<<<<<<<<<
@@ -19398,7 +19397,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
 */
         goto __pyx_L6_break;
 
-        /* "cython_histogram_median.pyx":110
+        /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":110
  *             cumulative_sum += histogram[i, j]
  * 
  *             if cumulative_sum >= cutoff_point:             # <<<<<<<<<<<<<<
@@ -19410,7 +19409,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
     __pyx_L6_break:;
   }
 
-  /* "cython_histogram_median.pyx":76
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":76
  * 
  * 
  * @cython.boundscheck(False)             # <<<<<<<<<<<<<<
@@ -19421,7 +19420,7 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
   /* function exit code */
 }
 
-/* "cython_histogram_median.pyx":138
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":138
  *     cdef cnp.ndarray median_array
  * 
  *     def __init__(self, int feature_dim, int num_bins=200,             # <<<<<<<<<<<<<<
@@ -19430,12 +19429,12 @@ static void __pyx_f_23cython_histogram_median_compute_median_c(__Pyx_memviewslic
 */
 
 /* Python wrapper */
-static int __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython___init__, "\n        Initialize histogram-based median tracker\n\n        Args:\n            feature_dim: Dimensionality of feature vectors\n            num_bins: Number of histogram bins (default: 200)\n            min_val: Minimum value for histogram range\n            max_val: Maximum value for histogram range\n        ");
+static int __pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__, "\n        Initialize histogram-based median tracker\n\n        Args:\n            feature_dim: Dimensionality of feature vectors\n            num_bins: Number of histogram bins (default: 200)\n            min_val: Minimum value for histogram range\n            max_val: Maximum value for histogram range\n        ");
 #if CYTHON_UPDATE_DESCRIPTOR_DOC
-struct wrapperbase __pyx_wrapperbase_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
+struct wrapperbase __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
 #endif
-static int __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static int __pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   int __pyx_v_feature_dim;
   int __pyx_v_num_bins;
   float __pyx_v_min_val;
@@ -19532,11 +19531,11 @@ static int __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___init__(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_feature_dim, __pyx_v_num_bins, __pyx_v_min_val, __pyx_v_max_val);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_feature_dim, __pyx_v_num_bins, __pyx_v_min_val, __pyx_v_max_val);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -19546,7 +19545,7 @@ static int __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__
   return __pyx_r;
 }
 
-static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___init__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, float __pyx_v_max_val) {
+static int __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_feature_dim, int __pyx_v_num_bins, float __pyx_v_min_val, float __pyx_v_max_val) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -19561,7 +19560,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "cython_histogram_median.pyx":149
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":149
  *             max_val: Maximum value for histogram range
  *         """
  *         self.feature_dim = feature_dim             # <<<<<<<<<<<<<<
@@ -19570,7 +19569,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->feature_dim = __pyx_v_feature_dim;
 
-  /* "cython_histogram_median.pyx":150
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":150
  *         """
  *         self.feature_dim = feature_dim
  *         self.num_bins = num_bins             # <<<<<<<<<<<<<<
@@ -19579,7 +19578,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->num_bins = __pyx_v_num_bins;
 
-  /* "cython_histogram_median.pyx":151
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":151
  *         self.feature_dim = feature_dim
  *         self.num_bins = num_bins
  *         self.min_val = min_val             # <<<<<<<<<<<<<<
@@ -19588,7 +19587,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->min_val = __pyx_v_min_val;
 
-  /* "cython_histogram_median.pyx":152
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":152
  *         self.num_bins = num_bins
  *         self.min_val = min_val
  *         self.max_val = max_val             # <<<<<<<<<<<<<<
@@ -19597,7 +19596,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->max_val = __pyx_v_max_val;
 
-  /* "cython_histogram_median.pyx":153
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":153
  *         self.min_val = min_val
  *         self.max_val = max_val
  *         self.hist_count = 0             # <<<<<<<<<<<<<<
@@ -19606,7 +19605,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->hist_count = 0;
 
-  /* "cython_histogram_median.pyx":156
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":156
  * 
  *         # Precompute constants
  *         self.length = max_val - min_val             # <<<<<<<<<<<<<<
@@ -19615,7 +19614,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->length = (__pyx_v_max_val - __pyx_v_min_val);
 
-  /* "cython_histogram_median.pyx":157
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":157
  *         # Precompute constants
  *         self.length = max_val - min_val
  *         self.bin_width = self.length / num_bins             # <<<<<<<<<<<<<<
@@ -19624,7 +19623,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
   __pyx_v_self->bin_width = (__pyx_v_self->length / ((float)__pyx_v_num_bins));
 
-  /* "cython_histogram_median.pyx":160
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":160
  * 
  *         # Allocate arrays (C-contiguous for cache efficiency)
  *         self.histogram_array = np.zeros((feature_dim, num_bins), dtype=np.int32, order='C')             # <<<<<<<<<<<<<<
@@ -19688,7 +19687,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
   __pyx_v_self->histogram_array = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":161
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":161
  *         # Allocate arrays (C-contiguous for cache efficiency)
  *         self.histogram_array = np.zeros((feature_dim, num_bins), dtype=np.int32, order='C')
  *         self.median_array = np.zeros(feature_dim, dtype=np.float64, order='C')             # <<<<<<<<<<<<<<
@@ -19742,7 +19741,7 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
   __pyx_v_self->median_array = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":138
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":138
  *     cdef cnp.ndarray median_array
  * 
  *     def __init__(self, int feature_dim, int num_bins=200,             # <<<<<<<<<<<<<<
@@ -19760,14 +19759,14 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_XDECREF(__pyx_t_5);
   __Pyx_XDECREF(__pyx_t_6);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = -1;
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":163
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":163
  *         self.median_array = np.zeros(feature_dim, dtype=np.float64, order='C')
  * 
  *     def update(self, cnp.ndarray[FLOAT32, ndim=1] features, bint update_histogram=True):             # <<<<<<<<<<<<<<
@@ -19776,16 +19775,16 @@ static int __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython___i
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_2update, "\n        Update tracker with new feature vector\n\n        Args:\n            features: Feature vector (1D float32 array)\n            update_histogram: Whether to update histogram (every 2nd frame in OF2.2)\n        ");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_3update = {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_2update};
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update, "\n        Update tracker with new feature vector\n\n        Args:\n            features: Feature vector (1D float32 array)\n            update_histogram: Whether to update histogram (every 2nd frame in OF2.2)\n        ");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update = {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -19864,12 +19863,12 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_features), __pyx_mstate_global->__pyx_ptype_5numpy_ndarray, 1, "features", 0))) __PYX_ERR(0, 163, __pyx_L1_error)
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_2update(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_features, __pyx_v_update_histogram);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_features, __pyx_v_update_histogram);
 
   /* function exit code */
   goto __pyx_L0;
@@ -19888,7 +19887,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_2update(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_features, int __pyx_v_update_histogram) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_features, int __pyx_v_update_histogram) {
   __Pyx_memviewslice __pyx_v_hist_view = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_feat_view = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_v_median_view = { 0, 0, { 0 }, { 0 }, { 0 } };
@@ -19918,11 +19917,11 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_pybuffernd_features.rcbuffer = &__pyx_pybuffer_features;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_features, &__Pyx_TypeInfo_nn___pyx_t_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 163, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_features, &__Pyx_TypeInfo_nn___pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 163, __pyx_L1_error)
   }
   __pyx_pybuffernd_features.diminfo[0].strides = __pyx_pybuffernd_features.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_features.diminfo[0].shape = __pyx_pybuffernd_features.rcbuffer->pybuffer.shape[0];
 
-  /* "cython_histogram_median.pyx":176
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":176
  *         cdef double[:] median_view
  * 
  *         if features.shape[0] != self.feature_dim:             # <<<<<<<<<<<<<<
@@ -19932,7 +19931,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_t_1 = ((__pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_features))[0]) != __pyx_v_self->feature_dim);
   if (unlikely(__pyx_t_1)) {
 
-    /* "cython_histogram_median.pyx":177
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":177
  * 
  *         if features.shape[0] != self.feature_dim:
  *             raise ValueError(f"Expected {self.feature_dim} features, got {features.shape[0]}")             # <<<<<<<<<<<<<<
@@ -19972,7 +19971,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __PYX_ERR(0, 177, __pyx_L1_error)
 
-    /* "cython_histogram_median.pyx":176
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":176
  *         cdef double[:] median_view
  * 
  *         if features.shape[0] != self.feature_dim:             # <<<<<<<<<<<<<<
@@ -19981,7 +19980,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
   }
 
-  /* "cython_histogram_median.pyx":179
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":179
  *             raise ValueError(f"Expected {self.feature_dim} features, got {features.shape[0]}")
  * 
  *         if update_histogram:             # <<<<<<<<<<<<<<
@@ -19990,7 +19989,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
   if (__pyx_v_update_histogram) {
 
-    /* "cython_histogram_median.pyx":181
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":181
  *         if update_histogram:
  *             # Update histogram using C function
  *             hist_view = self.histogram_array             # <<<<<<<<<<<<<<
@@ -20002,7 +20001,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __pyx_t_10.memview = NULL;
     __pyx_t_10.data = NULL;
 
-    /* "cython_histogram_median.pyx":182
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":182
  *             # Update histogram using C function
  *             hist_view = self.histogram_array
  *             feat_view = features             # <<<<<<<<<<<<<<
@@ -20014,7 +20013,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __pyx_t_11.memview = NULL;
     __pyx_t_11.data = NULL;
 
-    /* "cython_histogram_median.pyx":184
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":184
  *             feat_view = features
  * 
  *             with nogil:             # <<<<<<<<<<<<<<
@@ -20028,17 +20027,17 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "cython_histogram_median.pyx":185
+          /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":185
  * 
  *             with nogil:
  *                 update_histogram_c(feat_view, hist_view, self.feature_dim,             # <<<<<<<<<<<<<<
  *                                   self.num_bins, self.min_val, self.bin_width,
  *                                   self.length)
 */
-          __pyx_f_23cython_histogram_median_update_histogram_c(__pyx_v_feat_view, __pyx_v_hist_view, __pyx_v_self->feature_dim, __pyx_v_self->num_bins, __pyx_v_self->min_val, __pyx_v_self->bin_width, __pyx_v_self->length); if (unlikely(__Pyx_ErrOccurredWithGIL())) __PYX_ERR(0, 185, __pyx_L6_error)
+          __pyx_f_8pyfaceau_23cython_histogram_median_update_histogram_c(__pyx_v_feat_view, __pyx_v_hist_view, __pyx_v_self->feature_dim, __pyx_v_self->num_bins, __pyx_v_self->min_val, __pyx_v_self->bin_width, __pyx_v_self->length); if (unlikely(__Pyx_ErrOccurredWithGIL())) __PYX_ERR(0, 185, __pyx_L6_error)
         }
 
-        /* "cython_histogram_median.pyx":184
+        /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":184
  *             feat_view = features
  * 
  *             with nogil:             # <<<<<<<<<<<<<<
@@ -20060,7 +20059,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
         }
     }
 
-    /* "cython_histogram_median.pyx":189
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":189
  *                                   self.length)
  * 
  *             self.hist_count += 1             # <<<<<<<<<<<<<<
@@ -20069,7 +20068,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
     __pyx_v_self->hist_count = (__pyx_v_self->hist_count + 1);
 
-    /* "cython_histogram_median.pyx":179
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":179
  *             raise ValueError(f"Expected {self.feature_dim} features, got {features.shape[0]}")
  * 
  *         if update_histogram:             # <<<<<<<<<<<<<<
@@ -20078,7 +20077,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
   }
 
-  /* "cython_histogram_median.pyx":192
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":192
  * 
  *         # Compute median
  *         if self.hist_count == 0:             # <<<<<<<<<<<<<<
@@ -20088,7 +20087,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   switch (__pyx_v_self->hist_count) {
     case 0:
 
-    /* "cython_histogram_median.pyx":194
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":194
  *         if self.hist_count == 0:
  *             # Frame 0: use features directly
  *             self.median_array[:] = features             # <<<<<<<<<<<<<<
@@ -20097,7 +20096,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
     if (__Pyx_PyObject_SetSlice(((PyObject *)__pyx_v_self->median_array), ((PyObject *)__pyx_v_features), 0, 0, NULL, NULL, &__pyx_mstate_global->__pyx_slice[0], 0, 0, 0) < (0)) __PYX_ERR(0, 194, __pyx_L1_error)
 
-    /* "cython_histogram_median.pyx":192
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":192
  * 
  *         # Compute median
  *         if self.hist_count == 0:             # <<<<<<<<<<<<<<
@@ -20107,7 +20106,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     break;
     case 1:
 
-    /* "cython_histogram_median.pyx":197
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":197
  *         elif self.hist_count == 1:
  *             # Frame 1: still use features directly (matches C++)
  *             self.median_array[:] = features             # <<<<<<<<<<<<<<
@@ -20116,7 +20115,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
     if (__Pyx_PyObject_SetSlice(((PyObject *)__pyx_v_self->median_array), ((PyObject *)__pyx_v_features), 0, 0, NULL, NULL, &__pyx_mstate_global->__pyx_slice[0], 0, 0, 0) < (0)) __PYX_ERR(0, 197, __pyx_L1_error)
 
-    /* "cython_histogram_median.pyx":195
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":195
  *             # Frame 0: use features directly
  *             self.median_array[:] = features
  *         elif self.hist_count == 1:             # <<<<<<<<<<<<<<
@@ -20126,7 +20125,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     break;
     default:
 
-    /* "cython_histogram_median.pyx":200
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":200
  *         else:
  *             # Frame 2+: compute from histogram
  *             hist_view = self.histogram_array             # <<<<<<<<<<<<<<
@@ -20139,7 +20138,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __pyx_t_10.memview = NULL;
     __pyx_t_10.data = NULL;
 
-    /* "cython_histogram_median.pyx":201
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":201
  *             # Frame 2+: compute from histogram
  *             hist_view = self.histogram_array
  *             median_view = self.median_array             # <<<<<<<<<<<<<<
@@ -20151,7 +20150,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __pyx_t_12.memview = NULL;
     __pyx_t_12.data = NULL;
 
-    /* "cython_histogram_median.pyx":203
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":203
  *             median_view = self.median_array
  * 
  *             with nogil:             # <<<<<<<<<<<<<<
@@ -20165,17 +20164,17 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
         __Pyx_FastGIL_Remember();
         /*try:*/ {
 
-          /* "cython_histogram_median.pyx":204
+          /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":204
  * 
  *             with nogil:
  *                 compute_median_c(hist_view, median_view, self.feature_dim,             # <<<<<<<<<<<<<<
  *                                self.num_bins, self.hist_count,
  *                                self.min_val, self.bin_width)
 */
-          __pyx_f_23cython_histogram_median_compute_median_c(__pyx_v_hist_view, __pyx_v_median_view, __pyx_v_self->feature_dim, __pyx_v_self->num_bins, __pyx_v_self->hist_count, __pyx_v_self->min_val, __pyx_v_self->bin_width); if (unlikely(__Pyx_ErrOccurredWithGIL())) __PYX_ERR(0, 204, __pyx_L9_error)
+          __pyx_f_8pyfaceau_23cython_histogram_median_compute_median_c(__pyx_v_hist_view, __pyx_v_median_view, __pyx_v_self->feature_dim, __pyx_v_self->num_bins, __pyx_v_self->hist_count, __pyx_v_self->min_val, __pyx_v_self->bin_width); if (unlikely(__Pyx_ErrOccurredWithGIL())) __PYX_ERR(0, 204, __pyx_L9_error)
         }
 
-        /* "cython_histogram_median.pyx":203
+        /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":203
  *             median_view = self.median_array
  * 
  *             with nogil:             # <<<<<<<<<<<<<<
@@ -20199,7 +20198,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     break;
   }
 
-  /* "cython_histogram_median.pyx":163
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":163
  *         self.median_array = np.zeros(feature_dim, dtype=np.float64, order='C')
  * 
  *     def update(self, cnp.ndarray[FLOAT32, ndim=1] features, bint update_histogram=True):             # <<<<<<<<<<<<<<
@@ -20226,7 +20225,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
     __Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);
     __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_features.rcbuffer->pybuffer);
   __Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   goto __pyx_L2;
   __pyx_L0:;
@@ -20240,7 +20239,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":208
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":208
  *                                self.min_val, self.bin_width)
  * 
  *     def get_median(self):             # <<<<<<<<<<<<<<
@@ -20249,16 +20248,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median, "Get current running median");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median = {"get_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median};
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median, "Get current running median");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median = {"get_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -20284,14 +20283,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("get_median", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -20302,7 +20301,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_median", 0);
 
-  /* "cython_histogram_median.pyx":210
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":210
  *     def get_median(self):
  *         """Get current running median"""
  *         return self.median_array.copy()             # <<<<<<<<<<<<<<
@@ -20324,7 +20323,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":208
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":208
  *                                self.min_val, self.bin_width)
  * 
  *     def get_median(self):             # <<<<<<<<<<<<<<
@@ -20336,7 +20335,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.get_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.get_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -20344,7 +20343,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":212
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":212
  *         return self.median_array.copy()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -20353,16 +20352,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_7reset(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_6reset, "Reset tracker");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_7reset = {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_6reset};
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_7reset(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset, "Reset tracker");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset = {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -20388,14 +20387,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("reset", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -20406,7 +20405,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("reset", 0);
 
-  /* "cython_histogram_median.pyx":214
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":214
  *     def reset(self):
  *         """Reset tracker"""
  *         self.histogram_array.fill(0)             # <<<<<<<<<<<<<<
@@ -20425,7 +20424,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":215
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":215
  *         """Reset tracker"""
  *         self.histogram_array.fill(0)
  *         self.median_array.fill(0.0)             # <<<<<<<<<<<<<<
@@ -20444,7 +20443,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":216
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":216
  *         self.histogram_array.fill(0)
  *         self.median_array.fill(0.0)
  *         self.hist_count = 0             # <<<<<<<<<<<<<<
@@ -20453,7 +20452,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
   __pyx_v_self->hist_count = 0;
 
-  /* "cython_histogram_median.pyx":212
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":212
  *         return self.median_array.copy()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -20467,7 +20466,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.reset", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.reset", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -20475,7 +20474,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":218
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":218
  *         self.hist_count = 0
  * 
  *     @property             # <<<<<<<<<<<<<<
@@ -20484,21 +20483,21 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self); /*proto*/
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self) {
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
   __pyx_kwvalues = __Pyx_KwValues_VARARGS(__pyx_args, __pyx_nargs);
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count___get__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -20507,7 +20506,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
 
-  /* "cython_histogram_median.pyx":221
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":221
  *     def count(self):
  *         """Get histogram update count"""
  *         return self.hist_count             # <<<<<<<<<<<<<<
@@ -20521,7 +20520,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":218
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":218
  *         self.hist_count = 0
  * 
  *     @property             # <<<<<<<<<<<<<<
@@ -20532,7 +20531,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.count.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.count.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -20547,15 +20546,15 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -20581,14 +20580,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("__reduce_cython__", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_8__reduce_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_v_state = 0;
   PyObject *__pyx_v__dict = 0;
   int __pyx_v_use_setstate;
@@ -20847,7 +20846,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_state);
@@ -20865,15 +20864,15 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -20935,11 +20934,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v___pyx_state);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v_self), __pyx_v___pyx_state);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -20949,7 +20948,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_10__setstate_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -20964,7 +20963,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
  *     __pyx_unpickle_HistogramMedianTrackerCython__set_state(self, __pyx_state)             # <<<<<<<<<<<<<<
 */
   if (!(likely(PyTuple_CheckExact(__pyx_v___pyx_state))||((__pyx_v___pyx_state) == Py_None) || __Pyx_RaiseUnexpectedTypeError("tuple", __pyx_v___pyx_state))) __PYX_ERR(1, 17, __pyx_L1_error)
-  __pyx_t_1 = __pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(__pyx_v_self, ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 17, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(__pyx_v_self, ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 17, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
@@ -20980,7 +20979,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   goto __pyx_L0;
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cython_histogram_median.HistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.HistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -20988,7 +20987,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":237
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":237
  *     cdef int geom_dim
  * 
  *     def __init__(self,             # <<<<<<<<<<<<<<
@@ -20997,12 +20996,12 @@ static PyObject *__pyx_pf_23cython_histogram_median_28HistogramMedianTrackerCyth
 */
 
 /* Python wrapper */
-static int __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__, "\n        Initialize dual histogram median tracker\n\n        Args:\n            hog_dim: HOG feature dimensionality\n            geom_dim: Geometric feature dimensionality\n            hog_bins, hog_min, hog_max: HOG histogram parameters\n            geom_bins, geom_min, geom_max: Geometric histogram parameters\n        ");
+static int __pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds); /*proto*/
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__, "\n        Initialize dual histogram median tracker\n\n        Args:\n            hog_dim: HOG feature dimensionality\n            geom_dim: Geometric feature dimensionality\n            hog_bins, hog_min, hog_max: HOG histogram parameters\n            geom_bins, geom_min, geom_max: Geometric histogram parameters\n        ");
 #if CYTHON_UPDATE_DESCRIPTOR_DOC
-struct wrapperbase __pyx_wrapperbase_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
+struct wrapperbase __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
 #endif
-static int __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
+static int __pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__(PyObject *__pyx_v_self, PyObject *__pyx_args, PyObject *__pyx_kwds) {
   int __pyx_v_hog_dim;
   int __pyx_v_geom_dim;
   int __pyx_v_hog_bins;
@@ -21157,11 +21156,11 @@ static int __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_hog_dim, __pyx_v_geom_dim, __pyx_v_hog_bins, __pyx_v_hog_min, __pyx_v_hog_max, __pyx_v_geom_bins, __pyx_v_geom_min, __pyx_v_geom_max);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_hog_dim, __pyx_v_geom_dim, __pyx_v_hog_bins, __pyx_v_hog_min, __pyx_v_hog_max, __pyx_v_geom_bins, __pyx_v_geom_min, __pyx_v_geom_max);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -21171,7 +21170,7 @@ static int __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython
   return __pyx_r;
 }
 
-static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_hog_dim, int __pyx_v_geom_dim, int __pyx_v_hog_bins, float __pyx_v_hog_min, float __pyx_v_hog_max, int __pyx_v_geom_bins, float __pyx_v_geom_min, float __pyx_v_geom_max) {
+static int __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, int __pyx_v_hog_dim, int __pyx_v_geom_dim, int __pyx_v_hog_bins, float __pyx_v_hog_min, float __pyx_v_hog_max, int __pyx_v_geom_bins, float __pyx_v_geom_min, float __pyx_v_geom_max) {
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -21187,7 +21186,7 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__init__", 0);
 
-  /* "cython_histogram_median.pyx":255
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":255
  *             geom_bins, geom_min, geom_max: Geometric histogram parameters
  *         """
  *         self.hog_dim = hog_dim             # <<<<<<<<<<<<<<
@@ -21196,7 +21195,7 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
 */
   __pyx_v_self->hog_dim = __pyx_v_hog_dim;
 
-  /* "cython_histogram_median.pyx":256
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":256
  *         """
  *         self.hog_dim = hog_dim
  *         self.geom_dim = geom_dim             # <<<<<<<<<<<<<<
@@ -21205,7 +21204,7 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
 */
   __pyx_v_self->geom_dim = __pyx_v_geom_dim;
 
-  /* "cython_histogram_median.pyx":258
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":258
  *         self.geom_dim = geom_dim
  * 
  *         self.hog_tracker = HistogramMedianTrackerCython(             # <<<<<<<<<<<<<<
@@ -21213,10 +21212,10 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
  *         )
 */
   __pyx_t_2 = NULL;
-  __Pyx_INCREF((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython);
-  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython); 
+  __Pyx_INCREF((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython); 
 
-  /* "cython_histogram_median.pyx":259
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":259
  * 
  *         self.hog_tracker = HistogramMedianTrackerCython(
  *             hog_dim, hog_bins, hog_min, hog_max             # <<<<<<<<<<<<<<
@@ -21245,7 +21244,7 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
     __Pyx_GOTREF((PyObject *)__pyx_t_1);
   }
 
-  /* "cython_histogram_median.pyx":258
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":258
  *         self.geom_dim = geom_dim
  * 
  *         self.hog_tracker = HistogramMedianTrackerCython(             # <<<<<<<<<<<<<<
@@ -21255,10 +21254,10 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
   __Pyx_GIVEREF((PyObject *)__pyx_t_1);
   __Pyx_GOTREF((PyObject *)__pyx_v_self->hog_tracker);
   __Pyx_DECREF((PyObject *)__pyx_v_self->hog_tracker);
-  __pyx_v_self->hog_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_1);
+  __pyx_v_self->hog_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":261
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":261
  *             hog_dim, hog_bins, hog_min, hog_max
  *         )
  *         self.geom_tracker = HistogramMedianTrackerCython(             # <<<<<<<<<<<<<<
@@ -21266,10 +21265,10 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
  *         )
 */
   __pyx_t_3 = NULL;
-  __Pyx_INCREF((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython);
-  __pyx_t_7 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython); 
+  __Pyx_INCREF((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
+  __pyx_t_7 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython); 
 
-  /* "cython_histogram_median.pyx":262
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":262
  *         )
  *         self.geom_tracker = HistogramMedianTrackerCython(
  *             geom_dim, geom_bins, geom_min, geom_max             # <<<<<<<<<<<<<<
@@ -21298,7 +21297,7 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
     __Pyx_GOTREF((PyObject *)__pyx_t_1);
   }
 
-  /* "cython_histogram_median.pyx":261
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":261
  *             hog_dim, hog_bins, hog_min, hog_max
  *         )
  *         self.geom_tracker = HistogramMedianTrackerCython(             # <<<<<<<<<<<<<<
@@ -21308,10 +21307,10 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
   __Pyx_GIVEREF((PyObject *)__pyx_t_1);
   __Pyx_GOTREF((PyObject *)__pyx_v_self->geom_tracker);
   __Pyx_DECREF((PyObject *)__pyx_v_self->geom_tracker);
-  __pyx_v_self->geom_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_1);
+  __pyx_v_self->geom_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":237
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":237
  *     cdef int geom_dim
  * 
  *     def __init__(self,             # <<<<<<<<<<<<<<
@@ -21330,14 +21329,14 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
   __Pyx_XDECREF(__pyx_t_5);
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = -1;
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":265
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":265
  *         )
  * 
  *     def update(self,             # <<<<<<<<<<<<<<
@@ -21346,16 +21345,16 @@ static int __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update, "\n        Update both trackers\n\n        Args:\n            hog_features: HOG feature vector (hog_dim,)\n            geom_features: Geometric feature vector (geom_dim,)\n            update_histogram: Whether to update histograms\n        ");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update = {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update, "\n        Update both trackers\n\n        Args:\n            hog_features: HOG feature vector (hog_dim,)\n            geom_features: Geometric feature vector (geom_dim,)\n            update_histogram: Whether to update histograms\n        ");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update = {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -21431,7 +21430,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       __pyx_v_update_histogram = __Pyx_PyObject_IsTrue(values[2]); if (unlikely((__pyx_v_update_histogram == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 268, __pyx_L3_error)
     } else {
 
-      /* "cython_histogram_median.pyx":268
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":268
  *                cnp.ndarray[FLOAT32, ndim=1] hog_features,
  *                cnp.ndarray[FLOAT32, ndim=1] geom_features,
  *                bint update_histogram=True):             # <<<<<<<<<<<<<<
@@ -21450,15 +21449,15 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_hog_features), __pyx_mstate_global->__pyx_ptype_5numpy_ndarray, 1, "hog_features", 0))) __PYX_ERR(0, 266, __pyx_L1_error)
   if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_geom_features), __pyx_mstate_global->__pyx_ptype_5numpy_ndarray, 1, "geom_features", 0))) __PYX_ERR(0, 267, __pyx_L1_error)
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_hog_features, __pyx_v_geom_features, __pyx_v_update_histogram);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v_hog_features, __pyx_v_geom_features, __pyx_v_update_histogram);
 
-  /* "cython_histogram_median.pyx":265
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":265
  *         )
  * 
  *     def update(self,             # <<<<<<<<<<<<<<
@@ -21483,7 +21482,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_hog_features, PyArrayObject *__pyx_v_geom_features, int __pyx_v_update_histogram) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyArrayObject *__pyx_v_hog_features, PyArrayObject *__pyx_v_geom_features, int __pyx_v_update_histogram) {
   __Pyx_memviewslice __pyx_v_hog_median_view = { 0, 0, { 0 }, { 0 }, { 0 } };
   int __pyx_v_i;
   __Pyx_LocalBuf_ND __pyx_pybuffernd_geom_features;
@@ -21516,16 +21515,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_pybuffernd_geom_features.rcbuffer = &__pyx_pybuffer_geom_features;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_hog_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_hog_features, &__Pyx_TypeInfo_nn___pyx_t_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 265, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_hog_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_hog_features, &__Pyx_TypeInfo_nn___pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 265, __pyx_L1_error)
   }
   __pyx_pybuffernd_hog_features.diminfo[0].strides = __pyx_pybuffernd_hog_features.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_hog_features.diminfo[0].shape = __pyx_pybuffernd_hog_features.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_geom_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_geom_features, &__Pyx_TypeInfo_nn___pyx_t_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 265, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_geom_features.rcbuffer->pybuffer, (PyObject*)__pyx_v_geom_features, &__Pyx_TypeInfo_nn___pyx_t_8pyfaceau_23cython_histogram_median_FLOAT32, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 265, __pyx_L1_error)
   }
   __pyx_pybuffernd_geom_features.diminfo[0].strides = __pyx_pybuffernd_geom_features.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_geom_features.diminfo[0].shape = __pyx_pybuffernd_geom_features.rcbuffer->pybuffer.shape[0];
 
-  /* "cython_histogram_median.pyx":277
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":277
  *             update_histogram: Whether to update histograms
  *         """
  *         self.hog_tracker.update(hog_features, update_histogram)             # <<<<<<<<<<<<<<
@@ -21547,7 +21546,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":281
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":281
  *         # CRITICAL: OpenFace clamps HOG median to >= 0 after update
  *         # (FaceAnalyser.cpp line 405: this->hog_desc_median.setTo(0, this->hog_desc_median < 0);)
  *         cdef double[:] hog_median_view = self.hog_tracker.median_array             # <<<<<<<<<<<<<<
@@ -21559,7 +21558,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_t_5.memview = NULL;
   __pyx_t_5.data = NULL;
 
-  /* "cython_histogram_median.pyx":283
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":283
  *         cdef double[:] hog_median_view = self.hog_tracker.median_array
  *         cdef int i
  *         for i in range(self.hog_dim):             # <<<<<<<<<<<<<<
@@ -21571,7 +21570,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
     __pyx_v_i = __pyx_t_8;
 
-    /* "cython_histogram_median.pyx":284
+    /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":284
  *         cdef int i
  *         for i in range(self.hog_dim):
  *             if hog_median_view[i] < 0.0:             # <<<<<<<<<<<<<<
@@ -21582,7 +21581,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
     __pyx_t_10 = ((*((double *) ( /* dim=0 */ (__pyx_v_hog_median_view.data + __pyx_t_9 * __pyx_v_hog_median_view.strides[0]) ))) < 0.0);
     if (__pyx_t_10) {
 
-      /* "cython_histogram_median.pyx":285
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":285
  *         for i in range(self.hog_dim):
  *             if hog_median_view[i] < 0.0:
  *                 hog_median_view[i] = 0.0             # <<<<<<<<<<<<<<
@@ -21592,7 +21591,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
       __pyx_t_9 = __pyx_v_i;
       *((double *) ( /* dim=0 */ (__pyx_v_hog_median_view.data + __pyx_t_9 * __pyx_v_hog_median_view.strides[0]) )) = 0.0;
 
-      /* "cython_histogram_median.pyx":284
+      /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":284
  *         cdef int i
  *         for i in range(self.hog_dim):
  *             if hog_median_view[i] < 0.0:             # <<<<<<<<<<<<<<
@@ -21602,7 +21601,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
     }
   }
 
-  /* "cython_histogram_median.pyx":287
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":287
  *                 hog_median_view[i] = 0.0
  * 
  *         self.geom_tracker.update(geom_features, update_histogram)             # <<<<<<<<<<<<<<
@@ -21624,7 +21623,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":265
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":265
  *         )
  * 
  *     def update(self,             # <<<<<<<<<<<<<<
@@ -21647,7 +21646,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
     __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_geom_features.rcbuffer->pybuffer);
     __Pyx_SafeReleaseBuffer(&__pyx_pybuffernd_hog_features.rcbuffer->pybuffer);
   __Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.update", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   goto __pyx_L2;
   __pyx_L0:;
@@ -21660,7 +21659,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":289
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":289
  *         self.geom_tracker.update(geom_features, update_histogram)
  * 
  *     def get_combined_median(self):             # <<<<<<<<<<<<<<
@@ -21669,16 +21668,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median, "\n        Get concatenated [HOG_median, geom_median]\n\n        Returns:\n            Combined median vector (hog_dim + geom_dim,)\n        ");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median = {"get_combined_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median, "\n        Get concatenated [HOG_median, geom_median]\n\n        Returns:\n            Combined median vector (hog_dim + geom_dim,)\n        ");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median = {"get_combined_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -21704,14 +21703,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("get_combined_median", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_v_hog_median = NULL;
   PyObject *__pyx_v_geom_median = NULL;
   PyObject *__pyx_r = NULL;
@@ -21726,7 +21725,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_combined_median", 0);
 
-  /* "cython_histogram_median.pyx":296
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":296
  *             Combined median vector (hog_dim + geom_dim,)
  *         """
  *         hog_median = self.hog_tracker.get_median()             # <<<<<<<<<<<<<<
@@ -21746,7 +21745,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_v_hog_median = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":297
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":297
  *         """
  *         hog_median = self.hog_tracker.get_median()
  *         geom_median = self.geom_tracker.get_median()             # <<<<<<<<<<<<<<
@@ -21766,7 +21765,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_v_geom_median = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":298
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":298
  *         hog_median = self.hog_tracker.get_median()
  *         geom_median = self.geom_tracker.get_median()
  *         return np.concatenate([hog_median, geom_median])             # <<<<<<<<<<<<<<
@@ -21813,7 +21812,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":289
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":289
  *         self.geom_tracker.update(geom_features, update_histogram)
  * 
  *     def get_combined_median(self):             # <<<<<<<<<<<<<<
@@ -21827,7 +21826,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __Pyx_XDECREF(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_4);
   __Pyx_XDECREF(__pyx_t_5);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.get_combined_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.get_combined_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_hog_median);
@@ -21837,7 +21836,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":300
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":300
  *         return np.concatenate([hog_median, geom_median])
  * 
  *     def get_hog_median(self):             # <<<<<<<<<<<<<<
@@ -21846,16 +21845,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median, "Get HOG running median");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median = {"get_hog_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median, "Get HOG running median");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median = {"get_hog_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -21881,14 +21880,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("get_hog_median", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -21899,7 +21898,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_hog_median", 0);
 
-  /* "cython_histogram_median.pyx":302
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":302
  *     def get_hog_median(self):
  *         """Get HOG running median"""
  *         return self.hog_tracker.get_median()             # <<<<<<<<<<<<<<
@@ -21921,7 +21920,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":300
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":300
  *         return np.concatenate([hog_median, geom_median])
  * 
  *     def get_hog_median(self):             # <<<<<<<<<<<<<<
@@ -21933,7 +21932,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.get_hog_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.get_hog_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -21941,7 +21940,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":304
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":304
  *         return self.hog_tracker.get_median()
  * 
  *     def get_geom_median(self):             # <<<<<<<<<<<<<<
@@ -21950,16 +21949,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median, "Get geometric running median");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median = {"get_geom_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median, "Get geometric running median");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median = {"get_geom_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -21985,14 +21984,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("get_geom_median", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -22003,7 +22002,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_geom_median", 0);
 
-  /* "cython_histogram_median.pyx":306
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":306
  *     def get_geom_median(self):
  *         """Get geometric running median"""
  *         return self.geom_tracker.get_median()             # <<<<<<<<<<<<<<
@@ -22025,7 +22024,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":304
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":304
  *         return self.hog_tracker.get_median()
  * 
  *     def get_geom_median(self):             # <<<<<<<<<<<<<<
@@ -22037,7 +22036,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.get_geom_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.get_geom_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -22045,7 +22044,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":308
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":308
  *         return self.geom_tracker.get_median()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -22054,16 +22053,16 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-PyDoc_STRVAR(__pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset, "Reset both trackers");
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset = {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset(PyObject *__pyx_v_self, 
+PyDoc_STRVAR(__pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset, "Reset both trackers");
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset = {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -22089,14 +22088,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("reset", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -22107,7 +22106,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("reset", 0);
 
-  /* "cython_histogram_median.pyx":310
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":310
  *     def reset(self):
  *         """Reset both trackers"""
  *         self.hog_tracker.reset()             # <<<<<<<<<<<<<<
@@ -22126,7 +22125,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":311
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":311
  *         """Reset both trackers"""
  *         self.hog_tracker.reset()
  *         self.geom_tracker.reset()             # <<<<<<<<<<<<<<
@@ -22145,7 +22144,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "cython_histogram_median.pyx":308
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":308
  *         return self.geom_tracker.get_median()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
@@ -22159,7 +22158,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.reset", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.reset", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -22167,7 +22166,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   return __pyx_r;
 }
 
-/* "cython_histogram_median.pyx":313
+/* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":313
  *         self.geom_tracker.reset()
  * 
  *     @property             # <<<<<<<<<<<<<<
@@ -22176,21 +22175,21 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self); /*proto*/
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self) {
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(PyObject *__pyx_v_self) {
   CYTHON_UNUSED PyObject *const *__pyx_kwvalues;
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
   __pyx_kwvalues = __Pyx_KwValues_VARARGS(__pyx_args, __pyx_nargs);
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count___get__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -22199,7 +22198,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
 
-  /* "cython_histogram_median.pyx":316
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":316
  *     def count(self):
  *         """Get histogram update count"""
  *         return self.hog_tracker.count             # <<<<<<<<<<<<<<
@@ -22211,7 +22210,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "cython_histogram_median.pyx":313
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":313
  *         self.geom_tracker.reset()
  * 
  *     @property             # <<<<<<<<<<<<<<
@@ -22222,7 +22221,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   /* function exit code */
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.count.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.count.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -22237,15 +22236,15 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__ = {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -22271,14 +22270,14 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   const Py_ssize_t __pyx_kwds_len = unlikely(__pyx_kwds) ? __Pyx_NumKwargs_FASTCALL(__pyx_kwds) : 0;
   if (unlikely(__pyx_kwds_len < 0)) return NULL;
   if (unlikely(__pyx_kwds_len > 0)) {__Pyx_RejectKeywords("__reduce_cython__", __pyx_kwds); return NULL;}
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_12__reduce_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self) {
   PyObject *__pyx_v_state = 0;
   PyObject *__pyx_v__dict = 0;
   int __pyx_v_use_setstate;
@@ -22502,7 +22501,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_3);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.__reduce_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v_state);
@@ -22520,15 +22519,15 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__(PyObject *__pyx_v_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__(PyObject *__pyx_v_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__ = {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__(PyObject *__pyx_v_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -22590,11 +22589,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v___pyx_state);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v_self), __pyx_v___pyx_state);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -22604,7 +22603,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_14__setstate_cython__(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   PyObject *__pyx_t_1 = NULL;
@@ -22619,7 +22618,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
  *     __pyx_unpickle_DualHistogramMedianTrackerCython__set_state(self, __pyx_state)             # <<<<<<<<<<<<<<
 */
   if (!(likely(PyTuple_CheckExact(__pyx_v___pyx_state))||((__pyx_v___pyx_state) == Py_None) || __Pyx_RaiseUnexpectedTypeError("tuple", __pyx_v___pyx_state))) __PYX_ERR(1, 17, __pyx_L1_error)
-  __pyx_t_1 = __pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(__pyx_v_self, ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 17, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(__pyx_v_self, ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 17, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
@@ -22635,7 +22634,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
   goto __pyx_L0;
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
-  __Pyx_AddTraceback("cython_histogram_median.DualHistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython.__setstate_cython__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -22650,15 +22649,15 @@ static PyObject *__pyx_pf_23cython_histogram_median_32DualHistogramMedianTracker
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython = {"__pyx_unpickle_HistogramMedianTrackerCython", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython(PyObject *__pyx_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython = {"__pyx_unpickle_HistogramMedianTrackerCython", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -22736,11 +22735,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(__pyx_self, __pyx_v___pyx_type, __pyx_v___pyx_checksum, __pyx_v___pyx_state);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(__pyx_self, __pyx_v___pyx_type, __pyx_v___pyx_checksum, __pyx_v___pyx_state);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -22750,7 +22749,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_v___pyx_PickleError = 0;
   PyObject *__pyx_v___pyx_result = 0;
   PyObject *__pyx_r = NULL;
@@ -22831,7 +22830,7 @@ static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedi
  *     if __pyx_state is not None:
  *         __pyx_unpickle_HistogramMedianTrackerCython__set_state(<HistogramMedianTrackerCython> __pyx_result, __pyx_state)
 */
-  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython);
+  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython);
   __Pyx_INCREF(__pyx_t_3);
   __pyx_t_4 = 0;
   {
@@ -22862,7 +22861,7 @@ static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedi
  * cdef __pyx_unpickle_HistogramMedianTrackerCython__set_state(HistogramMedianTrackerCython __pyx_result, tuple __pyx_state):
 */
     if (!(likely(PyTuple_CheckExact(__pyx_v___pyx_state))||((__pyx_v___pyx_state) == Py_None) || __Pyx_RaiseUnexpectedTypeError("tuple", __pyx_v___pyx_state))) __PYX_ERR(1, 9, __pyx_L1_error)
-    __pyx_t_1 = __pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v___pyx_result), ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 9, __pyx_L1_error)
+    __pyx_t_1 = __pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_v___pyx_result), ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 9, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
@@ -22897,7 +22896,7 @@ static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedi
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_3);
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v___pyx_PickleError);
@@ -22915,7 +22914,7 @@ static PyObject *__pyx_pf_23cython_histogram_median___pyx_unpickle_HistogramMedi
  *     if len(__pyx_state) > 9 and hasattr(__pyx_result, '__dict__'):
 */
 
-static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v___pyx_result, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_HistogramMedianTrackerCython__set_state(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *__pyx_v___pyx_result, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   float __pyx_t_1;
@@ -23075,7 +23074,7 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedia
   __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_7);
   __Pyx_XDECREF(__pyx_t_8);
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython__set_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_HistogramMedianTrackerCython__set_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -23090,15 +23089,15 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_HistogramMedia
 */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython = {"__pyx_unpickle_DualHistogramMedianTrackerCython", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython(PyObject *__pyx_self, 
+static PyMethodDef __pyx_mdef_8pyfaceau_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython = {"__pyx_unpickle_DualHistogramMedianTrackerCython", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_8pyfaceau_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -23176,11 +23175,11 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
     Py_XDECREF(values[__pyx_temp]);
   }
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  __pyx_r = __pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(__pyx_self, __pyx_v___pyx_type, __pyx_v___pyx_checksum, __pyx_v___pyx_state);
+  __pyx_r = __pyx_pf_8pyfaceau_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(__pyx_self, __pyx_v___pyx_type, __pyx_v___pyx_checksum, __pyx_v___pyx_state);
 
   /* function exit code */
   for (Py_ssize_t __pyx_temp=0; __pyx_temp < (Py_ssize_t)(sizeof(values)/sizeof(values[0])); ++__pyx_temp) {
@@ -23190,7 +23189,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_8pyfaceau_23cython_histogram_median_2__pyx_unpickle_DualHistogramMedianTrackerCython(CYTHON_UNUSED PyObject *__pyx_self, PyObject *__pyx_v___pyx_type, long __pyx_v___pyx_checksum, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_v___pyx_PickleError = 0;
   PyObject *__pyx_v___pyx_result = 0;
   PyObject *__pyx_r = NULL;
@@ -23271,7 +23270,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogra
  *     if __pyx_state is not None:
  *         __pyx_unpickle_DualHistogramMedianTrackerCython__set_state(<DualHistogramMedianTrackerCython> __pyx_result, __pyx_state)
 */
-  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython);
+  __pyx_t_3 = ((PyObject *)__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython);
   __Pyx_INCREF(__pyx_t_3);
   __pyx_t_4 = 0;
   {
@@ -23302,7 +23301,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogra
  * cdef __pyx_unpickle_DualHistogramMedianTrackerCython__set_state(DualHistogramMedianTrackerCython __pyx_result, tuple __pyx_state):
 */
     if (!(likely(PyTuple_CheckExact(__pyx_v___pyx_state))||((__pyx_v___pyx_state) == Py_None) || __Pyx_RaiseUnexpectedTypeError("tuple", __pyx_v___pyx_state))) __PYX_ERR(1, 9, __pyx_L1_error)
-    __pyx_t_1 = __pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v___pyx_result), ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 9, __pyx_L1_error)
+    __pyx_t_1 = __pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)__pyx_v___pyx_result), ((PyObject*)__pyx_v___pyx_state)); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 9, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
@@ -23337,7 +23336,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogra
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __Pyx_XDECREF(__pyx_t_3);
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   __pyx_L0:;
   __Pyx_XDECREF(__pyx_v___pyx_PickleError);
@@ -23355,7 +23354,7 @@ static PyObject *__pyx_pf_23cython_histogram_median_2__pyx_unpickle_DualHistogra
  *     if len(__pyx_state) > 4 and hasattr(__pyx_result, '__dict__'):
 */
 
-static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v___pyx_result, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_f_8pyfaceau_23cython_histogram_median___pyx_unpickle_DualHistogramMedianTrackerCython__set_state(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *__pyx_v___pyx_result, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_RefNannyDeclarations
   int __pyx_t_1;
@@ -23390,11 +23389,11 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramM
   }
   __pyx_t_2 = __Pyx_PyTuple_GET_ITEM(__pyx_v___pyx_state, 1);
   __Pyx_INCREF(__pyx_t_2);
-  if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython))))) __PYX_ERR(1, 12, __pyx_L1_error)
+  if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython))))) __PYX_ERR(1, 12, __pyx_L1_error)
   __Pyx_GIVEREF(__pyx_t_2);
   __Pyx_GOTREF((PyObject *)__pyx_v___pyx_result->geom_tracker);
   __Pyx_DECREF((PyObject *)__pyx_v___pyx_result->geom_tracker);
-  __pyx_v___pyx_result->geom_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_2);
+  __pyx_v___pyx_result->geom_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_2);
   __pyx_t_2 = 0;
   if (unlikely(__pyx_v___pyx_state == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
@@ -23408,11 +23407,11 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramM
   }
   __pyx_t_2 = __Pyx_PyTuple_GET_ITEM(__pyx_v___pyx_state, 3);
   __Pyx_INCREF(__pyx_t_2);
-  if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython))))) __PYX_ERR(1, 12, __pyx_L1_error)
+  if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython))))) __PYX_ERR(1, 12, __pyx_L1_error)
   __Pyx_GIVEREF(__pyx_t_2);
   __Pyx_GOTREF((PyObject *)__pyx_v___pyx_result->hog_tracker);
   __Pyx_DECREF((PyObject *)__pyx_v___pyx_result->hog_tracker);
-  __pyx_v___pyx_result->hog_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_2);
+  __pyx_v___pyx_result->hog_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)__pyx_t_2);
   __pyx_t_2 = 0;
 
   /* "(tree fragment)":13
@@ -23484,7 +23483,7 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramM
   __Pyx_XDECREF(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7);
-  __Pyx_AddTraceback("cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython__set_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __Pyx_AddTraceback("pyfaceau.cython_histogram_median.__pyx_unpickle_DualHistogramMedianTrackerCython__set_state", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XGIVEREF(__pyx_r);
@@ -23493,8 +23492,8 @@ static PyObject *__pyx_f_23cython_histogram_median___pyx_unpickle_DualHistogramM
 }
 /* #### Code section: module_exttypes ### */
 
-static PyObject *__pyx_tp_new_23cython_histogram_median_HistogramMedianTrackerCython(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *p;
+static PyObject *__pyx_tp_new_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *p;
   PyObject *o;
   #if CYTHON_COMPILING_IN_LIMITED_API
   allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);
@@ -23507,17 +23506,17 @@ static PyObject *__pyx_tp_new_23cython_histogram_median_HistogramMedianTrackerCy
   }
   if (unlikely(!o)) return 0;
   #endif
-  p = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)o);
+  p = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)o);
   p->histogram_array = ((PyArrayObject *)Py_None); Py_INCREF(Py_None);
   p->median_array = ((PyArrayObject *)Py_None); Py_INCREF(Py_None);
   return o;
 }
 
-static void __pyx_tp_dealloc_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o) {
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)o;
+static void __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o) {
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)o;
   #if CYTHON_USE_TP_FINALIZE
   if (unlikely((PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE)) && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && !__Pyx_PyObject_GC_IsFinalized(o)) {
-    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_23cython_histogram_median_HistogramMedianTrackerCython) {
+    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython) {
       if (PyObject_CallFinalizerFromDealloc(o)) return;
     }
   }
@@ -23535,9 +23534,9 @@ static void __pyx_tp_dealloc_23cython_histogram_median_HistogramMedianTrackerCyt
   #endif
 }
 
-static int __pyx_tp_traverse_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o, visitproc v, void *a) {
+static int __pyx_tp_traverse_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o, visitproc v, void *a) {
   int e;
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)o;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)o;
   {
     e = __Pyx_call_type_traverse(o, 1, v, a);
     if (e) return e;
@@ -23551,9 +23550,9 @@ static int __pyx_tp_traverse_23cython_histogram_median_HistogramMedianTrackerCyt
   return 0;
 }
 
-static int __pyx_tp_clear_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o) {
+static int __pyx_tp_clear_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython(PyObject *o) {
   PyObject* tmp;
-  struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)o;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)o;
   tmp = ((PyObject*)p->histogram_array);
   p->histogram_array = ((PyArrayObject *)Py_None); Py_INCREF(Py_None);
   Py_XDECREF(tmp);
@@ -23563,50 +23562,50 @@ static int __pyx_tp_clear_23cython_histogram_median_HistogramMedianTrackerCython
   return 0;
 }
 
-static PyObject *__pyx_getprop_23cython_histogram_median_28HistogramMedianTrackerCython_count(PyObject *o, CYTHON_UNUSED void *x) {
-  return __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(o);
+static PyObject *__pyx_getprop_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_count(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5count_1__get__(o);
 }
 
-static PyMethodDef __pyx_methods_23cython_histogram_median_HistogramMedianTrackerCython[] = {
-  {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_2update},
-  {"get_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median},
-  {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython_6reset},
-  {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+static PyMethodDef __pyx_methods_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython[] = {
+  {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_2update},
+  {"get_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_4get_median},
+  {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_6reset},
+  {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 
-static struct PyGetSetDef __pyx_getsets_23cython_histogram_median_HistogramMedianTrackerCython[] = {
-  {"count", __pyx_getprop_23cython_histogram_median_28HistogramMedianTrackerCython_count, 0, PyDoc_STR("Get histogram update count"), 0},
+static struct PyGetSetDef __pyx_getsets_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython[] = {
+  {"count", __pyx_getprop_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_count, 0, PyDoc_STR("Get histogram update count"), 0},
   {0, 0, 0, 0, 0}
 };
 #if CYTHON_USE_TYPE_SPECS
-static PyType_Slot __pyx_type_23cython_histogram_median_HistogramMedianTrackerCython_slots[] = {
-  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_23cython_histogram_median_HistogramMedianTrackerCython},
+static PyType_Slot __pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython_slots[] = {
+  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
   {Py_tp_doc, (void *)PyDoc_STR("\n    Cython-optimized histogram-based running median tracker\n\n    Direct replacement for Python HistogramBasedMedianTracker with\n    10-20x performance improvement.\n    ")},
-  {Py_tp_traverse, (void *)__pyx_tp_traverse_23cython_histogram_median_HistogramMedianTrackerCython},
-  {Py_tp_clear, (void *)__pyx_tp_clear_23cython_histogram_median_HistogramMedianTrackerCython},
-  {Py_tp_methods, (void *)__pyx_methods_23cython_histogram_median_HistogramMedianTrackerCython},
-  {Py_tp_getset, (void *)__pyx_getsets_23cython_histogram_median_HistogramMedianTrackerCython},
-  {Py_tp_init, (void *)__pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__},
-  {Py_tp_new, (void *)__pyx_tp_new_23cython_histogram_median_HistogramMedianTrackerCython},
+  {Py_tp_traverse, (void *)__pyx_tp_traverse_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
+  {Py_tp_clear, (void *)__pyx_tp_clear_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
+  {Py_tp_methods, (void *)__pyx_methods_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
+  {Py_tp_getset, (void *)__pyx_getsets_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
+  {Py_tp_init, (void *)__pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__},
+  {Py_tp_new, (void *)__pyx_tp_new_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython},
   {0, 0},
 };
-static PyType_Spec __pyx_type_23cython_histogram_median_HistogramMedianTrackerCython_spec = {
-  "cython_histogram_median.HistogramMedianTrackerCython",
-  sizeof(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython),
+static PyType_Spec __pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython_spec = {
+  "pyfaceau.cython_histogram_median.HistogramMedianTrackerCython",
+  sizeof(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
-  __pyx_type_23cython_histogram_median_HistogramMedianTrackerCython_slots,
+  __pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython_slots,
 };
 #else
 
-static PyTypeObject __pyx_type_23cython_histogram_median_HistogramMedianTrackerCython = {
+static PyTypeObject __pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""HistogramMedianTrackerCython", /*tp_name*/
-  sizeof(struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython), /*tp_basicsize*/
+  "pyfaceau.cython_histogram_median.""HistogramMedianTrackerCython", /*tp_name*/
+  sizeof(struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython), /*tp_basicsize*/
   0, /*tp_itemsize*/
-  __pyx_tp_dealloc_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_dealloc*/
+  __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_dealloc*/
   #if PY_VERSION_HEX < 0x030800b4
   0, /*tp_print*/
   #endif
@@ -23628,15 +23627,15 @@ static PyTypeObject __pyx_type_23cython_histogram_median_HistogramMedianTrackerC
   0, /*tp_as_buffer*/
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC, /*tp_flags*/
   PyDoc_STR("\n    Cython-optimized histogram-based running median tracker\n\n    Direct replacement for Python HistogramBasedMedianTracker with\n    10-20x performance improvement.\n    "), /*tp_doc*/
-  __pyx_tp_traverse_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_traverse*/
-  __pyx_tp_clear_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_clear*/
+  __pyx_tp_traverse_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_traverse*/
+  __pyx_tp_clear_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_clear*/
   0, /*tp_richcompare*/
   0, /*tp_weaklistoffset*/
   0, /*tp_iter*/
   0, /*tp_iternext*/
-  __pyx_methods_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_methods*/
+  __pyx_methods_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_methods*/
   0, /*tp_members*/
-  __pyx_getsets_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_getset*/
+  __pyx_getsets_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_getset*/
   0, /*tp_base*/
   0, /*tp_dict*/
   0, /*tp_descr_get*/
@@ -23644,9 +23643,9 @@ static PyTypeObject __pyx_type_23cython_histogram_median_HistogramMedianTrackerC
   #if !CYTHON_USE_TYPE_SPECS
   0, /*tp_dictoffset*/
   #endif
-  __pyx_pw_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__, /*tp_init*/
+  __pyx_pw_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_1__init__, /*tp_init*/
   0, /*tp_alloc*/
-  __pyx_tp_new_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_new*/
+  __pyx_tp_new_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, /*tp_new*/
   0, /*tp_free*/
   0, /*tp_is_gc*/
   0, /*tp_bases*/
@@ -23679,8 +23678,8 @@ static PyTypeObject __pyx_type_23cython_histogram_median_HistogramMedianTrackerC
 };
 #endif
 
-static PyObject *__pyx_tp_new_23cython_histogram_median_DualHistogramMedianTrackerCython(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
-  struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *p;
+static PyObject *__pyx_tp_new_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython(PyTypeObject *t, CYTHON_UNUSED PyObject *a, CYTHON_UNUSED PyObject *k) {
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *p;
   PyObject *o;
   #if CYTHON_COMPILING_IN_LIMITED_API
   allocfunc alloc_func = (allocfunc)PyType_GetSlot(t, Py_tp_alloc);
@@ -23693,17 +23692,17 @@ static PyObject *__pyx_tp_new_23cython_histogram_median_DualHistogramMedianTrack
   }
   if (unlikely(!o)) return 0;
   #endif
-  p = ((struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)o);
-  p->hog_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
-  p->geom_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
+  p = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)o);
+  p->hog_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
+  p->geom_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
   return o;
 }
 
-static void __pyx_tp_dealloc_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o) {
-  struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
+static void __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o) {
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
   #if CYTHON_USE_TP_FINALIZE
   if (unlikely((PY_VERSION_HEX >= 0x03080000 || __Pyx_PyType_HasFeature(Py_TYPE(o), Py_TPFLAGS_HAVE_FINALIZE)) && __Pyx_PyObject_GetSlot(o, tp_finalize, destructor)) && !__Pyx_PyObject_GC_IsFinalized(o)) {
-    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_23cython_histogram_median_DualHistogramMedianTrackerCython) {
+    if (__Pyx_PyObject_GetSlot(o, tp_dealloc, destructor) == __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython) {
       if (PyObject_CallFinalizerFromDealloc(o)) return;
     }
   }
@@ -23721,9 +23720,9 @@ static void __pyx_tp_dealloc_23cython_histogram_median_DualHistogramMedianTracke
   #endif
 }
 
-static int __pyx_tp_traverse_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o, visitproc v, void *a) {
+static int __pyx_tp_traverse_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o, visitproc v, void *a) {
   int e;
-  struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
   {
     e = __Pyx_call_type_traverse(o, 1, v, a);
     if (e) return e;
@@ -23737,64 +23736,64 @@ static int __pyx_tp_traverse_23cython_histogram_median_DualHistogramMedianTracke
   return 0;
 }
 
-static int __pyx_tp_clear_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o) {
+static int __pyx_tp_clear_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython(PyObject *o) {
   PyObject* tmp;
-  struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
+  struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *p = (struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython *)o;
   tmp = ((PyObject*)p->hog_tracker);
-  p->hog_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
+  p->hog_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
   Py_XDECREF(tmp);
   tmp = ((PyObject*)p->geom_tracker);
-  p->geom_tracker = ((struct __pyx_obj_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
+  p->geom_tracker = ((struct __pyx_obj_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython *)Py_None); Py_INCREF(Py_None);
   Py_XDECREF(tmp);
   return 0;
 }
 
-static PyObject *__pyx_getprop_23cython_histogram_median_32DualHistogramMedianTrackerCython_count(PyObject *o, CYTHON_UNUSED void *x) {
-  return __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(o);
+static PyObject *__pyx_getprop_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_count(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5count_1__get__(o);
 }
 
-static PyMethodDef __pyx_methods_23cython_histogram_median_DualHistogramMedianTrackerCython[] = {
-  {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update},
-  {"get_combined_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median},
-  {"get_hog_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median},
-  {"get_geom_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median},
-  {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset},
-  {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
-  {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+static PyMethodDef __pyx_methods_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython[] = {
+  {"update", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_2update},
+  {"get_combined_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_4get_combined_median},
+  {"get_hog_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_6get_hog_median},
+  {"get_geom_median", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_8get_geom_median},
+  {"reset", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_METH_FASTCALL|METH_KEYWORDS, __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_10reset},
+  {"__reduce_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
+  {"__setstate_cython__", (PyCFunction)(void(*)(void))(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0},
   {0, 0, 0, 0}
 };
 
-static struct PyGetSetDef __pyx_getsets_23cython_histogram_median_DualHistogramMedianTrackerCython[] = {
-  {"count", __pyx_getprop_23cython_histogram_median_32DualHistogramMedianTrackerCython_count, 0, PyDoc_STR("Get histogram update count"), 0},
+static struct PyGetSetDef __pyx_getsets_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython[] = {
+  {"count", __pyx_getprop_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_count, 0, PyDoc_STR("Get histogram update count"), 0},
   {0, 0, 0, 0, 0}
 };
 #if CYTHON_USE_TYPE_SPECS
-static PyType_Slot __pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython_slots[] = {
-  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_23cython_histogram_median_DualHistogramMedianTrackerCython},
+static PyType_Slot __pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython_slots[] = {
+  {Py_tp_dealloc, (void *)__pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
   {Py_tp_doc, (void *)PyDoc_STR("\n    Cython-optimized dual histogram median tracker\n\n    Manages separate trackers for HOG and geometric features.\n    Drop-in replacement for Python DualHistogramMedianTracker.\n    ")},
-  {Py_tp_traverse, (void *)__pyx_tp_traverse_23cython_histogram_median_DualHistogramMedianTrackerCython},
-  {Py_tp_clear, (void *)__pyx_tp_clear_23cython_histogram_median_DualHistogramMedianTrackerCython},
-  {Py_tp_methods, (void *)__pyx_methods_23cython_histogram_median_DualHistogramMedianTrackerCython},
-  {Py_tp_getset, (void *)__pyx_getsets_23cython_histogram_median_DualHistogramMedianTrackerCython},
-  {Py_tp_init, (void *)__pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__},
-  {Py_tp_new, (void *)__pyx_tp_new_23cython_histogram_median_DualHistogramMedianTrackerCython},
+  {Py_tp_traverse, (void *)__pyx_tp_traverse_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
+  {Py_tp_clear, (void *)__pyx_tp_clear_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
+  {Py_tp_methods, (void *)__pyx_methods_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
+  {Py_tp_getset, (void *)__pyx_getsets_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
+  {Py_tp_init, (void *)__pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__},
+  {Py_tp_new, (void *)__pyx_tp_new_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython},
   {0, 0},
 };
-static PyType_Spec __pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython_spec = {
-  "cython_histogram_median.DualHistogramMedianTrackerCython",
-  sizeof(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython),
+static PyType_Spec __pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython_spec = {
+  "pyfaceau.cython_histogram_median.DualHistogramMedianTrackerCython",
+  sizeof(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
-  __pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython_slots,
+  __pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython_slots,
 };
 #else
 
-static PyTypeObject __pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython = {
+static PyTypeObject __pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""DualHistogramMedianTrackerCython", /*tp_name*/
-  sizeof(struct __pyx_obj_23cython_histogram_median_DualHistogramMedianTrackerCython), /*tp_basicsize*/
+  "pyfaceau.cython_histogram_median.""DualHistogramMedianTrackerCython", /*tp_name*/
+  sizeof(struct __pyx_obj_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython), /*tp_basicsize*/
   0, /*tp_itemsize*/
-  __pyx_tp_dealloc_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_dealloc*/
+  __pyx_tp_dealloc_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_dealloc*/
   #if PY_VERSION_HEX < 0x030800b4
   0, /*tp_print*/
   #endif
@@ -23816,15 +23815,15 @@ static PyTypeObject __pyx_type_23cython_histogram_median_DualHistogramMedianTrac
   0, /*tp_as_buffer*/
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC, /*tp_flags*/
   PyDoc_STR("\n    Cython-optimized dual histogram median tracker\n\n    Manages separate trackers for HOG and geometric features.\n    Drop-in replacement for Python DualHistogramMedianTracker.\n    "), /*tp_doc*/
-  __pyx_tp_traverse_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_traverse*/
-  __pyx_tp_clear_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_clear*/
+  __pyx_tp_traverse_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_traverse*/
+  __pyx_tp_clear_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_clear*/
   0, /*tp_richcompare*/
   0, /*tp_weaklistoffset*/
   0, /*tp_iter*/
   0, /*tp_iternext*/
-  __pyx_methods_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_methods*/
+  __pyx_methods_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_methods*/
   0, /*tp_members*/
-  __pyx_getsets_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_getset*/
+  __pyx_getsets_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_getset*/
   0, /*tp_base*/
   0, /*tp_dict*/
   0, /*tp_descr_get*/
@@ -23832,9 +23831,9 @@ static PyTypeObject __pyx_type_23cython_histogram_median_DualHistogramMedianTrac
   #if !CYTHON_USE_TYPE_SPECS
   0, /*tp_dictoffset*/
   #endif
-  __pyx_pw_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__, /*tp_init*/
+  __pyx_pw_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_1__init__, /*tp_init*/
   0, /*tp_alloc*/
-  __pyx_tp_new_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_new*/
+  __pyx_tp_new_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, /*tp_new*/
   0, /*tp_free*/
   0, /*tp_is_gc*/
   0, /*tp_bases*/
@@ -23997,7 +23996,7 @@ static PyType_Slot __pyx_type___pyx_array_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_array_spec = {
-  "cython_histogram_median.array",
+  "pyfaceau.cython_histogram_median.array",
   sizeof(struct __pyx_array_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_SEQUENCE,
@@ -24031,7 +24030,7 @@ static PyBufferProcs __pyx_tp_as_buffer_array = {
 
 static PyTypeObject __pyx_type___pyx_array = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""array", /*tp_name*/
+  "pyfaceau.cython_histogram_median.""array", /*tp_name*/
   sizeof(struct __pyx_array_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_array, /*tp_dealloc*/
@@ -24186,7 +24185,7 @@ static PyType_Slot __pyx_type___pyx_MemviewEnum_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
-  "cython_histogram_median.Enum",
+  "pyfaceau.cython_histogram_median.Enum",
   sizeof(struct __pyx_MemviewEnum_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -24196,7 +24195,7 @@ static PyType_Spec __pyx_type___pyx_MemviewEnum_spec = {
 
 static PyTypeObject __pyx_type___pyx_MemviewEnum = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""Enum", /*tp_name*/
+  "pyfaceau.cython_histogram_median.""Enum", /*tp_name*/
   sizeof(struct __pyx_MemviewEnum_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_Enum, /*tp_dealloc*/
@@ -24481,7 +24480,7 @@ static PyType_Slot __pyx_type___pyx_memoryview_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryview_spec = {
-  "cython_histogram_median.memoryview",
+  "pyfaceau.cython_histogram_median.memoryview",
   sizeof(struct __pyx_memoryview_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC,
@@ -24515,7 +24514,7 @@ static PyBufferProcs __pyx_tp_as_buffer_memoryview = {
 
 static PyTypeObject __pyx_type___pyx_memoryview = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""memoryview", /*tp_name*/
+  "pyfaceau.cython_histogram_median.""memoryview", /*tp_name*/
   sizeof(struct __pyx_memoryview_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc_memoryview, /*tp_dealloc*/
@@ -24663,7 +24662,7 @@ static PyType_Slot __pyx_type___pyx_memoryviewslice_slots[] = {
   {0, 0},
 };
 static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
-  "cython_histogram_median._memoryviewslice",
+  "pyfaceau.cython_histogram_median._memoryviewslice",
   sizeof(struct __pyx_memoryviewslice_obj),
   0,
   Py_TPFLAGS_DEFAULT|Py_TPFLAGS_HAVE_VERSION_TAG|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC|Py_TPFLAGS_SEQUENCE,
@@ -24673,7 +24672,7 @@ static PyType_Spec __pyx_type___pyx_memoryviewslice_spec = {
 
 static PyTypeObject __pyx_type___pyx_memoryviewslice = {
   PyVarObject_HEAD_INIT(0, 0)
-  "cython_histogram_median.""_memoryviewslice", /*tp_name*/
+  "pyfaceau.cython_histogram_median.""_memoryviewslice", /*tp_name*/
   sizeof(struct __pyx_memoryviewslice_obj), /*tp_basicsize*/
   0, /*tp_itemsize*/
   __pyx_tp_dealloc__memoryviewslice, /*tp_dealloc*/
@@ -24818,61 +24817,61 @@ static int __Pyx_modinit_type_init_code(__pyx_mstatetype *__pyx_mstate) {
   __Pyx_RefNannySetupContext("__Pyx_modinit_type_init_code", 0);
   /*--- Type init code ---*/
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython)) __PYX_ERR(0, 117, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython_spec, __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython)) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython_spec, __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
   #else
-  __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython = &__pyx_type_23cython_histogram_median_HistogramMedianTrackerCython;
+  __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython = &__pyx_type_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython->tp_dictoffset && __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython->tp_getattro == PyObject_GenericGetAttr)) {
-    __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython->tp_getattro = PyObject_GenericGetAttr;
+  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython->tp_dictoffset && __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython->tp_getattro == PyObject_GenericGetAttr)) {
+    __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython->tp_getattro = PyObject_GenericGetAttr;
   }
   #endif
   #if CYTHON_UPDATE_DESCRIPTOR_DOC
   {
-    PyObject *wrapper = PyObject_GetAttrString((PyObject *)__pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 117, __pyx_L1_error)
+    PyObject *wrapper = PyObject_GetAttrString((PyObject *)__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 117, __pyx_L1_error)
     if (__Pyx_IS_TYPE(wrapper, &PyWrapperDescr_Type)) {
-      __pyx_wrapperbase_23cython_histogram_median_28HistogramMedianTrackerCython___init__ = *((PyWrapperDescrObject *)wrapper)->d_base;
-      __pyx_wrapperbase_23cython_histogram_median_28HistogramMedianTrackerCython___init__.doc = __pyx_doc_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
-      ((PyWrapperDescrObject *)wrapper)->d_base = &__pyx_wrapperbase_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
+      __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__ = *((PyWrapperDescrObject *)wrapper)->d_base;
+      __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__.doc = __pyx_doc_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
+      ((PyWrapperDescrObject *)wrapper)->d_base = &__pyx_wrapperbase_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython___init__;
     }
   }
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython, (PyObject *) __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython, (PyObject *) __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 117, __pyx_L1_error)
   #if CYTHON_USE_TYPE_SPECS
-  __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython)) __PYX_ERR(0, 224, __pyx_L1_error)
-  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython_spec, __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
+  __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython = (PyTypeObject *) __Pyx_PyType_FromModuleAndSpec(__pyx_m, &__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython_spec, NULL); if (unlikely(!__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython)) __PYX_ERR(0, 224, __pyx_L1_error)
+  if (__Pyx_fix_up_extension_type_from_spec(&__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython_spec, __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
   #else
-  __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython = &__pyx_type_23cython_histogram_median_DualHistogramMedianTrackerCython;
+  __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython = &__pyx_type_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython;
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
   #endif
   #if !CYTHON_USE_TYPE_SPECS
-  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
+  if (__Pyx_PyType_Ready(__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
   #endif
   #if !CYTHON_COMPILING_IN_LIMITED_API
-  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_dictoffset && __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_getattro == PyObject_GenericGetAttr)) {
-    __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_getattro = PyObject_GenericGetAttr;
+  if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_dictoffset && __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_getattro == PyObject_GenericGetAttr)) {
+    __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython->tp_getattro = PyObject_GenericGetAttr;
   }
   #endif
   #if CYTHON_UPDATE_DESCRIPTOR_DOC
   {
-    PyObject *wrapper = PyObject_GetAttrString((PyObject *)__pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 224, __pyx_L1_error)
+    PyObject *wrapper = PyObject_GetAttrString((PyObject *)__pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, "__init__"); if (unlikely(!wrapper)) __PYX_ERR(0, 224, __pyx_L1_error)
     if (__Pyx_IS_TYPE(wrapper, &PyWrapperDescr_Type)) {
-      __pyx_wrapperbase_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__ = *((PyWrapperDescrObject *)wrapper)->d_base;
-      __pyx_wrapperbase_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__.doc = __pyx_doc_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
-      ((PyWrapperDescrObject *)wrapper)->d_base = &__pyx_wrapperbase_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
+      __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__ = *((PyWrapperDescrObject *)wrapper)->d_base;
+      __pyx_wrapperbase_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__.doc = __pyx_doc_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
+      ((PyWrapperDescrObject *)wrapper)->d_base = &__pyx_wrapperbase_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython___init__;
     }
   }
   #endif
-  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython, (PyObject *) __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython, (PyObject *) __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject *) __pyx_mstate->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython) < (0)) __PYX_ERR(0, 224, __pyx_L1_error)
   __pyx_vtabptr_array = &__pyx_vtable_array;
   __pyx_vtable_array.get_memview = (PyObject *(*)(struct __pyx_array_obj *))__pyx_array_get_memview;
   #if CYTHON_USE_TYPE_SPECS
@@ -25016,7 +25015,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #endif
   __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_7cpython_4type_type) __PYX_ERR(3, 9, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = PyImport_ImportModule("numpy"); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 272, __pyx_L1_error)
+  __pyx_t_1 = PyImport_ImportModule("numpy"); if (unlikely(!__pyx_t_1)) __PYX_ERR(2, 228, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_mstate->__pyx_ptype_5numpy_dtype = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "dtype",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
@@ -25026,7 +25025,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyArray_Descr), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArray_Descr),
   #endif
-  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_dtype) __PYX_ERR(2, 272, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_dtype) __PYX_ERR(2, 228, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_flatiter = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "flatiter",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyArrayIterObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayIterObject),
@@ -25035,7 +25034,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyArrayIterObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayIterObject),
   #endif
-  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_flatiter) __PYX_ERR(2, 317, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_flatiter) __PYX_ERR(2, 273, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_broadcast = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "broadcast",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyArrayMultiIterObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayMultiIterObject),
@@ -25044,7 +25043,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyArrayMultiIterObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayMultiIterObject),
   #endif
-  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_broadcast) __PYX_ERR(2, 321, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_broadcast) __PYX_ERR(2, 277, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_ndarray = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "ndarray",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyArrayObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayObject),
@@ -25053,7 +25052,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyArrayObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyArrayObject),
   #endif
-  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_ndarray) __PYX_ERR(2, 360, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_ndarray) __PYX_ERR(2, 316, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_generic = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "generic",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25062,7 +25061,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_generic) __PYX_ERR(2, 873, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_generic) __PYX_ERR(2, 825, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_number = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "number",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25071,7 +25070,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_number) __PYX_ERR(2, 875, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_number) __PYX_ERR(2, 827, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_integer = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "integer",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25080,7 +25079,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_integer) __PYX_ERR(2, 877, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_integer) __PYX_ERR(2, 829, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_signedinteger = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "signedinteger",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25089,7 +25088,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_signedinteger) __PYX_ERR(2, 879, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_signedinteger) __PYX_ERR(2, 831, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_unsignedinteger = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "unsignedinteger",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25098,7 +25097,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_unsignedinteger) __PYX_ERR(2, 881, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_unsignedinteger) __PYX_ERR(2, 833, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_inexact = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "inexact",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25107,7 +25106,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_inexact) __PYX_ERR(2, 883, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_inexact) __PYX_ERR(2, 835, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_floating = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "floating",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25116,7 +25115,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_floating) __PYX_ERR(2, 885, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_floating) __PYX_ERR(2, 837, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_complexfloating = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "complexfloating",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25125,7 +25124,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_complexfloating) __PYX_ERR(2, 887, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_complexfloating) __PYX_ERR(2, 839, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_flexible = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "flexible",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25134,7 +25133,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_flexible) __PYX_ERR(2, 889, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_flexible) __PYX_ERR(2, 841, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_character = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "character",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
@@ -25143,7 +25142,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyObject),
   #endif
-  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_character) __PYX_ERR(2, 891, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Warn_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_character) __PYX_ERR(2, 843, __pyx_L1_error)
   __pyx_mstate->__pyx_ptype_5numpy_ufunc = __Pyx_ImportType_3_1_6(__pyx_t_1, "numpy", "ufunc",
   #if defined(PYPY_VERSION_NUM) && PYPY_VERSION_NUM < 0x050B0000
   sizeof(PyUFuncObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyUFuncObject),
@@ -25152,7 +25151,7 @@ static int __Pyx_modinit_type_import_code(__pyx_mstatetype *__pyx_mstate) {
   #else
   sizeof(PyUFuncObject), __PYX_GET_STRUCT_ALIGNMENT_3_1_6(PyUFuncObject),
   #endif
-  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_ufunc) __PYX_ERR(2, 955, __pyx_L1_error)
+  __Pyx_ImportType_CheckSize_Ignore_3_1_6); if (!__pyx_mstate->__pyx_ptype_5numpy_ufunc) __PYX_ERR(2, 907, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_RefNannyFinishContext();
   return 0;
@@ -25446,13 +25445,13 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
   if (__pyx_AsyncGen_init(__pyx_m) < (0)) __PYX_ERR(0, 1, __pyx_L1_error)
   #endif
   /*--- Library function declarations ---*/
-  if (__pyx_module_is_main_cython_histogram_median) {
+  if (__pyx_module_is_main_pyfaceau__cython_histogram_median) {
     if (PyObject_SetAttr(__pyx_m, __pyx_mstate_global->__pyx_n_u_name_2, __pyx_mstate_global->__pyx_n_u_main) < (0)) __PYX_ERR(0, 1, __pyx_L1_error)
   }
   {
     PyObject *modules = PyImport_GetModuleDict(); if (unlikely(!modules)) __PYX_ERR(0, 1, __pyx_L1_error)
-    if (!PyDict_GetItemString(modules, "cython_histogram_median")) {
-      if (unlikely((PyDict_SetItemString(modules, "cython_histogram_median", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
+    if (!PyDict_GetItemString(modules, "pyfaceau.cython_histogram_median")) {
+      if (unlikely((PyDict_SetItemString(modules, "pyfaceau.cython_histogram_median", __pyx_m) < 0))) __PYX_ERR(0, 1, __pyx_L1_error)
     }
   }
   /*--- Builtin init code ---*/
@@ -26002,7 +26001,7 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_Enum, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":18
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":18
  * """
  * 
  * import numpy as np             # <<<<<<<<<<<<<<
@@ -26014,7 +26013,7 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_np, __pyx_t_5) < (0)) __PYX_ERR(0, 18, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":24
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":24
  * 
  * # Initialize NumPy C API
  * cnp.import_array()             # <<<<<<<<<<<<<<
@@ -26023,41 +26022,41 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
 */
   __pyx_t_10 = __pyx_f_5numpy_import_array(); if (unlikely(__pyx_t_10 == ((int)-1))) __PYX_ERR(0, 24, __pyx_L1_error)
 
-  /* "cython_histogram_median.pyx":163
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":163
  *         self.median_array = np.zeros(feature_dim, dtype=np.float64, order='C')
  * 
  *     def update(self, cnp.ndarray[FLOAT32, ndim=1] features, bint update_histogram=True):             # <<<<<<<<<<<<<<
  *         """
  *         Update tracker with new feature vector
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_upd, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[0])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 163, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_3update, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_upd, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[0])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 163, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_5, __pyx_mstate_global->__pyx_tuple[4]);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_update, __pyx_t_5) < (0)) __PYX_ERR(0, 163, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_update, __pyx_t_5) < (0)) __PYX_ERR(0, 163, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":208
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":208
  *                                self.min_val, self.bin_width)
  * 
  *     def get_median(self):             # <<<<<<<<<<<<<<
  *         """Get current running median"""
  *         return self.median_array.copy()
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_get, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[1])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 208, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_5get_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_get, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[1])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 208, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_median, __pyx_t_5) < (0)) __PYX_ERR(0, 208, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_median, __pyx_t_5) < (0)) __PYX_ERR(0, 208, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":212
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":212
  *         return self.median_array.copy()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         """Reset tracker"""
  *         self.histogram_array.fill(0)
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_res, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 212, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_7reset, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython_res, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[2])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 212, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reset, __pyx_t_5) < (0)) __PYX_ERR(0, 212, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reset, __pyx_t_5) < (0)) __PYX_ERR(0, 212, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "(tree fragment)":1
@@ -26065,9 +26064,9 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  *     cdef tuple state
  *     cdef object _dict
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython___r, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[3])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_9__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython___r, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[3])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reduce_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reduce_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "(tree fragment)":16
@@ -26076,70 +26075,70 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_HistogramMedianTrackerCython__set_state(self, __pyx_state)
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython___s, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[4])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 16, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_28HistogramMedianTrackerCython_11__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_HistogramMedianTrackerCython___s, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[4])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 16, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_setstate_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 16, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_HistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_setstate_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 16, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":265
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":265
  *         )
  * 
  *     def update(self,             # <<<<<<<<<<<<<<
  *                cnp.ndarray[FLOAT32, ndim=1] hog_features,
  *                cnp.ndarray[FLOAT32, ndim=1] geom_features,
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_2, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[5])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 265, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_3update, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_2, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[5])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 265, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_CyFunction_SetDefaultsTuple(__pyx_t_5, __pyx_mstate_global->__pyx_tuple[4]);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_update, __pyx_t_5) < (0)) __PYX_ERR(0, 265, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_update, __pyx_t_5) < (0)) __PYX_ERR(0, 265, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":289
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":289
  *         self.geom_tracker.update(geom_features, update_histogram)
  * 
  *     def get_combined_median(self):             # <<<<<<<<<<<<<<
  *         """
  *         Get concatenated [HOG_median, geom_median]
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_3, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[6])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 289, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_5get_combined_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_3, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[6])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 289, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_combined_median, __pyx_t_5) < (0)) __PYX_ERR(0, 289, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_combined_median, __pyx_t_5) < (0)) __PYX_ERR(0, 289, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":300
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":300
  *         return np.concatenate([hog_median, geom_median])
  * 
  *     def get_hog_median(self):             # <<<<<<<<<<<<<<
  *         """Get HOG running median"""
  *         return self.hog_tracker.get_median()
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_4, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[7])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 300, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_7get_hog_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_4, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[7])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 300, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_hog_median, __pyx_t_5) < (0)) __PYX_ERR(0, 300, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_hog_median, __pyx_t_5) < (0)) __PYX_ERR(0, 300, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":304
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":304
  *         return self.hog_tracker.get_median()
  * 
  *     def get_geom_median(self):             # <<<<<<<<<<<<<<
  *         """Get geometric running median"""
  *         return self.geom_tracker.get_median()
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_5, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[8])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 304, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_9get_geom_median, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_5, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[8])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 304, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_geom_median, __pyx_t_5) < (0)) __PYX_ERR(0, 304, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_get_geom_median, __pyx_t_5) < (0)) __PYX_ERR(0, 304, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":308
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":308
  *         return self.geom_tracker.get_median()
  * 
  *     def reset(self):             # <<<<<<<<<<<<<<
  *         """Reset both trackers"""
  *         self.hog_tracker.reset()
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_6, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[9])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_11reset, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_6, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[9])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 308, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reset, __pyx_t_5) < (0)) __PYX_ERR(0, 308, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reset, __pyx_t_5) < (0)) __PYX_ERR(0, 308, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "(tree fragment)":1
@@ -26147,9 +26146,9 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  *     cdef tuple state
  *     cdef object _dict
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_7, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[10])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_13__reduce_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_7, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[10])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reduce_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_reduce_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "(tree fragment)":16
@@ -26158,9 +26157,9 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  * def __setstate_cython__(self, __pyx_state):             # <<<<<<<<<<<<<<
  *     __pyx_unpickle_DualHistogramMedianTrackerCython__set_state(self, __pyx_state)
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_8, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[11])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 16, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_32DualHistogramMedianTrackerCython_15__setstate_cython__, __Pyx_CYFUNCTION_CCLASS, __pyx_mstate_global->__pyx_n_u_DualHistogramMedianTrackerCython_8, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[11])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 16, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_setstate_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 16, __pyx_L1_error)
+  if (__Pyx_SetItemOnTypeDict(__pyx_mstate_global->__pyx_ptype_8pyfaceau_23cython_histogram_median_DualHistogramMedianTrackerCython, __pyx_mstate_global->__pyx_n_u_setstate_cython, __pyx_t_5) < (0)) __PYX_ERR(1, 16, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
   /* "(tree fragment)":1
@@ -26168,7 +26167,7 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  *     cdef object __pyx_PickleError
  *     cdef object __pyx_result
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython, 0, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_HistogramMedianTr, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[12])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_1__pyx_unpickle_HistogramMedianTrackerCython, 0, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_HistogramMedianTr, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[12])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_HistogramMedianTr, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
@@ -26180,12 +26179,12 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
  *     __pyx_result.bin_width = __pyx_state[0]; __pyx_result.feature_dim = __pyx_state[1]; __pyx_result.hist_count = __pyx_state[2]; __pyx_result.histogram_array = __pyx_state[3]; __pyx_result.length = __pyx_state[4]; __pyx_result.max_val = __pyx_state[5]; __pyx_result.median_array = __pyx_state[6]; __pyx_result.min_val = __pyx_state[7]; __pyx_result.num_bins = __pyx_state[8]
  *     if len(__pyx_state) > 9 and hasattr(__pyx_result, '__dict__'):
 */
-  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython, 0, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_DualHistogramMedi, NULL, __pyx_mstate_global->__pyx_n_u_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[13])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_CyFunction_New(&__pyx_mdef_8pyfaceau_23cython_histogram_median_3__pyx_unpickle_DualHistogramMedianTrackerCython, 0, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_DualHistogramMedi, NULL, __pyx_mstate_global->__pyx_n_u_pyfaceau_cython_histogram_median, __pyx_mstate_global->__pyx_d, ((PyObject *)__pyx_mstate_global->__pyx_codeobj_tab[13])); if (unlikely(!__pyx_t_5)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   if (PyDict_SetItem(__pyx_mstate_global->__pyx_d, __pyx_mstate_global->__pyx_n_u_pyx_unpickle_DualHistogramMedi, __pyx_t_5) < (0)) __PYX_ERR(1, 1, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-  /* "cython_histogram_median.pyx":1
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":1
  * # cython: language_level=3             # <<<<<<<<<<<<<<
  * # cython: boundscheck=False
  * # cython: wraparound=False
@@ -26204,7 +26203,7 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
   __Pyx_XDECREF(__pyx_t_6);
   if (__pyx_m) {
     if (__pyx_mstate->__pyx_d && stringtab_initialized) {
-      __Pyx_AddTraceback("init cython_histogram_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
+      __Pyx_AddTraceback("init pyfaceau.cython_histogram_median", __pyx_clineno, __pyx_lineno, __pyx_filename);
     }
     #if !CYTHON_USE_MODULE_STATE
     Py_CLEAR(__pyx_m);
@@ -26218,7 +26217,7 @@ __Pyx_RefNannySetupContext("PyInit_cython_histogram_median", 0);
     }
     #endif
   } else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_ImportError, "init cython_histogram_median");
+    PyErr_SetString(PyExc_ImportError, "init pyfaceau.cython_histogram_median");
   }
   __pyx_L0:;
   __Pyx_RefNannyFinishContext();
@@ -26327,8 +26326,6 @@ static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_contiguous_and_indirect, sizeof(__pyx_k_contiguous_and_indirect), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_contiguous_and_indirect */
   {__pyx_k_copy, sizeof(__pyx_k_copy), 0, 1, 1}, /* PyObject cname: __pyx_n_u_copy */
   {__pyx_k_count, sizeof(__pyx_k_count), 0, 1, 1}, /* PyObject cname: __pyx_n_u_count */
-  {__pyx_k_cython_histogram_median, sizeof(__pyx_k_cython_histogram_median), 0, 1, 1}, /* PyObject cname: __pyx_n_u_cython_histogram_median */
-  {__pyx_k_cython_histogram_median_pyx, sizeof(__pyx_k_cython_histogram_median_pyx), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_cython_histogram_median_pyx */
   {__pyx_k_dict, sizeof(__pyx_k_dict), 0, 1, 1}, /* PyObject cname: __pyx_n_u_dict */
   {__pyx_k_dict_2, sizeof(__pyx_k_dict_2), 0, 1, 1}, /* PyObject cname: __pyx_n_u_dict_2 */
   {__pyx_k_disable, sizeof(__pyx_k_disable), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_disable */
@@ -26403,6 +26400,8 @@ static const __Pyx_StringTabEntry __pyx_string_tab[] = {
   {__pyx_k_pack, sizeof(__pyx_k_pack), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pack */
   {__pyx_k_pickle, sizeof(__pyx_k_pickle), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pickle */
   {__pyx_k_pop, sizeof(__pyx_k_pop), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pop */
+  {__pyx_k_pyfaceau_cython_histogram_median, sizeof(__pyx_k_pyfaceau_cython_histogram_median), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pyfaceau_cython_histogram_median */
+  {__pyx_k_pyfaceau_utils_cython_extensions, sizeof(__pyx_k_pyfaceau_utils_cython_extensions), 0, 1, 0}, /* PyObject cname: __pyx_kp_u_pyfaceau_utils_cython_extensions */
   {__pyx_k_pyx_PickleError, sizeof(__pyx_k_pyx_PickleError), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pyx_PickleError */
   {__pyx_k_pyx_checksum, sizeof(__pyx_k_pyx_checksum), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pyx_checksum */
   {__pyx_k_pyx_result, sizeof(__pyx_k_pyx_result), 0, 1, 1}, /* PyObject cname: __pyx_n_u_pyx_result */
@@ -26463,7 +26462,7 @@ static int __Pyx_InitCachedBuiltins(__pyx_mstatetype *__pyx_mstate) {
   __pyx_builtin_Ellipsis = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_Ellipsis); if (!__pyx_builtin_Ellipsis) __PYX_ERR(1, 408, __pyx_L1_error)
   __pyx_builtin_id = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_id); if (!__pyx_builtin_id) __PYX_ERR(1, 618, __pyx_L1_error)
   __pyx_builtin_IndexError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_IndexError); if (!__pyx_builtin_IndexError) __PYX_ERR(1, 914, __pyx_L1_error)
-  __pyx_builtin_ImportError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_ImportError); if (!__pyx_builtin_ImportError) __PYX_ERR(2, 1051, __pyx_L1_error)
+  __pyx_builtin_ImportError = __Pyx_GetBuiltinName(__pyx_mstate->__pyx_n_u_ImportError); if (!__pyx_builtin_ImportError) __PYX_ERR(2, 1010, __pyx_L1_error)
   return 0;
   __pyx_L1_error:;
   return -1;
@@ -26517,7 +26516,7 @@ static int __Pyx_InitCachedConstants(__pyx_mstatetype *__pyx_mstate) {
   __Pyx_GOTREF(__pyx_mstate_global->__pyx_tuple[3]);
   __Pyx_GIVEREF(__pyx_mstate_global->__pyx_tuple[3]);
 
-  /* "cython_histogram_median.pyx":163
+  /* "pyfaceau/utils/cython_extensions/cython_histogram_median.pyx":163
  *         self.median_array = np.zeros(feature_dim, dtype=np.float64, order='C')
  * 
  *     def update(self, cnp.ndarray[FLOAT32, ndim=1] features, bint update_histogram=True):             # <<<<<<<<<<<<<<
@@ -26585,17 +26584,17 @@ static int __Pyx_CreateCodeObjects(__pyx_mstatetype *__pyx_mstate) {
   {
     const __Pyx_PyCode_New_function_description descr = {3, 0, 0, 6, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 163, 200};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self, __pyx_mstate->__pyx_n_u_features, __pyx_mstate->__pyx_n_u_update_histogram, __pyx_mstate->__pyx_n_u_hist_view, __pyx_mstate->__pyx_n_u_feat_view, __pyx_mstate->__pyx_n_u_median_view};
-    __pyx_mstate_global->__pyx_codeobj_tab[0] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_update, __pyx_k_RRS_86_S_A_AR_D0MXU_1_A_k_Q_k_Z, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[0])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[0] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_update, __pyx_k_RRS_86_S_A_AR_D0MXU_1_A_k_Q_k_Z, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[0])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 208, 13};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self};
-    __pyx_mstate_global->__pyx_codeobj_tab[1] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_get_median, __pyx_k_A_t_Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[1])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[1] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_get_median, __pyx_k_A_t_Q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[1])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 212, 32};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self};
-    __pyx_mstate_global->__pyx_codeobj_tab[2] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_reset, __pyx_k_A_E_M_aq_N, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[2])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[2] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_reset, __pyx_k_A_E_M_aq_N, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[2])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 1, 171};
@@ -26610,27 +26609,27 @@ static int __Pyx_CreateCodeObjects(__pyx_mstatetype *__pyx_mstate) {
   {
     const __Pyx_PyCode_New_function_description descr = {4, 0, 0, 6, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 265, 81};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self, __pyx_mstate->__pyx_n_u_hog_features, __pyx_mstate->__pyx_n_u_geom_features, __pyx_mstate->__pyx_n_u_update_histogram, __pyx_mstate->__pyx_n_u_hog_median_view, __pyx_mstate->__pyx_n_u_i};
-    __pyx_mstate_global->__pyx_codeobj_tab[5] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_update, __pyx_k_A_L_q_a_E_at1_as_A_q_Q_M, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[5])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[5] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_update, __pyx_k_A_L_q_a_E_at1_as_A_q_Q_M, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[5])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 3, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 289, 41};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self, __pyx_mstate->__pyx_n_u_hog_median, __pyx_mstate->__pyx_n_u_geom_median};
-    __pyx_mstate_global->__pyx_codeobj_tab[6] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_get_combined_median, __pyx_k_A_T_d_r_Qa_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[6])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[6] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_get_combined_median, __pyx_k_A_T_d_r_Qa_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[6])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 300, 13};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self};
-    __pyx_mstate_global->__pyx_codeobj_tab[7] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_get_hog_median, __pyx_k_A_t, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[7])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[7] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_get_hog_median, __pyx_k_A_t, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[7])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 304, 13};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self};
-    __pyx_mstate_global->__pyx_codeobj_tab[8] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_get_geom_median, __pyx_k_A_t_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[8])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[8] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_get_geom_median, __pyx_k_A_t_1, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[8])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 1, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 308, 20};
     PyObject* const varnames[] = {__pyx_mstate->__pyx_n_u_self};
-    __pyx_mstate_global->__pyx_codeobj_tab[9] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_cython_histogram_median_pyx, __pyx_mstate->__pyx_n_u_reset, __pyx_k_A_L_a_M_q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[9])) goto bad;
+    __pyx_mstate_global->__pyx_codeobj_tab[9] = __Pyx_PyCode_New(descr, varnames, __pyx_mstate->__pyx_kp_u_pyfaceau_utils_cython_extensions, __pyx_mstate->__pyx_n_u_reset, __pyx_k_A_L_a_M_q, tuple_dedup_map); if (unlikely(!__pyx_mstate_global->__pyx_codeobj_tab[9])) goto bad;
   }
   {
     const __Pyx_PyCode_New_function_description descr = {1, 0, 0, 4, (unsigned int)(CO_OPTIMIZED|CO_NEWLOCALS), 1, 119};
