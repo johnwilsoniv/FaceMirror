@@ -270,7 +270,8 @@ class FullPythonAUPipeline:
             model_parser = OF22ModelParser(au_models_dir)
             self.au_models = model_parser.load_all_models(
                 use_recommended=True,
-                use_combined=True
+                use_combined=True,
+                verbose=self.verbose
             )
             if self.verbose:
                 print(f"Loaded {len(self.au_models)} AU models")
