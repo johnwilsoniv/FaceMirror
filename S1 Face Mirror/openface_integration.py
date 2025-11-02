@@ -49,11 +49,10 @@ class OpenFace3Processor(PyFaceAUProcessor):
             weights_dir = Path(weights_dir)
 
         # Initialize PyFaceAU processor with enhanced settings
-        # Note: verbose=True enables progress reporting during AU extraction
         super().__init__(
             weights_dir=str(weights_dir),
             use_clnf_refinement=True,  # Always enable CLNF for best accuracy
-            verbose=True  # Always show AU extraction progress
+            verbose=debug_mode  # Only show detailed logs in debug mode
         )
 
         # Store compatibility flags
