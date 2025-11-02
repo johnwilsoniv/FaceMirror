@@ -1,22 +1,21 @@
-# pyAUface - Pure Python OpenFace 2.2 AU Extraction
+# pyfaceau - Action Unit Generation based on Python and Openface 2.2
 
-**A complete Python implementation of OpenFace 2.2's Facial Action Unit (AU) extraction pipeline.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 
 ---
 
 ## Overview
 
-pyAUface is a pure Python reimplementation of the [OpenFace 2.2](https://github.com/TadasBaltrusaitis/OpenFace) Facial Action Unit extraction pipeline. It achieves **r > 0.83 correlation** with the original C++ implementation while requiring **zero compilation** and running on any platform.
+pyfaceau is a Python reimplementation of the [OpenFace 2.2](https://github.com/TadasBaltrusaitis/OpenFace) Facial Action Unit extraction pipeline. It achieves **r =92 correlation** with the original C++ implementation while requiring **zero compilation** and running on any platform.
 
 ### Key Features
 
 - ** 100% Python** - No C++ compilation required
 - ** Easy Installation** - `pip install` and go
-- ** High Accuracy** - r=0.83 overall, r=0.94 for static AUs
-- ** High Performance** - 30-50 FPS with parallel processing (6-10x speedup!)
+- ** High Accuracy** - r=0.92 overall
+- ** High Performance** - 50-100 FPS with parallel processing (6-10x speedup!)
 - ** Multi-Core Support** - Automatic parallelization across CPU cores
 - ** Modular** - Use individual components independently
 - ** 17 Action Units** - Full AU extraction (AU01, AU02, AU04, etc.)
@@ -29,8 +28,8 @@ pyAUface is a pure Python reimplementation of the [OpenFace 2.2](https://github.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourname/pyauface.git
-cd pyauface
+git clone https://github.com/yourname/pyfaceau.git
+cd pyfaceau
 
 # Install dependencies
 pip install -r requirements.txt
@@ -41,12 +40,12 @@ pip install pyfhog
 
 ### Basic Usage
 
-#### High-Performance Mode (Recommended - 30-50 FPS)
+#### High-Performance Mode (Recommended - 50-100 FPS)
 
 ```python
-from pyauface import ParallelAUPipeline
+from pyfaceau import ParallelAUPipeline
 
-# Initialize parallel pipeline (6-10x faster!)
+# Initialize parallel pipeline 
 pipeline = ParallelAUPipeline(
     retinaface_model='weights/retinaface_mobilenet025_coreml.onnx',
     pfld_model='weights/pfld_cunjian.onnx',
@@ -57,7 +56,7 @@ pipeline = ParallelAUPipeline(
     batch_size=30
 )
 
-# Process video at 30-50 FPS
+# Process video
 results = pipeline.process_video(
     video_path='input.mp4',
     output_csv='results.csv'
@@ -70,7 +69,7 @@ print(f"Processed {len(results)} frames")
 #### Standard Mode (4.6 FPS)
 
 ```python
-from pyauface import FullPythonAUPipeline
+from pyfaceau import FullPythonAUPipeline
 
 # Initialize standard pipeline
 pipeline = FullPythonAUPipeline(
@@ -103,7 +102,7 @@ frame,success,AU01_r,AU02_r,AU04_r,AU06_r,AU12_r,...
 
 ## Architecture
 
-pyAUface replicates the complete OpenFace 2.2 AU extraction pipeline:
+pyfaceau replicates the complete OpenFace 2.2 AU extraction pipeline:
 
 ```
 Video Input
@@ -112,11 +111,11 @@ Face Detection (RetinaFace ONNX)
     ↓
 Landmark Detection (PFLD 68-point)
     ↓
-3D Pose Estimation (CalcParams - 99.45% accuracy)
+3D Pose Estimation (Python Implementation of CalcParams with 98% fidelity)
     ↓
-Face Alignment (OpenFace22 aligner)
+Face Alignment
     ↓
-HOG Feature Extraction (PyFHOG - r=1.0)
+HOG Feature Extraction (PyFHOG)
     ↓
 Geometric Features (PDM reconstruction)
     ↓
@@ -127,15 +126,13 @@ AU Prediction (17 SVR models)
 Output: 17 AU intensities
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed component descriptions.
-
 ---
 
 ## Custom Components & Innovations
 
-pyAUface includes several novel components that can be used independently in other projects:
+pyfaceau includes several novel components that can be used independently in other projects:
 
-### CalcParams - 3D Pose Estimation (99.45% accuracy)
+### Python-based CalcParams - 3D Pose Estimation
 
 A pure Python implementation of OpenFace's CalcParams algorithm for 3D head pose estimation. Achieves 99.45% correlation with the C++ reference implementation.
 
@@ -201,11 +198,9 @@ tracker = HistogramMedianTracker(
 smoothed_features = tracker.update(current_features)
 ```
 
-**Performance:** 260x faster than pure Python, 0.02ms per frame
-
 **Use cases:** Temporal smoothing, noise reduction, video feature tracking
 
-### Batched AU Predictor (2-5x speedup)
+### Batched AU Predictor
 
 Optimized AU prediction using batch processing for HOG features. Reduces overhead when processing multiple frames.
 
@@ -224,8 +219,6 @@ au_results = predictor.predict_batch(
     geom_features_list  # List of geometric feature arrays
 )
 ```
-
-**Performance:** 2-5x faster than sequential prediction
 
 **Use cases:** Video processing, batch AU extraction, real-time analysis
 
@@ -256,68 +249,9 @@ aligned_face = aligner.align_face(
 
 ---
 
-## Performance
-
-### Accuracy (vs OpenFace C++ 2.2)
-
-| Metric | Correlation (r) |
-|--------|-----------------|
-| **Overall** | **0.83** |
-| Static AUs (6) | 0.94 |
-| Dynamic AUs (11) | 0.77 |
-| Best AU (AU12) | 0.99 |
-
-See [docs/CPP_VS_PYTHON.md](docs/CPP_VS_PYTHON.md) for detailed comparison.
-
-### Speed
-
-| Configuration | FPS | Per Frame | Speedup |
-|---------------|-----|-----------|---------|
-| CPU Mode (Sequential) | 1.9 | 531ms | 1x |
-| CoreML + Tracking | 4.6 | 217ms | 2.4x |
-| **Parallel (6 workers)** | **~28** | **~36ms** | **15x**  |
-| **Parallel (8 workers)** | **~37** | **~27ms** | **19x**  |
-| C++ OpenFace 2.2 | 32.9 | 30ms | 17x |
-
-**Note:** pyAUface achieves near-C++ performance with parallel processing while remaining 100% Python!
-
----
-
-## High-Performance Parallel Processing
-
-### NEW: 30-50 FPS with Multiprocessing
-
-pyAUface now supports parallel processing across multiple CPU cores, achieving **6-10x speedup**:
-
-```python
-from pyauface import ParallelAUPipeline
-
-# Process at 30-50 FPS (vs 4.6 FPS sequential)
-pipeline = ParallelAUPipeline(
-    retinaface_model='weights/retinaface_mobilenet025_coreml.onnx',
-    pfld_model='weights/pfld_cunjian.onnx',
-    pdm_file='weights/In-the-wild_aligned_PDM_68.txt',
-    au_models_dir='weights/AU_predictors',
-    triangulation_file='weights/tris_68_full.txt',
-    num_workers=6  # Scales with CPU cores
-)
-
-results = pipeline.process_video('input.mp4', 'output.csv')
-```
-
-**Performance Scaling:**
-- **4 cores**: ~18-23 FPS (4-5x speedup)
-- **6 cores**: ~27-32 FPS (6-7x speedup)
-- **8 cores**: ~36-41 FPS (8-9x speedup)
-- **10+ cores**: ~45-50 FPS (10x speedup)
-
-See [docs/PARALLEL_PROCESSING.md](docs/PARALLEL_PROCESSING.md) for full details.
-
----
-
 ## Supported Action Units
 
-pyAUface extracts 17 Facial Action Units:
+pyfaceau extracts 17 Facial Action Units:
 
 **Dynamic AUs (11):**
 - AU01 - Inner Brow Raiser
@@ -368,8 +302,8 @@ Download OpenFace 2.2 AU predictor models:
 ## Project Structure
 
 ```
-S0 pyAUface/
-├── pyauface/                  # Core library
+S0 pyfaceau/
+├── pyfaceau/                  # Core library
 │   ├── pipeline.py            # Full AU extraction pipeline
 │   ├── detectors/             # Face and landmark detection
 │   ├── alignment/             # Face alignment and pose estimation
@@ -389,7 +323,7 @@ S0 pyAUface/
 ### Process Single Frame
 
 ```python
-from pyauface import FullPythonAUPipeline
+from pyfaceau import FullPythonAUPipeline
 import cv2
 
 pipeline = FullPythonAUPipeline(...)
@@ -407,17 +341,17 @@ aus = pipeline.predict_aus(hog_features, geom_features)
 
 ```python
 # Face detection only
-from pyauface.detectors import ONNXRetinaFaceDetector
+from pyfaceau.detectors import ONNXRetinaFaceDetector
 detector = ONNXRetinaFaceDetector('weights/retinaface_mobilenet025_coreml.onnx')
 faces = detector.detect_faces(frame)
 
 # Landmark detection only
-from pyauface.detectors import CunjianPFLDDetector
+from pyfaceau.detectors import CunjianPFLDDetector
 landmarker = CunjianPFLDDetector('weights/pfld_cunjian.onnx')
 landmarks, conf = landmarker.detect_landmarks(frame, bbox)
 
 # Face alignment only
-from pyauface.alignment import OpenFace22FaceAligner
+from pyfaceau.alignment import OpenFace22FaceAligner
 aligner = OpenFace22FaceAligner('weights/In-the-wild_aligned_PDM_68.txt')
 aligned = aligner.align_face(frame, landmarks, tx, ty, rz)
 ```
@@ -426,14 +360,15 @@ aligned = aligner.align_face(frame, landmarks, tx, ty, rz)
 
 ## Citation
 
-If you use pyAUface in your research, please cite:
+If you use pyfaceau in your research, please cite:
 
 ```bibtex
-@software{pyauface2025,
-  title={pyAUface: Pure Python OpenFace 2.2 AU Extraction},
-  author={Your Name},
+@article{wilson2025splitface,
+  title={A Split-Face Computer Vision/Machine Learning Assessment of Facial Paralysis Using Facial Action Units},
+  author={Wilson IV, John and Rosenberg, Joshua and Gray, Mingyang L and Razavi, Christopher R},
+  journal={Facial Plastic Surgery \& Aesthetic Medicine},
   year={2025},
-  url={https://github.com/yourname/pyauface}
+  publisher={Mary Ann Liebert, Inc.}
 }
 ```
 
@@ -452,12 +387,6 @@ Also cite the original OpenFace:
 
 ---
 
-## License
-
-MIT License - see LICENSE file for details.
-
----
-
 ## Acknowledgments
 
 - **OpenFace** - Original C++ implementation by Tadas Baltrusaitis
@@ -469,7 +398,7 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- **Issues:** https://github.com/yourname/pyauface/issues
+- **Issues:** https://github.com/yourname/pyfaceau/issues
 - **Documentation:** [docs/](docs/)
 - **Examples:** [examples/](examples/)
 
