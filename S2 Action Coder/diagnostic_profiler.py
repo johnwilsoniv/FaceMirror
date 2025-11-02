@@ -197,7 +197,7 @@ class DiagnosticProfiler:
         print("="*70)
 
         # Cache performance
-        print("\n📊 CACHE PERFORMANCE:")
+        print("\nCACHE PERFORMANCE:")
         cache = stats['cache_performance']
         print(f"  RGB Cache:    {cache['rgb_cache']['hit_rate_percent']:.1f}% hit rate "
               f"({cache['rgb_cache']['hits']} hits / {cache['rgb_cache']['total_requests']} total)")

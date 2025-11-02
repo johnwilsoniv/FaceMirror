@@ -1,4 +1,3 @@
-# --- START OF FILE app_controller.py ---
 
 import sys
 import os

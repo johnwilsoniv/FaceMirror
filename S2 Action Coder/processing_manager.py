@@ -7,19 +7,16 @@ import tempfile
 import sys
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QThread
 
-# --- NEW IMPORTS for Strategy 2 ---
 import soundfile as sf
 import numpy as np
 import struct
 import webrtcvad
 from collections import Counter # For potential median calculation or statistics
-# --- END NEW IMPORTS ---
 
 from whisper_handler import WhisperHandler
 from video_processor import VideoProcessor # Import VideoProcessor
 import traceback # For error logging
 
-# --- ProcessingThread Definition (Unchanged) ---
 class ProcessingThread(QThread):
     progress_signal = pyqtSignal(int); finished_signal = pyqtSignal(); error_signal = pyqtSignal(str)
 
