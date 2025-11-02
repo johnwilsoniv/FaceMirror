@@ -121,7 +121,7 @@ def check_existing_outputs(input_path, output_dir, openface_output_dir=None):
         if not source_found:
             mirror_files_exist = False
 
-    # Check for OpenFace CSV outputs if directory provided
+    # Check for PyFaceAU CSV outputs if directory provided
     openface_files_exist = False
     if openface_output_dir:
         openface_output_dir = Path(openface_output_dir)
@@ -156,7 +156,7 @@ def filter_existing_outputs(input_paths, output_dir, openface_output_dir=None):
 
         # Determine if file has complete outputs
         if openface_output_dir:
-            # Mode 1: needs both mirror and OpenFace outputs
+            # Mode 1: needs both mirror and PyFaceAU outputs
             has_complete_outputs = status['has_mirror_outputs'] and status['has_openface_outputs']
         else:
             # Mode 2: only needs mirror outputs
@@ -340,7 +340,7 @@ def process_single_video(args):
             # Set profiler context for AU extraction operations
             set_pipeline_context("AU")
 
-            # Get S1O base directory for OpenFace output
+            # Get S1O base directory for PyFaceAU output
             output_dir_path = Path(output_dir)
             s1o_base = output_dir_path.parent
             openface_output_dir = s1o_base / 'Combined Data'
@@ -401,7 +401,7 @@ def process_single_video(args):
                         elif current_frame == total_frames and total_frames > 0:
                             print(f"  [AU Extraction] {current_frame:>6}/{total_frames:>6} frames (100.0%) - Complete          ")
 
-                    # Process video with OpenFace
+                    # Process video with PyFaceAU
                     try:
                         frame_count = openface_processor.process_video(
                             mirrored_video,
@@ -415,7 +415,7 @@ def process_single_video(args):
                         else:
                             print(f"\nNo frames processed for {mirrored_video.name}", flush=True)
                     except Exception as e:
-                        print(f"\n  Warning: OpenFace processing failed for {mirrored_video.name}: {e}", flush=True)
+                        print(f"\n  Warning: PyFaceAU processing failed for {mirrored_video.name}: {e}", flush=True)
 
                     # Memory cleanup after each mirrored video (important when processing left + right)
                     # OPTIMIZATION: Reduced GC frequency (only every 20 batches in processor)
@@ -487,7 +487,7 @@ def process_single_video(args):
                 # Clear priorbox cache to prevent memory accumulation
                 openface_processor.clear_cache()
         except Exception as e:
-            print(f"  Warning: OpenFace processor cache cleanup failed: {e}")
+            print(f"  Warning: PyFaceAU processor cache cleanup failed: {e}")
 
         # Force garbage collection (always runs regardless of above errors)
         try:
@@ -506,7 +506,7 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
     Args:
         input_paths: List of video paths to process
         output_dir: Mirror output directory
-        openface_output_dir: OpenFace CSV output directory
+        openface_output_dir: PyFaceAU CSV output directory
         debug_mode: Enable debug logging
         device: Processing device ('cpu', 'cuda', or 'mps')
         progress_window: Progress window instance for updates
@@ -537,7 +537,7 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
             debug_mode=debug_mode,
             skip_face_detection=True  # Mirrored videos are pre-aligned (skip RetinaFace)
         )
-        print("OpenFace processor initialized and warmed up")
+        print("PyFaceAU processor initialized and warmed up")
         print("  This will be reused for all videos (eliminates stage delays)")
         print("="*60 + "\n")
 
@@ -769,7 +769,7 @@ def main():
     # (PyTorch already imported)
 
     # Stage 3: Loading OpenFace models
-    splash.update_status("Loading OpenFace models...")
+    splash.update_status("Loading PyFaceAU models...")
     # (Models will be loaded when needed)
 
     # Close splash screen
