@@ -31,15 +31,18 @@ wheels/
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Project specific - separate repos
 pyfaceau/
 pyfhog/
+
+# Data
 Patient Data/
+
+# Temp
 archive/
 .venv/
 .claude/
-
-# Logs and temp
 logs/
 *.log
 test_output/
+**/analysis_results/
