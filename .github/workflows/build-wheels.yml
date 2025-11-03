@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'S0 PyfaceAU/**'
+      - 'pyfaceau/**'
       - '.github/workflows/build-wheels.yml'
   pull_request:
     branches: [ main ]
@@ -33,7 +33,7 @@ jobs:
 
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
-        working-directory: "S0 PyfaceAU"
+        working-directory: "pyfaceau"
         env:
           # Build for CPython 3.10, 3.11, 3.12, 3.13
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
@@ -62,7 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}
-          path: ./S0 PyfaceAU/wheelhouse/*.whl
+          path: ./pyfaceau/wheelhouse/*.whl
 
   build_sdist:
     name: Build source distribution
@@ -82,13 +82,13 @@ jobs:
 
       - name: Build sdist
         run: python -m build --sdist
-        working-directory: "S0 PyfaceAU"
+        working-directory: "pyfaceau"
 
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
           name: sdist
-          path: ./S0 PyfaceAU/dist/*.tar.gz
+          path: ./pyfaceau/dist/*.tar.gz
 
   publish:
     name: Publish to PyPI
