@@ -317,6 +317,22 @@ class TimelineWidget(QOpenGLWidget):
             for i, r in enumerate(self._action_ranges):
                 range_rect = self._get_range_rect(i)
                 if range_rect.contains(pos): clicked_range_index = i; break
+            # Handle range selection
+            track_y_start = self._padding + self._axis_height
+            track_y_end = track_y_start + self._track_height
+            is_in_track_area = (self._padding <= pos.x() <= self.width() - self._padding and
+                               track_y_start <= pos.y() <= track_y_end)
+
+            if clicked_range_index != -1:
+                # Clicked on a range - select it (even if already selected, keep it selected)
+                if clicked_range_index != self._selected_range_index:
+                    self._selected_range_index = clicked_range_index
+                    selection_changed = True
+            elif is_in_track_area:
+                # Clicked on empty space in track area - deselect if something was selected
+                if self._selected_range_index != -1:
+                    self._selected_range_index = -1
+                    selection_changed = True
         if not drag_initiated and not selection_changed and event.button() == Qt.LeftButton:
              track_y_start = self._padding + self._axis_height; track_y_end = track_y_start + self._track_height
              if can_edit and self._selected_range_index == -1 and self._padding <= pos.x() <= self.width() - self._padding and track_y_start <= pos.y() <= track_y_end:

@@ -242,6 +242,27 @@ class BatchProcessor(QObject):
         """Check if there is a previous file in the sequence."""
         return self.current_index > 0
 
+    def remove_current_file(self):
+        """
+        Remove the current file from the batch after completion.
+        Adjusts the current_index to stay at the same position (which becomes the next file).
+
+        Returns:
+            True if file was removed, False if no current file or list is empty
+        """
+        if 0 <= self.current_index < len(self.file_sets):
+            removed_file = self.file_sets.pop(self.current_index)
+            print(f"BatchProcessor: Removed completed file '{removed_file.get('base_id', 'Unknown')}' from batch")
+            print(f"BatchProcessor: Batch now has {len(self.file_sets)} files remaining")
+            # Don't adjust index - the next file is now at the same index position
+            # But if we removed the last file, move index back
+            if self.current_index >= len(self.file_sets) and len(self.file_sets) > 0:
+                self.current_index = len(self.file_sets) - 1
+            elif len(self.file_sets) == 0:
+                self.current_index = -1
+            return True
+        return False
+
     def check_existing_outputs(self, file_sets, output_dir):
         """
         Check which file sets already have processed outputs.

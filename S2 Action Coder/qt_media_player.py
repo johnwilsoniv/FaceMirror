@@ -259,8 +259,22 @@ class QTMediaPlayer(QObject):
         self._last_confirmed_position_ms = 0
         self._last_position_update_time = time.time()
         self._last_resync_time = time.time()
-        # Force initial frame display slightly delayed to allow media loading
-        QTimer.singleShot(100, lambda: self._force_update_frame(0)); self.clear_action(); return True
+        # Force initial frame display with longer delay to ensure media is fully loaded
+        # Also seek to frame 0 to ensure QMediaPlayer is positioned at the start
+        QTimer.singleShot(200, self._load_initial_frame); self.clear_action(); return True
+
+    def _load_initial_frame(self):
+        """Load and display the first frame after video loads."""
+        # To display frame 0 on QVideoWidget, we need to play and immediately pause
+        # QVideoWidget only shows frames when QMediaPlayer has been activated
+        if self.media_player:
+            self.media_player.setPosition(0)
+            # Play briefly to load frame 0 into QVideoWidget
+            self.media_player.play()
+            # Pause immediately (after 50ms to allow frame to load)
+            QTimer.singleShot(50, self.media_player.pause)
+        # Also emit frame update signal for timeline/UI
+        QTimer.singleShot(100, lambda: self._force_update_frame(0))
 
     def play(self):
         if not self.video_path or not self.media_player: return

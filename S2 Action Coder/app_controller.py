@@ -315,7 +315,7 @@ class ApplicationController(QObject):
     def load_previous_file(self): # (Unchanged)
         file_set=self.batch_processor.load_previous_file(); self.load_batch_file_set(file_set) if file_set else None
     @pyqtSlot(bool)
-    def _toggle_playback(self, should_play): # (Unchanged)
+    def _toggle_playback(self, should_play):
         if should_play:
             blocked = False
             if not self.whisper_processed:
@@ -334,18 +334,23 @@ class ApplicationController(QObject):
                 self.ui_manager.show_message_box("info", "Playback Blocked", "Cannot play now. Check console logs (STUCK_GUI_DEBUG) for reason.")
                 self.ui_manager.set_play_button_state(False) # Ensure button shows "Play"
                 return
+
+            # Just play - seeking already happened when range was selected
             self.playback_manager.play()
         else:
             self.playback_manager.pause()
     @pyqtSlot(int, QImage)
-    def _handle_frame_update(self, frame_number, qimage): # (Unchanged)
+    def _handle_frame_update(self, frame_number, qimage):
         if not self.window or not self.ui_manager: return
         self.ui_manager.update_frame_info(frame_number, self.playback_manager.total_frames)
         action_or_none = self.action_tracker.get_action_for_frame(frame_number)
         display_value = self._get_action_for_display(frame_number, action_or_none)
         self.ui_manager.update_action_display(display_value)
+        # Display the frame image in the video widget
         if qimage and not qimage.isNull():
             pixmap = QPixmap.fromImage(qimage)
+            action_code = action_or_none if action_or_none else ""
+            self.window.update_video_frame(frame_number, pixmap, action_code)
         if self.playback_manager.is_playing:
             self._check_timeline_triggers(frame_number)
     def _get_action_for_display(self, frame_number, current_action_code=None): # (Unchanged)
@@ -714,11 +719,10 @@ class ApplicationController(QObject):
              print("  -> Clearing pending action due to selection change.")
              self.pending_action_for_creation = None
              if self.ui_manager: self.ui_manager.clear_pending_action_button()
-        is_new_selection_a_prompt = False
-        if is_selected and self.selected_timeline_range_data:
-            if self.selected_timeline_range_data.get('status') == 'confirm_needed' or self.selected_timeline_range_data.get('action') == 'NM':
-                is_new_selection_a_prompt = True
-        if not is_new_selection_a_prompt:
+        # Manual selection of ranges (even NM or confirm_needed) should NOT be treated as prompts
+        # Prompts are only set via _trigger_next_confirmation or _trigger_near_miss_prompt during playback
+        # When manually selecting, always clear prompt state
+        if True:  # Always clear prompt state on manual selection
              if self.waiting_for_confirmation or self.waiting_for_near_miss_assignment:
                  print("Controller STUCK_GUI_DEBUG: Clearing prompt flags because a non-prompt range was selected/deselected.")
              self.waiting_for_confirmation = False; self.waiting_for_near_miss_assignment = False
@@ -730,12 +734,28 @@ class ApplicationController(QObject):
         if is_selected and self.selected_timeline_range_data:
             action_code = self.selected_timeline_range_data.get('action', 'Unknown'); status = self.selected_timeline_range_data.get('status')
             can_edit = self.window.timeline_widget._editing_enabled if self.window and self.window.timeline_widget else False
+            # Seek to range start when range is selected
+            if selection_changed and self.playback_manager:
+                range_start_frame = self.selected_timeline_range_data.get('start')
+                if range_start_frame is not None:
+                    print(f"Controller: Range selected - seeking to range start (F{range_start_frame})")
+                    self.playback_manager.seek(range_start_frame)
             if status == 'confirm_needed':
-                print(f"Controller: Selected range needs confirmation: {action_code}"); self.waiting_for_confirmation = True; self.current_confirmation_info = self.selected_timeline_range_data; show_discard_confirm = True; ui_context = 'confirm'; enable_actions = True
-                start_time = self.selected_timeline_range_data.get('original_event_start_time', self.selected_timeline_range_data.get('trigger_start')); end_time = self.selected_timeline_range_data.get('original_event_end_time', self.selected_timeline_range_data.get('trigger_end')); self._play_audio_segment(start_time, end_time)
+                # User manually selected an existing confirm_needed range - just enable editing, don't block playback
+                print(f"Controller: Selected range with confirm_needed status: {action_code} - enabling edit mode")
+                # DO NOT set waiting_for_confirmation = True here!
+                # That flag is only for automatic prompts during playback (_trigger_next_confirmation)
+                # Manual selection should allow normal playback/editing
+                ui_context = 'selected'  # Treat like a normal selected range
+                enable_actions = True
             elif action_code == 'NM':
-                print(f"Controller: Selected range is Near Miss (NM)"); self.waiting_for_near_miss_assignment = True; self.current_near_miss_info = {'event': self.selected_timeline_range_data, 'range': self.selected_timeline_range_data}; show_discard_nm = True; ui_context = 'near_miss'; enable_actions = True
-                start_time = self.selected_timeline_range_data.get('original_event_start_time', self.selected_timeline_range_data.get('start_time')); end_time = self.selected_timeline_range_data.get('original_event_end_time', self.selected_timeline_range_data.get('end_time')); self._play_audio_segment(start_time, end_time)
+                # User manually selected an existing NM range - just enable editing, don't block playback
+                print(f"Controller: Selected range is Near Miss (NM) - enabling edit mode")
+                # DO NOT set waiting_for_near_miss_assignment = True here!
+                # That flag is only for automatic prompts during playback (_trigger_near_miss_prompt)
+                # Manual selection should allow normal playback/editing
+                ui_context = 'selected'  # Treat like a normal selected range
+                enable_actions = True
             elif action_code == 'TBC': print(f"Controller: Selected range is To Be Coded (TBC)"); enable_actions = True; ui_context = 'tbc'
             else: ui_context = 'selected'; enable_actions = True # Normal range selected
             self.ui_manager.enable_action_buttons(enable_actions, current_action=action_code, context=ui_context)
@@ -984,7 +1004,7 @@ class ApplicationController(QObject):
         if self.ui_manager: self.ui_manager.show_progress_bar(True)
         self.processing_manager.start_save_processing( video_path, self.action_tracker, self.csv_handler, actions_dict, out_csv, out_vid, out_csv2 )
     @pyqtSlot(bool)
-    def _handle_save_complete(self, success): # (Modified for comprehensive completion summary)
+    def _handle_save_complete(self, success):
         if self.ui_manager: self.ui_manager.show_progress_bar(False)
 
         # Track failed files
@@ -1000,11 +1020,25 @@ class ApplicationController(QObject):
                 self._show_batch_completion_summary(incomplete=True)
                 return
 
-        if self.batch_processor.has_next_file():
-            print("Controller: Save complete (or user chose to continue), loading next file...")
+        # Remove the completed file from the batch (decreases total count)
+        if success:
+            self.batch_processor.remove_current_file()
+            # Update UI to show new batch count
+            if self.ui_manager:
+                current_idx = self.batch_processor.get_current_index()
+                total_files = self.batch_processor.get_total_files()
+                self.ui_manager.set_batch_navigation(True, current_idx, total_files)
+
+        # Check if there are more files (after removal, current index points to what was the next file)
+        total_remaining = self.batch_processor.get_total_files()
+        if total_remaining > 0:
+            # After removal, current_index points to the next file (which slid into current position)
+            # So we load the current file, not the next file
+            print(f"Controller: Save complete, loading next file (now at index {self.batch_processor.get_current_index()} of {total_remaining})...")
             # Force garbage collection between files to prevent memory accumulation
             gc.collect()
-            QTimer.singleShot(100, self.load_next_file)
+            next_file_set = self.batch_processor.get_current_file_set()
+            QTimer.singleShot(100, lambda: self.load_batch_file_set(next_file_set))
         else:
             print("Controller: Save complete. Batch finished.")
             # Show comprehensive completion summary and exit
