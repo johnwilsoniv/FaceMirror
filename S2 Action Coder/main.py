@@ -150,75 +150,90 @@ if __name__ == "__main__":
     # Stage 3: Loading AI models (Whisper)
     splash.update_status("Loading AI models (Whisper)...")
 
-    # Pre-load Whisper model during splash screen for better UX
-    whisper_model_global = None
+    # Check if MLX Whisper is available (Apple Silicon)
+    mlx_available = False
     try:
-        # Check if faster-whisper is available
-        from faster_whisper import WhisperModel
-        import torch
-        from pathlib import Path
+        import platform
+        import mlx_whisper
+        from silero_vad import load_silero_vad
+        mlx_available = platform.machine() == "arm64" and platform.system() == "Darwin"
+        if mlx_available:
+            print("Main: MLX Whisper detected - skipping faster-whisper preload")
+            print("  MLX models load on-demand, no preloading needed")
+    except ImportError:
+        mlx_available = False
 
-        # Determine device and optimized compute type
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        # Use int8_float16 on CUDA for better speed/accuracy tradeoff
-        compute_type = "int8_float16" if device == "cuda" else "int8"
+    # Pre-load Whisper model during splash screen for better UX
+    # (Skip if MLX is available - MLX loads on-demand)
+    whisper_model_global = None
+    if not mlx_available:
+        try:
+            # Check if faster-whisper is available
+            from faster_whisper import WhisperModel
+            import torch
+            from pathlib import Path
 
-        # CPU parallelization settings (1.5-2x speedup on CPU)
-        import multiprocessing
-        cpu_cores = multiprocessing.cpu_count()
-        num_workers = min(4, max(1, cpu_cores // 2))  # Use up to 4 workers
-        cpu_threads = max(4, cpu_cores // num_workers)  # Distribute threads
+            # Determine device and optimized compute type
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            # Use int8_float16 on CUDA for better speed/accuracy tradeoff
+            compute_type = "int8_float16" if device == "cuda" else "int8"
 
-        # Check if model is already cached
-        cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
-        model_cache_exists = False
-        if cache_dir.exists():
-            # Look for any files containing "large-v3" in the cache
-            model_files = list(cache_dir.glob("*large-v3*"))
-            if model_files:
-                model_cache_exists = True
-                print(f"Whisper model found in cache: {len(model_files)} files")
+            # CPU parallelization settings (1.5-2x speedup on CPU)
+            import multiprocessing
+            cpu_cores = multiprocessing.cpu_count()
+            num_workers = min(4, max(1, cpu_cores // 2))  # Use up to 4 workers
+            cpu_threads = max(4, cpu_cores // num_workers)  # Distribute threads
 
-        # Show appropriate message based on cache status
-        if not model_cache_exists:
-            splash.update_status("Downloading Whisper model (3GB)...\nThis may take 5-10 minutes on first run.\nSubsequent launches will be instant.")
-        else:
-            splash.update_status("Loading Whisper model from cache...")
+            # Check if model is already cached
+            cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+            model_cache_exists = False
+            if cache_dir.exists():
+                # Look for any files containing "large-v3" in the cache
+                model_files = list(cache_dir.glob("*large-v3*"))
+                if model_files:
+                    model_cache_exists = True
+                    print(f"Whisper model found in cache: {len(model_files)} files")
 
-        # Build optimized model parameters
-        model_kwargs = {
-            "device": device,
-            "compute_type": compute_type
-        }
-
-        # Check which parameters are supported
-        import inspect
-        supported_params = inspect.signature(WhisperModel.__init__).parameters
-
-        # Add CPU parallelization if on CPU and supported
-        if device == "cpu":
-            if 'num_workers' in supported_params and 'cpu_threads' in supported_params:
-                model_kwargs["num_workers"] = num_workers
-                model_kwargs["cpu_threads"] = cpu_threads
-                print(f"Whisper preload: CPU optimization enabled - {num_workers} workers, {cpu_threads} threads")
+            # Show appropriate message based on cache status
+            if not model_cache_exists:
+                splash.update_status("Downloading Whisper model (3GB)...\nThis may take 5-10 minutes on first run.\nSubsequent launches will be instant.")
             else:
-                print("Whisper preload: CPU parallelization not supported in this version")
-        # Add Flash Attention for CUDA if available
-        elif device == "cuda":
-            if 'flash_attention' in supported_params:
-                model_kwargs["flash_attention"] = True
-                print("Whisper preload: Flash Attention enabled")
+                splash.update_status("Loading Whisper model from cache...")
 
-        # Load the model with optimizations (may download on first run)
-        whisper_model_global = WhisperModel("large-v3", **model_kwargs)
+            # Build optimized model parameters
+            model_kwargs = {
+                "device": device,
+                "compute_type": compute_type
+            }
 
-        print(f"Whisper model pre-loaded successfully on {device}")
-        splash.update_status("Whisper model loaded successfully!")
+            # Check which parameters are supported
+            import inspect
+            supported_params = inspect.signature(WhisperModel.__init__).parameters
 
-    except Exception as e:
-        print(f"Warning: Could not pre-load Whisper model: {e}")
-        print("Model will be loaded on-demand during processing.")
-        whisper_model_global = None
+            # Add CPU parallelization if on CPU and supported
+            if device == "cpu":
+                if 'num_workers' in supported_params and 'cpu_threads' in supported_params:
+                    model_kwargs["num_workers"] = num_workers
+                    model_kwargs["cpu_threads"] = cpu_threads
+                    print(f"Whisper preload: CPU optimization enabled - {num_workers} workers, {cpu_threads} threads")
+                else:
+                    print("Whisper preload: CPU parallelization not supported in this version")
+            # Add Flash Attention for CUDA if available
+            elif device == "cuda":
+                if 'flash_attention' in supported_params:
+                    model_kwargs["flash_attention"] = True
+                    print("Whisper preload: Flash Attention enabled")
+
+            # Load the model with optimizations (may download on first run)
+            whisper_model_global = WhisperModel("large-v3", **model_kwargs)
+
+            print(f"Whisper model pre-loaded successfully on {device}")
+            splash.update_status("Whisper model loaded successfully!")
+
+        except Exception as e:
+            print(f"Warning: Could not pre-load Whisper model: {e}")
+            print("Model will be loaded on-demand during processing.")
+            whisper_model_global = None
 
     # Import ApplicationController (now that heavy imports are done)
     from app_controller import ApplicationController
