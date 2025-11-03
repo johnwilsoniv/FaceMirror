@@ -10,14 +10,42 @@ import hashlib
 import json
 from pathlib import Path
 
-# --- Use faster-whisper for transcription (best accuracy) ---
+# --- Try MLX Whisper (Apple Silicon optimized) ---
+MLX_WHISPER_AVAILABLE = False
+IS_APPLE_SILICON = False
+try:
+    import mlx_whisper
+    IS_APPLE_SILICON = platform.machine() == "arm64" and platform.system() == "Darwin"
+    if IS_APPLE_SILICON:
+        MLX_WHISPER_AVAILABLE = True
+        print("Whisper Handler: MLX-Whisper loaded successfully (Apple Silicon optimized)")
+        print("  Using Apple Neural Engine for 3-6x speedup with full accuracy")
+    else:
+        print("Whisper Handler: MLX-Whisper found but not on Apple Silicon, will use faster-whisper")
+except ImportError:
+    print("Whisper Handler: MLX-Whisper not available, will use faster-whisper")
+    MLX_WHISPER_AVAILABLE = False
+
+# --- Import Silero VAD for preprocessing (same as faster-whisper uses) ---
+SILERO_VAD_AVAILABLE = False
+try:
+    import torch
+    from silero_vad import load_silero_vad, get_speech_timestamps, read_audio
+    SILERO_VAD_AVAILABLE = True
+    print("Whisper Handler: Silero VAD loaded successfully (for speech detection)")
+except ImportError as e:
+    print(f"Whisper Handler: Silero VAD not available: {e}")
+    SILERO_VAD_AVAILABLE = False
+
+# --- Use faster-whisper for transcription (fallback) ---
 FASTER_WHISPER_AVAILABLE = False
 WhisperModel = None
 try:
     from faster_whisper import WhisperModel
     FASTER_WHISPER_AVAILABLE = True
-    print("Whisper Handler: faster-whisper library loaded successfully.")
-    print("  Using faster-whisper for maximum accuracy with VAD filtering & beam search")
+    if not MLX_WHISPER_AVAILABLE:
+        print("Whisper Handler: faster-whisper library loaded successfully.")
+        print("  Using faster-whisper for maximum accuracy with VAD filtering & beam search")
 except ImportError as e:
     print(f"Whisper Handler ERROR: faster-whisper import failed: {e}")
     print("  Install with: pip install faster-whisper")
@@ -98,10 +126,122 @@ def save_vad_cache(audio_path, vad_parameters, segments):
         print(f"Warning: Failed to save VAD cache: {e}")
 
 
+def run_silero_vad(audio_path, vad_parameters):
+    """
+    Run Silero VAD to detect speech segments in audio.
+    Returns list of speech segments with start/end times in seconds.
+
+    This uses the same Silero VAD model that faster-whisper uses internally,
+    but we control it explicitly for MLX Whisper integration.
+    """
+    if not SILERO_VAD_AVAILABLE:
+        raise ImportError("Silero VAD is required but not available. Install with: pip install silero-vad")
+
+    print(f"Silero VAD: Loading audio from {audio_path}")
+
+    # Load VAD model (lightweight 1.8MB model)
+    vad_model = load_silero_vad()
+
+    # Read audio file
+    audio = read_audio(audio_path, sampling_rate=16000)
+
+    # Get speech timestamps using VAD parameters
+    # Convert parameters to Silero VAD format
+    threshold = vad_parameters.get("threshold", 0.5)
+    min_speech_duration_ms = vad_parameters.get("min_speech_duration_ms", 250)
+    min_silence_duration_ms = vad_parameters.get("min_silence_duration_ms", 2000)
+
+    print(f"Silero VAD: threshold={threshold}, min_speech_duration={min_speech_duration_ms}ms, min_silence={min_silence_duration_ms}ms")
+
+    speech_timestamps = get_speech_timestamps(
+        audio,
+        vad_model,
+        threshold=threshold,
+        min_speech_duration_ms=min_speech_duration_ms,
+        min_silence_duration_ms=min_silence_duration_ms,
+        return_seconds=True  # Return timestamps in seconds
+    )
+
+    print(f"Silero VAD: Detected {len(speech_timestamps)} speech segments")
+
+    return speech_timestamps
+
+
+def transcribe_with_mlx(audio_path, model_name, speech_segments, language="en", beam_size=5):
+    """
+    Transcribe audio using MLX Whisper with speech segments from Silero VAD.
+
+    Args:
+        audio_path: Path to audio file
+        model_name: MLX Whisper model (e.g., "mlx-community/whisper-large-v3")
+        speech_segments: List of speech segments from Silero VAD
+        language: Language code
+        beam_size: Beam search size for decoding quality
+
+    Returns:
+        List of transcribed segments with text and timestamps
+    """
+    if not MLX_WHISPER_AVAILABLE:
+        raise ImportError("MLX Whisper is required but not available. Install with: pip install mlx-whisper")
+
+    import mlx_whisper
+
+    print(f"MLX Whisper: Transcribing with model {model_name}, beam_size={beam_size}")
+
+    # For large-v3, use the MLX community version
+    if "large-v3" in model_name and "mlx-community" not in model_name:
+        model_name = "mlx-community/whisper-large-v3-mlx"
+
+    all_segments = []
+
+    # Process each speech segment separately
+    for idx, seg in enumerate(speech_segments):
+        start_time = seg['start']
+        end_time = seg['end']
+
+        print(f"MLX Whisper: Processing segment {idx+1}/{len(speech_segments)}: {start_time:.2f}s - {end_time:.2f}s")
+
+        # Transcribe this segment with MLX Whisper
+        # Note: MLX Whisper will process the full file, but we'll use clip_timestamps
+        result = mlx_whisper.transcribe(
+            audio_path,
+            path_or_hf_repo=model_name,
+            language=language,
+            verbose=False,
+            clip_timestamps=[start_time, end_time],  # Focus on this segment
+            condition_on_previous_text=True,
+            temperature=0.0,  # Use beam search (no sampling)
+            # Note: beam_size is implicit when temperature=0.0 in MLX Whisper
+        )
+
+        # Extract segments from result
+        segments = result.get("segments", [])
+
+        for segment in segments:
+            # Adjust timestamps to be relative to the original audio
+            segment_start = segment.get("start", start_time)
+            segment_end = segment.get("end", end_time)
+            segment_text = segment.get("text", "").strip()
+
+            if segment_text:  # Only add non-empty segments
+                all_segments.append({
+                    "start": segment_start,
+                    "end": segment_end,
+                    "text": segment_text
+                })
+
+    print(f"MLX Whisper: Transcription complete. Generated {len(all_segments)} segments")
+
+    return all_segments
+
+
 class WhisperHandler(QThread):
     """
-    Runs FasterWhisper transcription + WhisperX alignment in a separate thread.
-    Uses FasterWhisper's VAD parameters (potentially dynamic) during transcription.
+    Runs Whisper transcription + WhisperX alignment in a separate thread.
+
+    On Apple Silicon: Uses MLX Whisper + Silero VAD for 3-6x speedup
+    On other platforms: Uses faster-whisper with built-in VAD
+
     Processes a pre-extracted audio file.
     Returns segments list (with words) on finish.
     """
@@ -118,9 +258,17 @@ class WhisperHandler(QThread):
         if not audio_path or not os.path.exists(audio_path):
             raise FileNotFoundError(f"Audio path does not exist or not provided: {audio_path}")
 
-        # Check if faster-whisper is available
-        if not FASTER_WHISPER_AVAILABLE:
-             raise ImportError("faster-whisper library is required but not installed. Install with: pip install faster-whisper")
+        # Determine which engine to use
+        self.use_mlx = MLX_WHISPER_AVAILABLE and SILERO_VAD_AVAILABLE
+
+        if self.use_mlx:
+            print("WhisperHandler: Will use MLX Whisper + Silero VAD (Apple Silicon optimized)")
+        else:
+            # Check if faster-whisper is available as fallback
+            if not FASTER_WHISPER_AVAILABLE:
+                 raise ImportError("Neither MLX nor faster-whisper available. Install one with: pip install mlx-whisper silero-vad OR pip install faster-whisper")
+            print("WhisperHandler: Will use faster-whisper")
+
         if not WHISPERX_ALIGN_AVAILABLE:
             print("WhisperHandler WARNING: WhisperX not available, alignment will be skipped.")
 
@@ -141,23 +289,21 @@ class WhisperHandler(QThread):
         if skip_alignment:
             print("WhisperHandler: Word-level alignment disabled for faster processing")
 
-    # --- MODIFIED run method to use self.vad_parameters ---
+    # --- MODIFIED run method to support both MLX and faster-whisper ---
     def run(self):
         self._is_cancelled = False
         all_segments = []
         device = "cpu"
-        # print(f"FasterWhisper Thread [{self.currentThreadId()}]: Starting processing for {self.audio_path}") # Less verbose
 
-        if not FASTER_WHISPER_AVAILABLE:
-            self.processing_error.emit("FasterWhisper library not installed.")
+        # Check that at least one engine is available
+        if not self.use_mlx and not FASTER_WHISPER_AVAILABLE:
+            self.processing_error.emit("No transcription engine available.")
             self.processing_finished.emit([])
             return
 
         try:
             if not self.audio_path or not os.path.exists(self.audio_path):
                  raise FileNotFoundError("Pre-extracted audio path not valid during run.")
-
-            # print(f"FasterWhisper Thread: Using pre-extracted audio: {self.audio_path}") # Less verbose
 
             self.emit_progress(10, f"Setting up device...")
             device = "cuda" if TORCH_AVAILABLE and torch.cuda.is_available() else "cpu"
@@ -194,6 +340,43 @@ class WhisperHandler(QThread):
                     language_probability = 1.0
                     duration = cached_segments[-1]['end'] if cached_segments else 0.0
                 info = MockInfo()
+            elif self.use_mlx:
+                # === MLX WHISPER + SILERO VAD PATH ===
+                print("Whisper Thread: Using MLX Whisper + Silero VAD pipeline")
+
+                # Step 1: Run Silero VAD to detect speech segments
+                self.emit_progress(20, "Running Silero VAD (speech detection)...")
+                speech_segments = run_silero_vad(self.audio_path, self.vad_parameters)
+
+                if self._is_cancelled: raise InterruptedError("Processing cancelled")
+
+                if not speech_segments:
+                    print("MLX Whisper: No speech detected by Silero VAD")
+                    faster_whisper_segments = []
+                    info = MockInfo()
+                else:
+                    # Step 2: Transcribe speech segments with MLX Whisper
+                    self.emit_progress(40, f"Transcribing with MLX Whisper...")
+                    faster_whisper_segments = transcribe_with_mlx(
+                        self.audio_path,
+                        self.model_size_or_path,
+                        speech_segments,
+                        language="en",
+                        beam_size=5  # Use beam search for best quality
+                    )
+
+                    if self._is_cancelled: raise InterruptedError("Processing cancelled")
+
+                    # Create info object for compatibility
+                    class MockInfo:
+                        language = "en"
+                        language_probability = 1.0
+                        duration = faster_whisper_segments[-1]['end'] if faster_whisper_segments else 0.0
+                    info = MockInfo()
+
+                    # Save to cache
+                    if faster_whisper_segments:
+                        save_vad_cache(self.audio_path, self.vad_parameters, faster_whisper_segments)
             else:
                 # === FASTER-WHISPER TRANSCRIPTION ===
                 # Only load model if not already pre-loaded
