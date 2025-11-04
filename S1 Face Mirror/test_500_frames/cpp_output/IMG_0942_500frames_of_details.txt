@@ -1,0 +1,3 @@
+Input:/Users/johnwilsoniv/Documents/SplitFace Open3/S1 Face Mirror/test_500_frames/IMG_0942_500frames.mov
+Input full path:/Users/johnwilsoniv/Documents/SplitFace Open3/S1 Face Mirror/test_500_frames/IMG_0942_500frames.mov
+Camera parameters:1421.88,1421.88,540,960
