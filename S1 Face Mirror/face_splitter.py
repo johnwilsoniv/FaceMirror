@@ -1,9 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add pyfaceau to path (needed for pyfaceau_detector import)
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "pyfaceau"))
-
 from pyfaceau_detector import PyFaceAU68LandmarkDetector
 from face_mirror import FaceMirror
 from video_processor import VideoProcessor

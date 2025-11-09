@@ -6,19 +6,13 @@ This replaces the OpenFace 3.0 STAR 98-point system with PyFaceAU's
 68-point PFLD detector + CLNF refinement for improved accuracy.
 """
 
-import sys
 import numpy as np
 import cv2
 from pathlib import Path
 from typing import Optional, Tuple
-
-# Add pyfaceau to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "pyfaceau"))
-
 from pyfaceau.detectors.retinaface import ONNXRetinaFaceDetector
 from pyfaceau.detectors.pfld import CunjianPFLDDetector
 from pyfaceau.refinement.targeted_refiner import TargetedCLNFRefiner
-from pyfaceau.clnf import CLNFDetector
 
 
 class PyFaceAU68LandmarkDetector:
@@ -102,27 +96,6 @@ class PyFaceAU68LandmarkDetector:
             if debug_mode:
                 print("  CLNF Refiner: Disabled")
 
-        # Initialize Python CLNF for challenging cases (surgical markings, severe paralysis)
-        # Uses CEN patch experts + NU-RLMS optimization for shape-constrained refinement
-        try:
-            clnf_dir = model_dir / 'clnf'
-            if clnf_dir.exists():
-                self.clnf_fallback = CLNFDetector(
-                    model_dir=clnf_dir,
-                    max_iterations=5,  # Match OpenFace default for accuracy
-                    convergence_threshold=0.01
-                )
-                if debug_mode:
-                    print("  CLNF Fallback: Loaded (for surgical markings & severe paralysis)")
-            else:
-                self.clnf_fallback = None
-                if debug_mode:
-                    print("  CLNF Fallback: Not available (models not found)")
-        except Exception as e:
-            self.clnf_fallback = None
-            if debug_mode:
-                print(f"  CLNF Fallback: Failed to load ({e})")
-
         if debug_mode:
             print("="*60 + "\n")
 
@@ -139,11 +112,6 @@ class PyFaceAU68LandmarkDetector:
         self.yaw_history = []
         self.frame_quality_history = []
         self.history_size = 5
-
-        # Landmark quality tracking for warning dialog
-        self.poor_quality_frames = []  # List of (frame_num, reason) tuples
-        self.total_frames_processed = 0
-        self.clnf_fallback_activated = False  # Track if CLNF has been used
 
         # Warmup models
         self._warmup_models()
@@ -180,86 +148,6 @@ class PyFaceAU68LandmarkDetector:
         self.chin_history.clear()
         self.yaw_history.clear()
         self.frame_quality_history.clear()
-        self.poor_quality_frames.clear()
-        self.total_frames_processed = 0
-
-    def check_landmark_quality(self, landmarks):
-        """
-        Check if landmarks are poorly distributed (clustered, asymmetric).
-
-        Poor landmark quality indicators:
-        - Clustering: landmarks concentrated in small region
-        - Poor spatial distribution: uneven coverage of face
-        - Excessive asymmetry beyond expected paralysis
-
-        Args:
-            landmarks: (68, 2) array of landmarks
-
-        Returns:
-            tuple: (is_poor_quality: bool, reason: str)
-        """
-        if landmarks is None or len(landmarks) != 68:
-            return True, "invalid_landmarks"
-
-        # Calculate bounding box of landmarks
-        x_coords = landmarks[:, 0]
-        y_coords = landmarks[:, 1]
-
-        x_min, x_max = np.min(x_coords), np.max(x_coords)
-        y_min, y_max = np.min(y_coords), np.max(y_coords)
-
-        bbox_width = x_max - x_min
-        bbox_height = y_max - y_min
-
-        # Check 1: Clustering - landmarks should span reasonable area
-        # Split face into left/right halves
-        x_center = (x_min + x_max) / 2
-        left_landmarks = landmarks[x_coords < x_center]
-        right_landmarks = landmarks[x_coords >= x_center]
-
-        left_count = len(left_landmarks)
-        right_count = len(right_landmarks)
-
-        # If more than 75% of landmarks on one side, it's clustered
-        clustering_ratio = max(left_count, right_count) / 68.0
-        if clustering_ratio > 0.75:
-            if self.debug_mode:
-                print(f"    Landmark quality: POOR (clustering={clustering_ratio:.2f})")
-            return True, f"clustering_{clustering_ratio:.2f}"
-
-        # Check 2: Poor spatial distribution
-        # Calculate standard deviation of landmark positions
-        x_std = np.std(x_coords)
-        y_std = np.std(y_coords)
-
-        # If std is too low, landmarks are not well distributed
-        expected_x_std = bbox_width * 0.25  # Expect at least 25% of bbox width
-        expected_y_std = bbox_height * 0.25  # Expect at least 25% of bbox height
-
-        if x_std < expected_x_std or y_std < expected_y_std:
-            if self.debug_mode:
-                print(f"    Landmark quality: POOR (poor_distribution x_std={x_std:.1f} y_std={y_std:.1f})")
-            return True, f"poor_distribution"
-
-        # Quality is acceptable
-        return False, "ok"
-
-    def get_quality_statistics(self):
-        """
-        Get landmark quality statistics for warning dialog.
-
-        Returns:
-            dict: Statistics including poor_count, total, percentage, details
-        """
-        # Filter out frames that were fixed by PDM
-        poor_frames = [(f, r) for f, r in self.poor_quality_frames if not r.startswith('ok_')]
-
-        return {
-            'poor_count': len(poor_frames),
-            'total': self.total_frames_processed,
-            'percentage': (len(poor_frames) / self.total_frames_processed * 100) if self.total_frames_processed > 0 else 0,
-            'poor_frames_details': poor_frames
-        }
 
     def cleanup_memory(self):
         """Cleanup memory after processing"""
@@ -338,40 +226,6 @@ class PyFaceAU68LandmarkDetector:
 
                 # Ensure float32 for calculations
                 landmarks_68 = landmarks_68.astype(np.float32)
-
-                # Check landmark quality and retry with Python CLNF if poor
-                is_poor, reason = self.check_landmark_quality(landmarks_68)
-
-                # Track quality for warning dialog
-                self.total_frames_processed += 1
-                if is_poor:
-                    self.poor_quality_frames.append((self.frame_count, reason))
-
-                # Apply Python CLNF fallback for challenging cases (surgical markings, severe paralysis)
-                if is_poor and self.clnf_fallback is not None:
-                    # Warn user on first activation
-                    if not self.clnf_fallback_activated:
-                        print("\n" + "="*70)
-                        print("⚠️  ADVANCED LANDMARK REFINEMENT ACTIVATED")
-                        print("="*70)
-                        print("Detected challenging landmarks (surgical markings or severe paralysis)")
-                        print("Switching to OpenFace-quality CLNF optimization for accuracy.")
-                        print("Note: Processing will be slower (~2-5 FPS) but highly accurate.")
-                        print("="*70 + "\n")
-                        self.clnf_fallback_activated = True
-
-                    try:
-                        # Use OpenFace-quality settings: multi-scale refinement for accuracy
-                        # This matches OpenFace 2.2 C++ behavior (coarse→fine: 0.25→0.35→0.50→1.00)
-                        landmarks_68, converged, num_iters = self.clnf_fallback.refine_landmarks(
-                            frame, landmarks_68, scale_idx=0, regularization=0.5, multi_scale=True
-                        )
-                        if self.debug_mode:
-                            print(f"  CLNF fallback applied (frame {self.frame_count}): "
-                                  f"converged={converged}, iters={num_iters}")
-                    except Exception as e:
-                        if self.debug_mode:
-                            print(f"  CLNF fallback failed (frame {self.frame_count}): {e}")
 
                 # Apply temporal smoothing (5-frame weighted average)
                 self.landmarks_history.append(landmarks_68.copy())

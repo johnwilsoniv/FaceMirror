@@ -318,43 +318,6 @@ def process_single_video(args):
         )
         outputs = splitter.process_video(input_path, output_dir)
 
-        # Check landmark quality and show warning if needed (>30% poor quality)
-        if splitter.detector and hasattr(splitter.detector, 'get_quality_statistics'):
-            stats = splitter.detector.get_quality_statistics()
-
-            # Show warning dialog if >30% poor quality frames
-            if stats['percentage'] > 30 and progress_window:
-                from landmark_quality_dialog import show_landmark_quality_warning
-
-                # Must show dialog in main thread (GUI requirement)
-                try:
-                    from PyQt5.QtCore import QMetaObject, Qt, Q_ARG
-
-                    # Queue dialog to show in main thread
-                    def show_warning_dialog():
-                        choice = show_landmark_quality_warning(
-                            poor_frame_count=stats['poor_count'],
-                            total_frames=stats['total'],
-                            poor_frames_details=stats['poor_frames_details'],
-                            parent=progress_window
-                        )
-                        return choice
-
-                    # Invoke dialog in main thread and wait for result
-                    QMetaObject.invokeMethod(
-                        progress_window,
-                        "show_quality_warning",
-                        Qt.BlockingQueuedConnection,
-                        Q_ARG(object, stats)
-                    )
-
-                except Exception as e:
-                    # If GUI dialog fails, print warning to console
-                    print(f"\n⚠️  WARNING: Landmark Quality Issues Detected")
-                    print(f"  {stats['poor_count']} of {stats['total']} frames ({stats['percentage']:.1f}%) have poor landmark quality")
-                    print(f"  Recommendation: Remove surgical markings and ensure proper lighting before recording")
-                    print(f"  Continuing processing...\n")
-
         # Video encoding finalization: FFmpeg needs 1-5 seconds to write MP4 metadata
         if run_openface and outputs:
             print("\nFinalizing mirrored videos (writing MP4 metadata)...")
@@ -749,35 +712,6 @@ def workflow_mirror_openface():
     print(f"\nProcessing {len(input_paths)} video(s)...")
     print(f"Available CPU cores: {cpu_count()}")
     print(f"Using device: {device.upper()}")
-
-    # Pre-warm CoreML models in main thread before starting worker
-    # This prevents CoreML compilation from hanging in the background thread
-    print("\n" + "="*60)
-    print("WARMING UP COREML MODELS (ONE-TIME COMPILATION)")
-    print("="*60)
-    print("Initializing face detection models...")
-    print("This may take 30-60 seconds on first run (models are cached)")
-    print("="*60 + "\n")
-
-    try:
-        from pyfaceau_detector import PyFaceAU68LandmarkDetector
-        import numpy as np
-        warmup_detector = PyFaceAU68LandmarkDetector(
-            debug_mode=False,
-            device=device,
-            skip_face_detection=False,
-            use_clnf_refinement=True
-        )
-        # Run dummy inference to trigger CoreML compilation
-        dummy_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        _ = warmup_detector.get_face_mesh(dummy_frame)
-        del warmup_detector
-        gc.collect()
-        print("CoreML models compiled and cached successfully!")
-        print("Subsequent initializations will be instant.\n")
-    except Exception as e:
-        print(f"Warning: CoreML warmup failed: {e}")
-        print("Continuing anyway...\n")
 
     # Create progress window with OpenFace stage enabled
     progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=True)

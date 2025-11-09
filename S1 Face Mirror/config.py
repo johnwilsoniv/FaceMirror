@@ -135,14 +135,6 @@ def apply_environment_settings():
     Apply environment variable settings before library imports.
     This function should be called at the very start of the application.
     """
-    import sys
-    from pathlib import Path
-
-    # Add PyFaceAU to Python path
-    pyfaceau_dir = Path(__file__).parent.parent / "pyfaceau"
-    if pyfaceau_dir.exists() and str(pyfaceau_dir) not in sys.path:
-        sys.path.insert(0, str(pyfaceau_dir))
-
     os.environ["OMP_NUM_THREADS"] = str(OMP_NUM_THREADS)
     os.environ["MKL_NUM_THREADS"] = str(MKL_NUM_THREADS)
     os.environ["OPENBLAS_NUM_THREADS"] = str(OPENBLAS_NUM_THREADS)

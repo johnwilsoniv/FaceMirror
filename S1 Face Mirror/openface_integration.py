@@ -6,14 +6,9 @@ This module provides a simplified wrapper around pyfaceau.processor.OpenFaceProc
 for seamless integration with S1 Face Mirror.
 """
 
-import sys
-from pathlib import Path
-
-# Add pyfaceau to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "pyfaceau"))
-
 # Re-export PyFaceAU's OpenFaceProcessor as our main processor
 from pyfaceau.processor import OpenFaceProcessor as PyFaceAUProcessor
+from pathlib import Path
 
 
 class OpenFace3Processor(PyFaceAUProcessor):
@@ -54,10 +49,11 @@ class OpenFace3Processor(PyFaceAUProcessor):
             weights_dir = Path(weights_dir)
 
         # Initialize PyFaceAU processor with enhanced settings
+        # Note: verbose=True enables progress reporting during AU extraction
         super().__init__(
             weights_dir=str(weights_dir),
             use_clnf_refinement=True,  # Always enable CLNF for best accuracy
-            verbose=debug_mode  # Only show detailed logs in debug mode
+            verbose=True  # Always show AU extraction progress
         )
 
         # Store compatibility flags
