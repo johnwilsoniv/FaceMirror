@@ -222,7 +222,30 @@ class VideoProcessor:
 
         try:
             # Get face landmarks
-            landmarks, _ = self.landmark_detector.get_face_mesh(frame)
+            landmarks, validation_info = self.landmark_detector.get_face_mesh(frame)
+
+            # Check for validation warnings or fallback usage
+            # ANY use of fallback detector indicates problematic video
+            if validation_info is not None:
+                used_fallback = validation_info.get('used_fallback', False)
+                validation_failed = not validation_info.get('validation_passed', True)
+
+                # Show warning if validation failed OR if fallback was needed
+                if validation_failed or used_fallback:
+                    # Print warning on first frame or every 300 frames (10 sec at 30fps)
+                    if frame_index == 0 or frame_index % 300 == 0:
+                        reason = validation_info.get('reason', 'Unknown')
+
+                        if used_fallback:
+                            print(f"\n⚠️  WARNING [Frame {frame_index}]: Primary face detector failed, using MTCNN fallback")
+                            print(f"    Primary detector failure reason: {reason}")
+                            print(f"    Results may be less accurate. Consider reviewing this video manually.\n")
+                        else:
+                            print(f"\n⚠️  WARNING [Frame {frame_index}]: Landmark detection validation failed")
+                            print(f"    Reason: {reason}")
+                            print(f"    Processing will continue but results may be inaccurate.\n")
+
+                        sys.stdout.flush()
 
             # Create mirrored faces
             if landmarks is not None:

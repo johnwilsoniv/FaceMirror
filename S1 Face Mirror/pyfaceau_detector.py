@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 from pyfaceau.detectors.retinaface import ONNXRetinaFaceDetector
 from pyfaceau.detectors.pfld import CunjianPFLDDetector
 from pyfaceau.refinement.targeted_refiner import TargetedCLNFRefiner
+from pyfaceau.detectors.openface_mtcnn import OpenFaceMTCNN
 
 
 class PyFaceAU68LandmarkDetector:
@@ -96,6 +97,30 @@ class PyFaceAU68LandmarkDetector:
             if debug_mode:
                 print("  CLNF Refiner: Disabled")
 
+        # Initialize MTCNN fallback detector
+        try:
+            # MTCNN weights are in pyfaceau package
+            pyfaceau_dir = Path(__file__).parent.parent / "pyfaceau" / "pyfaceau" / "detectors"
+            mtcnn_weights = pyfaceau_dir / "openface_mtcnn_weights.pth"
+
+            if not mtcnn_weights.exists():
+                # Try alternative location
+                mtcnn_weights = model_dir / 'openface_mtcnn_weights.pth'
+
+            # Use relaxed thresholds for challenging videos (paralysis patients)
+            # Analysis showed [0.3, 0.4, 0.4] works for both IMG_8401 and IMG_9330
+            self.mtcnn_detector = OpenFaceMTCNN(
+                weights_path=str(mtcnn_weights),
+                min_face_size=60,
+                thresholds=[0.3, 0.4, 0.4]  # Relaxed for paralysis patients
+            )
+            if debug_mode:
+                print("  MTCNN Fallback: Loaded (for failure recovery)")
+        except Exception as e:
+            self.mtcnn_detector = None
+            if debug_mode:
+                print(f"  MTCNN Fallback: Not available ({e})")
+
         if debug_mode:
             print("="*60 + "\n")
 
@@ -155,6 +180,149 @@ class PyFaceAU68LandmarkDetector:
         import gc
         gc.collect()
 
+    def _validate_landmarks(self, landmarks, bbox, frame_shape):
+        """
+        Validate if landmarks are properly placed on the face.
+
+        Primary failure indicator: Landmarks should cover a reasonable portion of frame width.
+        When RetinaFace detects a partial face (e.g., only one eye), landmark spread is small
+        relative to frame size.
+
+        Args:
+            landmarks: (68, 2) array of landmarks
+            bbox: [x1, y1, x2, y2] (for reference)
+            frame_shape: (height, width, channels)
+
+        Returns:
+            is_valid: bool
+            reason: str (why it failed or "Valid")
+            confidence: float 0-1
+        """
+        if landmarks is None or bbox is None or len(landmarks) != 68:
+            return False, "No detection", 0.0
+
+        frame_h, frame_w = frame_shape[:2]
+
+        # Get landmark bounds
+        x_min, x_max = np.min(landmarks[:, 0]), np.max(landmarks[:, 0])
+        y_min, y_max = np.min(landmarks[:, 1]), np.max(landmarks[:, 1])
+
+        # Calculate spread as percentage of frame
+        spread_x = x_max - x_min
+        spread_y = y_max - y_min
+
+        spread_x_pct = spread_x / frame_w * 100
+        spread_y_pct = spread_y / frame_h * 100
+
+        # Analysis from test videos (frame: 1080x1920):
+        # IMG_8401 w/MTCNN (PASS): 78.8% x 52.7%
+        # IMG_9330 w/RetinaFace (SHOULD FAIL): 47.7% x 25.6% - bbox cuts off chin!
+        # IMG_0434 (PASS): 34.4% x 19.1%
+        # IMG_0942 (PASS): 34.8% x 21.3%
+
+        # Key insight: IMG_9330's abnormally wide spread (47.7%) with low vertical (25.6%)
+        # indicates bbox cutting off lower face. Use ratio check to catch this.
+
+        # Check minimum spreads (catch total failures)
+        if spread_x_pct < 30:
+            return False, f"Low horizontal spread ({spread_x_pct:.0f}% of frame)", spread_x_pct / 100
+
+        if spread_y_pct < 15:
+            return False, f"Low vertical spread ({spread_y_pct:.0f}% of frame)", spread_y_pct / 100
+
+        # Check if spread is too wide relative to height (indicates cut-off face)
+        # IMG_9330: 47.7 / 25.6 = 1.86 (too wide!)
+        # IMG_0434: 34.4 / 19.1 = 1.80 (normal)
+        # IMG_0942: 34.8 / 21.3 = 1.63 (normal)
+        # Threshold: ratio > 1.85 indicates bbox cut off bottom
+        spread_ratio = spread_x_pct / spread_y_pct if spread_y_pct > 0 else 0
+        if spread_ratio > 1.85:
+            return False, f"Abnormal spread ratio ({spread_ratio:.2f})", 1.0 / spread_ratio
+
+        # All checks passed
+        confidence = min(spread_x_pct / 100, spread_y_pct / 100, 1.0)
+        return True, "Valid", confidence
+
+    def _select_best_face_bbox(self, detections, frame_shape):
+        """
+        Select the best face bbox from multiple detections.
+
+        Problem: RetinaFace sometimes gives highest confidence to partial faces
+        (e.g., just one eye) especially with surgical markings or paralysis.
+
+        Solution: Score each bbox by size, position, and aspect ratio.
+
+        Args:
+            detections: Array of detections, each [x1, y1, x2, y2, conf]
+            frame_shape: (height, width, channels) of frame
+
+        Returns:
+            Best detection [x1, y1, x2, y2, conf]
+        """
+        if len(detections) == 1:
+            return detections[0]
+
+        frame_h, frame_w = frame_shape[:2]
+        frame_center_y = frame_h / 2
+
+        scores = []
+        for det in detections:
+            x1, y1, x2, y2 = det[:4]
+            conf = det[4]
+
+            # Calculate bbox properties
+            bbox_w = x2 - x1
+            bbox_h = y2 - y1
+            bbox_area = bbox_w * bbox_h
+            bbox_center_y = (y1 + y2) / 2
+
+            # Size score: prefer larger bboxes (normalized to frame)
+            size_ratio = bbox_area / (frame_w * frame_h)
+            size_score = min(size_ratio / 0.3, 1.0)  # Target ~30% of frame
+
+            # Vertical position score: prefer vertically centered faces
+            y_offset = abs(bbox_center_y - frame_center_y)
+            y_offset_ratio = y_offset / frame_h
+            position_score = max(0, 1.0 - (y_offset_ratio / 0.3))
+
+            # Aspect ratio score: faces should be roughly square (0.75 to 1.3)
+            aspect_ratio = bbox_h / bbox_w if bbox_w > 0 else 0
+            if 0.75 <= aspect_ratio <= 1.3:
+                aspect_score = 1.0
+            elif 0.5 <= aspect_ratio < 0.75 or 1.3 < aspect_ratio <= 1.5:
+                aspect_score = 0.7
+            else:
+                aspect_score = 0.3
+
+            # Confidence score (normalized)
+            conf_score = min(conf, 1.0)
+
+            # Weighted total score
+            # Size and aspect ratio are most important (they distinguish full vs partial faces)
+            # Position helps when multiple full faces detected
+            # Confidence is least important (can be misleading)
+            total_score = (
+                size_score * 0.4 +
+                aspect_score * 0.3 +
+                position_score * 0.2 +
+                conf_score * 0.1
+            )
+
+            scores.append(total_score)
+
+            if self.debug_mode:
+                print(f"  Det bbox=[{int(x1)},{int(y1)},{int(x2)},{int(y2)}] "
+                      f"conf={conf:.3f} size={size_score:.2f} pos={position_score:.2f} "
+                      f"aspect={aspect_score:.2f} → score={total_score:.3f}")
+
+        # Select detection with highest score
+        best_idx = np.argmax(scores)
+
+        if self.debug_mode:
+            print(f"  Selected detection {best_idx} (score={scores[best_idx]:.3f})")
+
+        return detections[best_idx]
+
     def get_face_mesh(self, frame, detection_interval=2):
         """
         Get 68-point facial landmarks with temporal smoothing.
@@ -201,8 +369,8 @@ class PyFaceAU68LandmarkDetector:
                     self.last_landmarks = None
                     return None, None
 
-                # Use primary face
-                det = detections[0]
+                # Select best face bbox (not just highest confidence)
+                det = self._select_best_face_bbox(detections, frame.shape)
                 bbox = det[:4].astype(int)  # [x1, y1, x2, y2]
                 self.cached_bbox = bbox
                 self.last_face = det
@@ -223,6 +391,131 @@ class PyFaceAU68LandmarkDetector:
                 # Apply CLNF refinement if enabled
                 if self.use_clnf_refinement and self.clnf_refiner is not None:
                     landmarks_68 = self.clnf_refiner.refine_landmarks(frame, landmarks_68)
+
+                # Validate landmark placement with ORIGINAL bbox and frame size
+                is_valid, reason, confidence = self._validate_landmarks(landmarks_68, self.cached_bbox, frame.shape)
+
+                # Track validation results for return
+                validation_info = {
+                    'validation_passed': is_valid,
+                    'reason': reason,
+                    'confidence': confidence,
+                    'used_fallback': False
+                }
+
+                # After validation, expand bbox to contain all landmarks (with 10% padding)
+                # This ensures final bbox properly contains all detected landmarks
+                lm_x_min, lm_x_max = np.min(landmarks_68[:, 0]), np.max(landmarks_68[:, 0])
+                lm_y_min, lm_y_max = np.min(landmarks_68[:, 1]), np.max(landmarks_68[:, 1])
+
+                lm_w = lm_x_max - lm_x_min
+                lm_h = lm_y_max - lm_y_min
+
+                # Add 10% padding on each side
+                padding_x = lm_w * 0.10
+                padding_y = lm_h * 0.10
+
+                expanded_bbox = np.array([
+                    max(0, lm_x_min - padding_x),
+                    max(0, lm_y_min - padding_y),
+                    min(frame.shape[1], lm_x_max + padding_x),
+                    min(frame.shape[0], lm_y_max + padding_y)
+                ]).astype(int)
+
+                # Update cached bbox to expanded version for final output
+                self.cached_bbox = expanded_bbox
+
+                # If validation failed, try MTCNN fallback
+                if not is_valid and self.mtcnn_detector is not None:
+                    if self.debug_mode:
+                        print(f"  ⚠️  RetinaFace validation failed: {reason} (conf={confidence:.2f})")
+                        print(f"  🔄 Retrying with MTCNN fallback...")
+
+                    try:
+                        # Detect with MTCNN
+                        mtcnn_bboxes, _ = self.mtcnn_detector.detect(frame, return_landmarks=False)
+
+                        if mtcnn_bboxes is not None and len(mtcnn_bboxes) > 0:
+                            # Select best MTCNN bbox
+                            # MTCNN bboxes are already in [x1, y1, x2, y2] format
+                            mtcnn_dets = np.column_stack([mtcnn_bboxes, np.ones(len(mtcnn_bboxes))])
+                            mtcnn_det = self._select_best_face_bbox(mtcnn_dets, frame.shape)
+                            mtcnn_bbox = mtcnn_det[:4].astype(int)
+
+                            # Clip bbox to frame boundaries (MTCNN can return negative coords)
+                            h, w = frame.shape[:2]
+                            mtcnn_bbox[0] = max(0, mtcnn_bbox[0])
+                            mtcnn_bbox[1] = max(0, mtcnn_bbox[1])
+                            mtcnn_bbox[2] = min(w, mtcnn_bbox[2])
+                            mtcnn_bbox[3] = min(h, mtcnn_bbox[3])
+
+                            if self.debug_mode:
+                                print(f"  MTCNN bbox (clipped): {mtcnn_bbox}")
+
+                            # Re-detect landmarks with MTCNN bbox
+                            landmarks_68, _ = self.landmark_detector.detect_landmarks(frame, mtcnn_bbox)
+
+                            # Re-apply CLNF refinement
+                            if self.use_clnf_refinement and self.clnf_refiner is not None:
+                                landmarks_68 = self.clnf_refiner.refine_landmarks(frame, landmarks_68)
+
+                            # Re-validate with MTCNN bbox
+                            is_valid_mtcnn, reason_mtcnn, confidence_mtcnn = self._validate_landmarks(
+                                landmarks_68, mtcnn_bbox, frame.shape
+                            )
+
+                            if is_valid_mtcnn:
+                                # Success! Expand bbox to contain all landmarks
+                                lm_x_min, lm_x_max = np.min(landmarks_68[:, 0]), np.max(landmarks_68[:, 0])
+                                lm_y_min, lm_y_max = np.min(landmarks_68[:, 1]), np.max(landmarks_68[:, 1])
+
+                                lm_w = lm_x_max - lm_x_min
+                                lm_h = lm_y_max - lm_y_min
+
+                                padding_x = lm_w * 0.10
+                                padding_y = lm_h * 0.10
+
+                                mtcnn_bbox_expanded = np.array([
+                                    max(0, lm_x_min - padding_x),
+                                    max(0, lm_y_min - padding_y),
+                                    min(frame.shape[1], lm_x_max + padding_x),
+                                    min(frame.shape[0], lm_y_max + padding_y)
+                                ]).astype(int)
+
+                                # Use expanded bbox for final output
+                                self.cached_bbox = mtcnn_bbox_expanded
+
+                                # Update validation info for successful MTCNN fallback
+                                validation_info = {
+                                    'validation_passed': True,
+                                    'reason': reason_mtcnn,
+                                    'confidence': confidence_mtcnn,
+                                    'used_fallback': True
+                                }
+
+                                if self.debug_mode:
+                                    print(f"  ✅ MTCNN fallback succeeded: {reason_mtcnn} (conf={confidence_mtcnn:.2f})")
+                            else:
+                                # Update validation info for failed MTCNN fallback
+                                validation_info = {
+                                    'validation_passed': False,
+                                    'reason': f"Both detectors failed: RetinaFace ({reason}), MTCNN ({reason_mtcnn})",
+                                    'confidence': max(confidence, confidence_mtcnn),
+                                    'used_fallback': True
+                                }
+
+                                if self.debug_mode:
+                                    print(f"  ❌ MTCNN fallback also failed: {reason_mtcnn} (conf={confidence_mtcnn:.2f})")
+                        else:
+                            if self.debug_mode:
+                                print(f"  ❌ MTCNN found no faces")
+
+                    except Exception as e:
+                        if self.debug_mode:
+                            print(f"  ❌ MTCNN fallback error: {e}")
+
+                elif not is_valid and self.debug_mode:
+                    print(f"  ⚠️  Validation failed: {reason} (conf={confidence:.2f}, no MTCNN fallback)")
 
                 # Ensure float32 for calculations
                 landmarks_68 = landmarks_68.astype(np.float32)
@@ -258,7 +551,12 @@ class PyFaceAU68LandmarkDetector:
                 if len(self.frame_quality_history) > self.history_size:
                     self.frame_quality_history.pop(0)
 
-                return smoothed_points, None
+                # Print warning if validation failed
+                if not validation_info['validation_passed']:
+                    if self.debug_mode:
+                        print(f"  ⚠️  WARNING: Landmark detection may be unreliable - {validation_info['reason']}")
+
+                return smoothed_points, validation_info
 
             except Exception as e:
                 # Landmark detection failed - ALWAYS try to reuse previous landmarks first
