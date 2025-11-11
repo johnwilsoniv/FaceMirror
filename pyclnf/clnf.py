@@ -37,34 +37,58 @@ class CLNF:
     def __init__(self,
                  model_dir: str = "pyclnf/models",
                  scale: float = 0.25,
-                 regularization: float = 1.0,
+                 regularization: float = 25.0,
                  max_iterations: int = 10,
-                 convergence_threshold: float = 0.01):
+                 convergence_threshold: float = 0.005,
+                 sigma: float = 1.5,
+                 weight_multiplier: float = 0.0,
+                 window_sizes: list = None):
         """
         Initialize CLNF model.
 
         Args:
             model_dir: Directory containing exported PDM and CCNF models
-            scale: Patch scale to use (0.25, 0.35, or 0.5)
+            scale: DEPRECATED - now loads all scales [0.25, 0.35, 0.5]
             regularization: Shape regularization weight (higher = stricter shape prior)
-            max_iterations: Maximum optimization iterations
+                          (OpenFace default: r=25)
+            max_iterations: Maximum optimization iterations per window size
+                          (OpenFace paper doesn't specify, using 10 for better convergence)
             convergence_threshold: Convergence threshold for parameter updates
+            sigma: Gaussian kernel sigma for KDE mean-shift
+                  (OpenFace uses σ=1.5 for Multi-PIE, σ=2.0 for in-the-wild)
+            weight_multiplier: Weight multiplier w for patch confidences
+                             (OpenFace uses w=7 for Multi-PIE, w=5 for in-the-wild)
+            window_sizes: List of window sizes for hierarchical refinement (default: [11, 9, 7])
+                         Note: Only window sizes with sigma components are supported ([7, 9, 11, 15])
         """
         self.model_dir = Path(model_dir)
-        self.scale = scale
+        self.regularization = regularization
+        self.sigma = sigma
+        self.weight_multiplier = weight_multiplier
+        # Changed from [11, 9, 7, 5] to [11, 9, 7] because ws=5 has no sigma components
+        self.window_sizes = window_sizes if window_sizes is not None else [11, 9, 7]
+
+        # OpenFace uses multiple patch scales
+        self.patch_scaling = [0.25, 0.35, 0.5]
+
+        # Map window sizes to patch scale indices (coarse-to-fine)
+        # Larger windows use coarser scales, smaller windows use finer scales
+        self.window_to_scale = self._map_windows_to_scales()
 
         # Load PDM (shape model)
         pdm_dir = self.model_dir / "exported_pdm"
         self.pdm = PDM(str(pdm_dir))
 
-        # Load CCNF patch experts
-        self.ccnf = CCNFModel(str(self.model_dir), scales=[scale])
+        # Load CCNF patch experts for ALL scales
+        self.ccnf = CCNFModel(str(self.model_dir), scales=self.patch_scaling)
 
-        # Initialize optimizer
+        # Initialize optimizer with OpenFace parameters
         self.optimizer = NURLMSOptimizer(
             regularization=regularization,
             max_iterations=max_iterations,
-            convergence_threshold=convergence_threshold
+            convergence_threshold=convergence_threshold,
+            sigma=sigma,
+            weight_multiplier=weight_multiplier  # CRITICAL: Apply weight multiplier
         )
 
     def fit(self,
@@ -107,16 +131,60 @@ class CLNF:
         view_idx = 0
         pose = np.array([0.0, 0.0, 0.0])  # [pitch, yaw, roll]
 
-        # Get patch experts for detected view
-        patch_experts = self._get_patch_experts(view_idx)
+        # Hierarchical optimization with multiple window sizes and patch scales
+        # OpenFace optimizes from large to small windows for coarse-to-fine refinement
+        total_iterations = 0
+        for window_idx, window_size in enumerate(self.window_sizes):
+            # Get the appropriate patch scale for this window (coarse-to-fine)
+            scale_idx = self.window_to_scale[window_size]
+            patch_scale = self.patch_scaling[scale_idx]
 
-        # Run optimization
-        optimized_params, opt_info = self.optimizer.optimize(
-            self.pdm,
-            params,
-            patch_experts,
-            gray
-        )
+            # Get patch experts for this view and scale
+            patch_experts = self._get_patch_experts(view_idx, patch_scale)
+
+            # Extract patch confidence weights (OpenFace NU-RLMS: Non-Uniform weighting)
+            # For landmarks with patch experts, use their confidence values
+            # For landmarks without patch experts, use default weight=1.0
+            weights = np.ones(self.pdm.n_points)  # Default: uniform weights
+            for landmark_idx, patch_expert in patch_experts.items():
+                if hasattr(patch_expert, 'patch_confidence'):
+                    weights[landmark_idx] = patch_expert.patch_confidence
+
+            # Adjust regularization based on patch scale (OpenFace formula)
+            # Reduce regularization at finer scales
+            # Formula: reg = reg_base - 15 * log2(patch_scale / base_scale)
+            scale_ratio = patch_scale / self.patch_scaling[0]  # Ratio to base scale (0.25)
+            adjusted_reg = self.regularization - 15 * np.log(scale_ratio) / np.log(2)
+            adjusted_reg = max(0.001, adjusted_reg)  # Ensure positive
+
+            # Adjust sigma based on patch scale
+            adjusted_sigma = self.sigma + 0.25 * np.log(scale_ratio) / np.log(2)
+
+            # Update optimizer parameters for this scale
+            self.optimizer.regularization = adjusted_reg
+            self.optimizer.sigma = adjusted_sigma
+
+            # Run optimization for this window size
+            # Using patch experts trained at patch_scale for this window
+            # CRITICAL: Pass patch_scaling to enable image warping
+            optimized_params, opt_info = self.optimizer.optimize(
+                self.pdm,
+                params,
+                patch_experts,
+                gray,
+                weights=weights,  # CRITICAL: Pass patch confidence weights
+                window_size=window_size,
+                patch_scaling=patch_scale,  # CRITICAL: Enable image warping to reference coordinates
+                sigma_components=self.ccnf.sigma_components  # Enable CCNF spatial correlation modeling
+            )
+
+            # Update params for next iteration
+            params = optimized_params
+            total_iterations += opt_info['iterations']
+
+            # Early stopping if face becomes too small
+            if params[0] < 0.25:  # Scale parameter
+                break
 
         # Extract final landmarks
         landmarks = self.pdm.params_to_landmarks_2d(optimized_params)
@@ -124,7 +192,7 @@ class CLNF:
         # Prepare output info
         info = {
             'converged': opt_info['converged'],
-            'iterations': opt_info['iterations'],
+            'iterations': total_iterations,
             'final_update': opt_info['final_update'],
             'view': view_idx,
             'pose': pose
@@ -211,19 +279,44 @@ class CLNF:
 
         return results
 
-    def _get_patch_experts(self, view_idx: int) -> Dict[int, 'CCNFPatchExpert']:
+    def _map_windows_to_scales(self) -> Dict[int, int]:
         """
-        Get patch experts for a specific view.
+        Map window sizes to patch scale indices.
+
+        OpenFace uses coarse-to-fine strategy:
+        - Large windows → coarse patch scale (0.25)
+        - Medium windows → medium patch scale (0.35)
+        - Small windows → fine patch scale (0.5)
+
+        Returns:
+            Dictionary mapping window_size -> scale_index
+        """
+        mapping = {}
+        for i, window_size in enumerate(self.window_sizes):
+            # Coarse-to-fine: first third uses scale 0, second third uses scale 1, final third uses scale 2
+            if i < len(self.window_sizes) // 3:
+                scale_idx = 0  # 0.25
+            elif i < 2 * len(self.window_sizes) // 3:
+                scale_idx = 1  # 0.35
+            else:
+                scale_idx = min(2, len(self.patch_scaling) - 1)  # 0.5
+            mapping[window_size] = scale_idx
+        return mapping
+
+    def _get_patch_experts(self, view_idx: int, scale: float) -> Dict[int, 'CCNFPatchExpert']:
+        """
+        Get patch experts for a specific view and scale.
 
         Args:
             view_idx: View index (0-6)
+            scale: Patch scale (0.25, 0.35, or 0.5)
 
         Returns:
             Dictionary mapping landmark_idx -> CCNFPatchExpert
         """
         patch_experts = {}
 
-        scale_model = self.ccnf.scale_models.get(self.scale)
+        scale_model = self.ccnf.scale_models.get(scale)
         if scale_model is None:
             return patch_experts
 
@@ -270,7 +363,7 @@ class CLNF:
                 'max_iterations': self.optimizer.max_iterations,
                 'convergence_threshold': self.optimizer.convergence_threshold
             },
-            'scale': self.scale
+            'patch_scales': self.patch_scaling
         }
 
 
