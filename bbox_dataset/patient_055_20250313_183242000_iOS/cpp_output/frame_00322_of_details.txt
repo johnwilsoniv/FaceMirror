@@ -1,0 +1,13 @@
+Input:bbox_dataset/patient_055_20250313_183242000_iOS/frames/frame_00322.jpg
+Input full path:/Users/johnwilsoniv/Documents/SplitFace Open3/bbox_dataset/patient_055_20250313_183242000_iOS/frames/frame_00322.jpg
+Camera parameters:1421.88,1421.88,540,960
+Output HOG:frame_00322.hog
+Output video:frame_00322.avi
+Output aligned directory:frame_00322_aligned
+Output csv:frame_00322.csv
+Gaze: 1
+AUs: 1
+Landmarks 2D: 1
+Landmarks 3D: 1
+Pose: 1
+Shape parameters: 1

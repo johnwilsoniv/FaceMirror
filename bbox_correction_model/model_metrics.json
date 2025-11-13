@@ -1,0 +1,33 @@
+{
+  "per_target": {
+    "center_offset_x": {
+      "train_mae": 19.864973005401854,
+      "test_mae": 21.89861691399209,
+      "test_r2": 0.5048022776156422
+    },
+    "center_offset_y": {
+      "train_mae": 26.028223870290976,
+      "test_mae": 23.55846537194148,
+      "test_r2": -0.3216352920148058
+    },
+    "width_correction": {
+      "train_mae": 72.68416501490866,
+      "test_mae": 71.7330681563071,
+      "test_r2": -0.013903119373308348
+    },
+    "height_correction": {
+      "train_mae": 75.0366020189956,
+      "test_mae": 78.8194137058106,
+      "test_r2": 0.45127874670629076
+    }
+  },
+  "overall": {
+    "baseline_mean": 72.27189991142451,
+    "baseline_median": 65.4018606051157,
+    "baseline_std": 30.73220177665101,
+    "model_mean": 35.30857169145946,
+    "model_median": 31.10393013286146,
+    "model_std": 18.890514625782647,
+    "improvement_percent": 51.14481321961484
+  }
+}

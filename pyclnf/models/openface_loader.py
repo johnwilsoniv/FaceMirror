@@ -7,7 +7,7 @@ directly from their native text/binary formats.
 
 import numpy as np
 from pathlib import Path
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 import struct
 
 
@@ -389,9 +389,23 @@ class CCNFPatchExpertLoader:
             global_meta,
             patch_scaling=self.patch_scaling,
             num_views=self.num_views,
-            num_landmarks=self.num_landmarks
+            num_landmarks=self.num_landmarks,
+            window_sizes=np.array(self.window_sizes)
         )
         print(f"  Saved global metadata: {self.num_views} views, {self.num_landmarks} landmarks")
+
+        # Save sigma components for each window size
+        print(f"  Saving {len(self.window_sizes)} window size sigma components...")
+        for w_idx, window_size in enumerate(self.window_sizes):
+            sigma_dir = output_path / f'sigmas_window_{window_size}'
+            sigma_dir.mkdir(exist_ok=True)
+
+            sigmas_for_window = self.sigma_components[w_idx]
+            for s_idx, sigma_mat in enumerate(sigmas_for_window):
+                sigma_file = sigma_dir / f'sigma_{s_idx:02d}.npy'
+                np.save(sigma_file, sigma_mat.astype(np.float32))
+
+            print(f"    Window {window_size}: Saved {len(sigmas_for_window)} sigma matrices")
 
         # Save view centers and visibilities
         for view_idx in range(self.num_views):
@@ -574,6 +588,49 @@ def test_ccnf_loader():
         import traceback
         traceback.print_exc()
         return False
+
+
+def load_sigma_components(model_dir: str) -> Optional[Dict[int, np.ndarray]]:
+    """
+    Load CCNF sigma components for spatial correlation modeling.
+
+    Sigma components are used to compute the Sigma covariance matrix that
+    transforms response maps to model spatial correlations.
+
+    Args:
+        model_dir: Base model directory containing sigma_components subdirectory
+
+    Returns:
+        Dictionary mapping window_size -> list of sigma component matrices
+        Returns None if sigma components directory doesn't exist
+    """
+    sigma_dir = Path(model_dir) / "sigma_components"
+    if not sigma_dir.exists():
+        return None
+
+    # Load window sizes
+    window_sizes_file = sigma_dir / "window_sizes.npy"
+    if not window_sizes_file.exists():
+        return None
+
+    window_sizes = np.load(window_sizes_file)
+
+    # Load sigma components for each window size
+    sigma_components = {}
+    for window_size in window_sizes:
+        components = []
+        component_idx = 0
+        while True:
+            sigma_file = sigma_dir / f"sigma_w{window_size}_c{component_idx}.npy"
+            if not sigma_file.exists():
+                break
+            components.append(np.load(sigma_file))
+            component_idx += 1
+
+        if components:
+            sigma_components[int(window_size)] = components
+
+    return sigma_components
 
 
 if __name__ == "__main__":

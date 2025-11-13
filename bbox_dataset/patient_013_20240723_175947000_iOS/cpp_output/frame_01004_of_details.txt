@@ -1,0 +1,13 @@
+Input:bbox_dataset/patient_013_20240723_175947000_iOS/frames/frame_01004.jpg
+Input full path:/Users/johnwilsoniv/Documents/SplitFace Open3/bbox_dataset/patient_013_20240723_175947000_iOS/frames/frame_01004.jpg
+Camera parameters:1421.88,1421.88,540,960
+Output HOG:frame_01004.hog
+Output video:frame_01004.avi
+Output aligned directory:frame_01004_aligned
+Output csv:frame_01004.csv
+Gaze: 1
+AUs: 1
+Landmarks 2D: 1
+Landmarks 3D: 1
+Pose: 1
+Shape parameters: 1

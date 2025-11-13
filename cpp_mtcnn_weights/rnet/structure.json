@@ -1,0 +1,72 @@
+{
+  "num_layers": 11,
+  "layers": [
+    {
+      "type": "conv",
+      "in_channels": 3,
+      "out_channels": 28,
+      "kernel_size": [
+        3,
+        3
+      ]
+    },
+    {
+      "type": "prelu"
+    },
+    {
+      "type": "maxpool",
+      "kernel_size": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ]
+    },
+    {
+      "type": "conv",
+      "in_channels": 28,
+      "out_channels": 48,
+      "kernel_size": [
+        3,
+        3
+      ]
+    },
+    {
+      "type": "prelu"
+    },
+    {
+      "type": "maxpool",
+      "kernel_size": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ]
+    },
+    {
+      "type": "conv",
+      "in_channels": 48,
+      "out_channels": 64,
+      "kernel_size": [
+        2,
+        2
+      ]
+    },
+    {
+      "type": "prelu"
+    },
+    {
+      "type": "fc"
+    },
+    {
+      "type": "prelu"
+    },
+    {
+      "type": "fc"
+    }
+  ]
+}

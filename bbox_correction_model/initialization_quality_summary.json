@@ -1,0 +1,8 @@
+{
+  "scale_error": {
+    "baseline_mean": 12.747804817910001,
+    "model_mean": 12.697567518611368,
+    "improvement_pct": 0.39408588393236366,
+    "model_under_3pct": 12.173913043478262,
+    "model_under_5pct": 21.304347826086957,
+    "goal_3pct_90frames": 

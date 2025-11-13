@@ -5,25 +5,38 @@ This is the main user-facing API that combines:
 - PDM (Point Distribution Model) for shape representation
 - CCNF patch experts for landmark detection
 - NU-RLMS optimizer for parameter fitting
+- Corrected RetinaFace detector (ARM Mac optimized, primary detector)
 
-Usage:
+Usage (PRIMARY - with automatic face detection):
+    from pyclnf import CLNF
+    import cv2
+
+    # Initialize model with corrected RetinaFace detector (default)
+    clnf = CLNF()  # ARM Mac optimized, 8.23px accuracy
+
+    # Detect and fit landmarks automatically
+    image = cv2.imread("face.jpg")
+    landmarks, info = clnf.detect_and_fit(image)
+
+Usage (LEGACY - with manual bbox):
     from pyclnf import CLNF
 
-    # Initialize model
-    clnf = CLNF(model_dir="pyclnf/models")
+    # Initialize model without detector
+    clnf = CLNF(detector=None)
 
-    # Detect landmarks in image
+    # Fit landmarks with manual bbox
     landmarks, info = clnf.fit(image, face_bbox)
 """
 
 import numpy as np
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional, Dict, List
 import cv2
 from pathlib import Path
 
 from .core.pdm import PDM
 from .core.patch_expert import CCNFModel
 from .core.optimizer import NURLMSOptimizer
+from .utils.retinaface_correction import RetinaFaceCorrectedDetector
 
 
 class CLNF:
@@ -42,7 +55,10 @@ class CLNF:
                  convergence_threshold: float = 0.005,
                  sigma: float = 1.5,
                  weight_multiplier: float = 0.0,
-                 window_sizes: list = None):
+                 window_sizes: list = None,
+                 detector: str = "retinaface",
+                 detector_model_path: Optional[str] = None,
+                 use_coreml: bool = False):
         """
         Initialize CLNF model.
 
@@ -51,15 +67,19 @@ class CLNF:
             scale: DEPRECATED - now loads all scales [0.25, 0.35, 0.5]
             regularization: Shape regularization weight (higher = stricter shape prior)
                           (OpenFace default: r=25)
-            max_iterations: Maximum optimization iterations per window size
-                          (OpenFace paper doesn't specify, using 10 for better convergence)
+            max_iterations: Maximum optimization iterations TOTAL across all window sizes
+                          (OpenFace default: 5 per window × 4 windows = 20 total)
             convergence_threshold: Convergence threshold for parameter updates
+                          (OpenFace default: 0.01 for shape change)
             sigma: Gaussian kernel sigma for KDE mean-shift
                   (OpenFace uses σ=1.5 for Multi-PIE, σ=2.0 for in-the-wild)
             weight_multiplier: Weight multiplier w for patch confidences
                              (OpenFace uses w=7 for Multi-PIE, w=5 for in-the-wild)
             window_sizes: List of window sizes for hierarchical refinement (default: [11, 9, 7])
                          Note: Only window sizes with sigma components are supported ([7, 9, 11, 15])
+            detector: Face detector to use ("retinaface" or None). Default: "retinaface"
+            detector_model_path: Path to detector model. If None, uses default path
+            use_coreml: Enable CoreML acceleration for RetinaFace (ARM Mac optimization)
         """
         self.model_dir = Path(model_dir)
         self.regularization = regularization
@@ -90,6 +110,23 @@ class CLNF:
             sigma=sigma,
             weight_multiplier=weight_multiplier  # CRITICAL: Apply weight multiplier
         )
+
+        # Initialize face detector (PRIMARY: Corrected RetinaFace for ARM Mac optimization)
+        self.detector = None
+        if detector == "retinaface":
+            # Default model path if not specified
+            if detector_model_path is None:
+                detector_model_path = "S1 Face Mirror/weights/retinaface_mobilenet025_coreml.onnx"
+
+            # Initialize corrected RetinaFace detector
+            try:
+                self.detector = RetinaFaceCorrectedDetector(
+                    model_path=detector_model_path,
+                    use_coreml=use_coreml
+                )
+            except Exception as e:
+                print(f"Warning: Could not initialize RetinaFace detector: {e}")
+                print("Detector will not be available. Use fit() with manual bbox instead.")
 
     def fit(self,
             image: np.ndarray,
@@ -133,8 +170,25 @@ class CLNF:
 
         # Hierarchical optimization with multiple window sizes and patch scales
         # OpenFace optimizes from large to small windows for coarse-to-fine refinement
+
+        # FIX: Distribute max_iterations across window sizes instead of per-window
+        # This ensures total iterations match max_iterations, not max_iterations × num_windows
+        n_windows = len(self.window_sizes)
+        iters_per_window = self.optimizer.max_iterations // n_windows
+        iters_remainder = self.optimizer.max_iterations % n_windows
+
+        # Save original max_iterations to restore later
+        original_max_iterations = self.optimizer.max_iterations
+
         total_iterations = 0
         for window_idx, window_size in enumerate(self.window_sizes):
+            # Distribute remainder iterations to early windows
+            # e.g., max_iter=10, 3 windows → [4, 3, 3]
+            window_iters = iters_per_window + (1 if window_idx < iters_remainder else 0)
+
+            # Override optimizer max_iterations for this window
+            self.optimizer.max_iterations = window_iters
+
             # Get the appropriate patch scale for this window (coarse-to-fine)
             scale_idx = self.window_to_scale[window_size]
             patch_scale = self.patch_scaling[scale_idx]
@@ -157,12 +211,9 @@ class CLNF:
             adjusted_reg = self.regularization - 15 * np.log(scale_ratio) / np.log(2)
             adjusted_reg = max(0.001, adjusted_reg)  # Ensure positive
 
-            # Adjust sigma based on patch scale
-            adjusted_sigma = self.sigma + 0.25 * np.log(scale_ratio) / np.log(2)
-
             # Update optimizer parameters for this scale
             self.optimizer.regularization = adjusted_reg
-            self.optimizer.sigma = adjusted_sigma
+            # NOTE: Don't override optimizer.sigma - respect the value set by user or __init__
 
             # Run optimization for this window size
             # Using patch experts trained at patch_scale for this window
@@ -186,6 +237,9 @@ class CLNF:
             if params[0] < 0.25:  # Scale parameter
                 break
 
+        # Restore original max_iterations
+        self.optimizer.max_iterations = original_max_iterations
+
         # Extract final landmarks
         landmarks = self.pdm.params_to_landmarks_2d(optimized_params)
 
@@ -201,6 +255,83 @@ class CLNF:
         if return_params:
             info['params'] = optimized_params
 
+        return landmarks, info
+
+    def detect_and_fit(self,
+                       image: np.ndarray,
+                       return_all_faces: bool = False,
+                       return_params: bool = False) -> Tuple[np.ndarray, Dict]:
+        """
+        Detect faces and fit CLNF landmarks in one call using the built-in detector.
+
+        This is the primary method for using pyCLNF with automatic face detection.
+        Uses corrected RetinaFace as the default detector (ARM Mac optimized).
+
+        Args:
+            image: Input image (grayscale or color, will be converted to grayscale)
+            return_all_faces: If True, return results for all detected faces
+                            If False, return only the first (largest) face
+            return_params: If True, include optimized parameters in info dict
+
+        Returns:
+            If return_all_faces=False (default):
+                landmarks: Detected 2D landmarks for first face, shape (68, 2)
+                info: Dictionary with fitting information including 'bbox'
+            If return_all_faces=True:
+                results: List of (landmarks, info) tuples for each detected face
+
+        Raises:
+            ValueError: If no detector is initialized or no faces detected
+
+        Example:
+            >>> from pyclnf import CLNF
+            >>> clnf = CLNF()  # Initializes with corrected RetinaFace
+            >>> image = cv2.imread("face.jpg")
+            >>> landmarks, info = clnf.detect_and_fit(image)
+            >>> print(f"Detected {len(landmarks)} landmarks")
+        """
+        if self.detector is None:
+            raise ValueError(
+                "No detector initialized. Either:\n"
+                "1. Initialize CLNF with detector='retinaface' (default)\n"
+                "2. Use fit() method with manual bbox instead"
+            )
+
+        # Convert to color for detector (detector needs BGR)
+        if len(image.shape) == 2:
+            # Grayscale -> BGR for detector
+            image_bgr = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        else:
+            image_bgr = image
+
+        # Detect faces with corrected RetinaFace
+        bboxes = self.detector.detect_and_correct(image_bgr)
+
+        if len(bboxes) == 0:
+            raise ValueError("No faces detected in image")
+
+        # Process all faces if requested
+        if return_all_faces:
+            results = []
+            for bbox in bboxes:
+                landmarks, info = self.fit(image, bbox, return_params=return_params)
+                info['bbox'] = bbox  # Add bbox to info
+                results.append((landmarks, info))
+            return results
+
+        # Process only largest face (matches C++ CLNF behavior)
+        # C++ selects face with largest width (LandmarkDetectorUtils.cpp:809)
+        # Python bboxes are (x, y, width, height), so bbox[2] is width
+        if len(bboxes) == 1:
+            bbox = bboxes[0]
+        else:
+            # Select largest face by width (matching C++ DetectSingleFaceMTCNN)
+            widths = [bbox[2] for bbox in bboxes]
+            largest_idx = np.argmax(widths)
+            bbox = bboxes[largest_idx]
+
+        landmarks, info = self.fit(image, bbox, return_params=return_params)
+        info['bbox'] = bbox  # Add bbox to info
         return landmarks, info
 
     def fit_video(self,

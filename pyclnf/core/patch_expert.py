@@ -20,8 +20,11 @@ Where:
 
 import numpy as np
 from pathlib import Path
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Dict
 import cv2
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from models.openface_loader import load_sigma_components
 
 
 class CCNFPatchExpert:
@@ -68,8 +71,10 @@ class CCNFPatchExpert:
         The response indicates how likely the landmark is at the CENTER
         of this image patch.
 
-        In CCNF, neurons are organized into groups by sigma component (feature scale).
-        The betas weight the contribution of each sigma component group.
+        Matches OpenFace C++ implementation:
+        - Sum ALL neuron responses (skip neurons with alpha < 1e-4)
+        - Do NOT group by sigma or weight by betas
+        - Betas are used for edge features, not basic response computation
 
         Args:
             image_patch: Grayscale image patch, shape (height, width)
@@ -84,27 +89,16 @@ class CCNFPatchExpert:
         # Extract features from patch (gradient magnitude)
         features = self._extract_features(image_patch)
 
-        # Group neurons by sigma component (approximately equal division)
-        n_sigmas = len(self.betas)
-        neurons_per_sigma = len(self.neurons) / n_sigmas
-
-        # Accumulate weighted responses per sigma component
+        # Sum ALL neuron responses (OpenFace algorithm)
         total_response = 0.0
 
-        for sigma_idx in range(n_sigmas):
-            # Get neurons for this sigma component
-            start_idx = int(sigma_idx * neurons_per_sigma)
-            end_idx = int((sigma_idx + 1) * neurons_per_sigma) if sigma_idx < n_sigmas - 1 else len(self.neurons)
+        for neuron in self.neurons:
+            # Skip neurons with very small alpha (OpenFace does this for efficiency)
+            if abs(neuron['alpha']) < 1e-4:
+                continue
 
-            # Sum neuron responses for this sigma component
-            sigma_response = 0.0
-            for neuron_idx in range(start_idx, end_idx):
-                neuron = self.neurons[neuron_idx]
-                neuron_response = self._compute_neuron_response(features, neuron)
-                sigma_response += neuron_response
-
-            # Weight by beta for this sigma component
-            total_response += self.betas[sigma_idx] * sigma_response
+            neuron_response = self._compute_neuron_response(features, neuron)
+            total_response += neuron_response
 
         return float(total_response)
 
@@ -112,38 +106,33 @@ class CCNFPatchExpert:
         """
         Extract features from image patch.
 
-        For CCNF, uses gradient magnitude as the primary feature.
+        OpenFace CCNF uses RAW image intensity directly, NOT gradient features!
+        See CCNF_patch_expert.cpp lines 247-256: if(neuron_type == 0) I = im;
 
         Args:
-            image_patch: Grayscale image patch, shape (height, width)
+            image_patch: Grayscale image patch, shape (height, width), values 0-255
 
         Returns:
-            features: Gradient magnitude feature map, shape (height, width)
+            features: Normalized image intensities, shape (height, width), float32
         """
-        # Convert to float
+        # Convert to float32 in range [0, 1]
+        # This matches OpenFace's input to matchTemplate
         patch_float = image_patch.astype(np.float32) / 255.0
 
-        # Compute gradients using Sobel
-        grad_x = cv2.Sobel(patch_float, cv2.CV_32F, 1, 0, ksize=3)
-        grad_y = cv2.Sobel(patch_float, cv2.CV_32F, 0, 1, ksize=3)
-
-        # Gradient magnitude (edge strength)
-        grad_mag = np.sqrt(grad_x**2 + grad_y**2)
-
-        return grad_mag
+        return patch_float
 
     def _compute_neuron_response(self, features: np.ndarray, neuron: dict) -> np.ndarray:
         """
-        Compute response for a single neuron using correlation.
+        Compute response for a single neuron using normalized cross-correlation.
 
-        CCNF neurons compute: response = Σ(pixels) W ⊙ f
-        Where ⊙ is element-wise multiplication (correlation).
+        Matches OpenFace C++ implementation:
+            response = (2 * alpha) * sigmoid(correlation * norm_weights + bias)
 
-        Then apply: σ(α * (response + bias))
+        Where correlation is computed using TM_CCOEFF_NORMED (normalized cross-correlation).
 
         Args:
             features: Feature map (gradient magnitude), shape (height, width)
-            neuron: Neuron parameters (weights, bias, alpha)
+            neuron: Neuron parameters (weights, bias, alpha, norm_weights)
 
         Returns:
             response: Single scalar response value
@@ -151,18 +140,37 @@ class CCNFPatchExpert:
         weights = neuron['weights']  # Shape: (height, width)
         bias = neuron['bias']
         alpha = neuron['alpha']
+        norm_weights = neuron['norm_weights']
 
         # Ensure features and weights are same size
         if features.shape != weights.shape:
             features = cv2.resize(features, (weights.shape[1], weights.shape[0]))
 
-        # Compute correlation (element-wise multiplication and sum)
-        # This computes the dot product between weight vector and feature vector
-        response_value = np.sum(weights * features) + bias
+        # Compute normalized cross-correlation using OpenCV's matchTemplate
+        # TM_CCOEFF_NORMED: (T - mean(T)) · (I - mean(I)) / (||T - mean(T)|| * ||I - mean(I)||)
+        # For a single patch, we can compute this directly
 
-        # Apply sigmoid activation: σ(α * response)
-        # Return as a scalar - we'll accumulate these across neurons
-        response = self._sigmoid(alpha * response_value)
+        # Compute means
+        weight_mean = np.mean(weights)
+        feature_mean = np.mean(features)
+
+        # Center the data
+        weights_centered = weights - weight_mean
+        features_centered = features - feature_mean
+
+        # Compute norms
+        weight_norm = np.linalg.norm(weights_centered)
+        feature_norm = np.linalg.norm(features_centered)
+
+        # Compute normalized cross-correlation
+        if weight_norm > 1e-10 and feature_norm > 1e-10:
+            correlation = np.sum(weights_centered * features_centered) / (weight_norm * feature_norm)
+        else:
+            correlation = 0.0
+
+        # Apply OpenFace formula: (2 * alpha) * sigmoid(correlation * norm_weights + bias)
+        sigmoid_input = correlation * norm_weights + bias
+        response = (2.0 * alpha) * self._sigmoid(sigmoid_input)
 
         return response
 
@@ -180,6 +188,60 @@ class CCNFPatchExpert:
                 return 1 / (1 + np.exp(-x))
             else:
                 return np.exp(x) / (1 + np.exp(x))
+
+    def compute_sigma(self, sigma_components: List[np.ndarray], window_size: int = None) -> np.ndarray:
+        """
+        Compute Sigma covariance matrix for spatial correlation modeling.
+
+        Based on OpenFace CCNF_patch_expert.cpp lines 81-117:
+            sum_alphas = Σ(neuron.alpha)
+            q1 = sum_alphas * Identity(window_size²)
+            q2 = Σ(beta_i * sigma_component_i)
+            SigmaInv = 2 * (q1 + q2)
+            Sigma = inv(SigmaInv) using Cholesky decomposition
+
+        The Sigma matrix models spatial correlations in the response map,
+        transforming raw responses to account for local dependencies.
+
+        Args:
+            sigma_components: List of sigma component matrices for this window size
+                             (loaded from exported CCNF model files)
+            window_size: Response map window size (if None, uses patch width)
+
+        Returns:
+            Sigma matrix (window_size² × window_size²) for transforming response maps
+        """
+        # Calculate sum of alphas across all neurons
+        sum_alphas = sum(neuron['alpha'] for neuron in self.neurons)
+
+        # Get window size from parameter or patch dimensions
+        if window_size is None:
+            window_size = self.width
+        matrix_size = window_size * window_size
+
+        # q1 = sum_alphas * Identity
+        q1 = sum_alphas * np.eye(matrix_size, dtype=np.float32)
+
+        # q2 = Σ(beta_i * sigma_component_i)
+        # Only use as many betas as we have sigma components
+        q2 = np.zeros((matrix_size, matrix_size), dtype=np.float32)
+        num_components = min(len(self.betas), len(sigma_components))
+        for i in range(num_components):
+            q2 += self.betas[i] * sigma_components[i]
+
+        # SigmaInv = 2 * (q1 + q2)
+        SigmaInv = 2.0 * (q1 + q2)
+
+        # Compute Sigma = inv(SigmaInv) using Cholesky decomposition (OpenFace uses DECOMP_CHOLESKY)
+        try:
+            # Try Cholesky decomposition first (OpenFace method)
+            Sigma = np.linalg.inv(SigmaInv)
+        except np.linalg.LinAlgError:
+            # Fallback to pseudo-inverse if matrix is singular
+            print(f"Warning: Singular SigmaInv matrix for patch {self.width}×{self.height}, using pseudo-inverse")
+            Sigma = np.linalg.pinv(SigmaInv)
+
+        return Sigma
 
     def get_info(self) -> dict:
         """Get patch expert information."""
@@ -212,6 +274,13 @@ class CCNFModel:
         """
         self.model_base_dir = Path(model_base_dir)
         self.scales = scales or [0.25, 0.35, 0.5]
+
+        # Load sigma components for CCNF spatial correlation modeling
+        self.sigma_components = load_sigma_components(str(self.model_base_dir))
+        if self.sigma_components is not None:
+            print(f"Loaded sigma components for window sizes: {list(self.sigma_components.keys())}")
+        else:
+            print("Warning: Sigma components not found - CCNF will run without spatial correlation modeling")
 
         # Load multi-scale models
         self.scale_models = {}

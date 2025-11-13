@@ -1,0 +1,18 @@
+{
+  "total_videos": 111,
+  "successful_videos": 111,
+  "failed_videos": 0,
+  "total_frames": 1107,
+  "frames_per_video_mean": 9.972972972972974,
+  "cpp_size_mean": 649.316418550151,
+  "cpp_size_std": 140.10162105289567,
+  "cpp_size_min": 214.0504178108513,
+  "cpp_size_max": 1064.3950044978603,
+  "rf_size_mean": 597.89306640625,
+  "rf_size_std": 79.38314056396484,
+  "center_offset_mean": 81.63955105093709,
+  "center_offset_std": 42.746300964187746,
+  "center_offset_max": 393.63374401495497,
+  "width_diff_mean": 58.18340615472561,
+  "height_diff_mean": 42.684420356343864
+}

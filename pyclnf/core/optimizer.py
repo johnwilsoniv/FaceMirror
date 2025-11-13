@@ -40,7 +40,7 @@ class NURLMSOptimizer:
                  regularization: float = 1.0,
                  max_iterations: int = 10,
                  convergence_threshold: float = 0.01,
-                 sigma: float = 1.5,
+                 sigma: float = 1.75,
                  weight_multiplier: float = 5.0):
         """
         Initialize NU-RLMS optimizer.
@@ -49,7 +49,7 @@ class NURLMSOptimizer:
             regularization: Regularization weight λ (higher = stronger shape prior)
             max_iterations: Maximum optimization iterations
             convergence_threshold: Convergence threshold for parameter change
-            sigma: Gaussian kernel sigma for KDE mean-shift (OpenFace default: 1.5)
+            sigma: Gaussian kernel sigma for KDE mean-shift (OpenFace default: 1.75)
             weight_multiplier: Weight multiplier w for patch confidences
                              (OpenFace uses w=7 for Multi-PIE, w=5 for in-the-wild)
                              Controls how much to trust patch responses vs shape prior
@@ -258,6 +258,8 @@ class NURLMSOptimizer:
         kde_kernel = self._get_kde_kernel(window_size)
 
         # Gaussian kernel parameter: a = -0.5 / sigma^2
+        # Use self.sigma which has been adjusted by clnf.py based on patch scale
+        # (clnf.py:161: adjusted_sigma = self.sigma + 0.25 * log2(scale_ratio))
         a = -0.5 / (self.sigma * self.sigma)
 
         # Check if we should use warping (transforms provided)

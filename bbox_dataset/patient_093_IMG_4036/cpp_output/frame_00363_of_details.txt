@@ -1,0 +1,13 @@
+Input:bbox_dataset/patient_093_IMG_4036/frames/frame_00363.jpg
+Input full path:/Users/johnwilsoniv/Documents/SplitFace Open3/bbox_dataset/patient_093_IMG_4036/frames/frame_00363.jpg
+Camera parameters:1421.88,1421.88,540,960
+Output HOG:frame_00363.hog
+Output video:frame_00363.avi
+Output aligned directory:frame_00363_aligned
+Output csv:frame_00363.csv
+Gaze: 1
+AUs: 1
+Landmarks 2D: 1
+Landmarks 3D: 1
+Pose: 1
+Shape parameters: 1

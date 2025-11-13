@@ -1,0 +1,48 @@
+{
+  "per_target": {
+    "center_offset_x": {
+      "train_mae": 19.864973005401854,
+      "test_mae": 21.89861691399209,
+      "test_r2": 0.5048022776156422
+    },
+    "center_offset_y": {
+      "train_mae": 26.028223870290976,
+      "test_mae": 23.55846537194148,
+      "test_r2": -0.3216352920148058
+    },
+    "scale_ratio": {
+      "train_mae": 0.1258171837501875,
+      "test_mae": 0.13006085781641596,
+      "test_r2": 0.2373129325683042
+    },
+    "aspect_ratio_adjustment": {
+      "train_mae": 0.03169252394709713,
+      "test_mae": 0.03439361123159654,
+      "test_r2": 0.8858865621626807
+    }
+  },
+  "overall": {
+    "init_scale_error": {
+      "baseline_mean": 12.747804817910001,
+      "baseline_median": 10.724478618711842,
+      "model_mean": 12.244940582535094,
+      "model_median": 11.875361237682743,
+      "improvement_percent": 3.944712384271916,
+      "pct_under_3": 12.173913043478262,
+      "pct_under_5": 20.434782608695652
+    },
+    "center_offset": {
+      "baseline_mean": 72.27190006114526,
+      "model_mean": 35.308572110888484
+    },
+    "bbox_iou": {
+      "baseline_mean": 0.694751766751123,
+      "model_mean": 0.7698271734095476
+    },
+    "goals_achieved": {
+      "init_scale_under_3_on_90pct": false,
+      "init_scale_under_5_on_99pct": false,
+      "bbox_iou_over_0.7": true
+    }
+  }
+}

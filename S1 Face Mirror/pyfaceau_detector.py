@@ -21,7 +21,7 @@ class PyFaceAU68LandmarkDetector:
     Face detection and 68-point landmark tracking using PyFaceAU components.
 
     This class provides:
-    - RetinaFace face detection (CoreML accelerated)
+    - pyMTCNN face detection (with pyMTCNN-specific bbox correction)
     - PFLD 68-point landmarks (4.37% NME accuracy)
     - Optional CLNF refinement (improves AU accuracy to r=0.92)
     - Temporal smoothing (5-frame history)
@@ -38,8 +38,8 @@ class PyFaceAU68LandmarkDetector:
             debug_mode: Enable debug output
             device: Ignored - PyFaceAU auto-detects best backend
             model_dir: Directory containing model weights (defaults to ./weights)
-            skip_redetection: Skip RetinaFace after first frame (tracking mode)
-            skip_face_detection: Skip RetinaFace entirely, use default bbox
+            skip_redetection: Skip pyMTCNN after first frame (tracking mode)
+            skip_face_detection: Skip pyMTCNN entirely, use default bbox
             use_clnf_refinement: Enable CLNF landmark refinement (default: True)
         """
         self.skip_face_detection = skip_face_detection
@@ -58,20 +58,30 @@ class PyFaceAU68LandmarkDetector:
             print("PYFACEAU 68-POINT LANDMARK DETECTOR")
             print("="*60)
 
-        # Initialize RetinaFace detector (unless skipped)
+        # Initialize pyMTCNN detector (unless skipped)
         if skip_face_detection:
             self.face_detector = None
             if debug_mode:
-                print("  RetinaFace: Skipped (using default bbox)")
+                print("  pyMTCNN: Skipped (using default bbox)")
         else:
-            self.face_detector = ONNXRetinaFaceDetector(
-                str(model_dir / 'retinaface_mobilenet025_coreml.onnx'),
-                use_coreml=True,
-                confidence_threshold=0.5,
-                nms_threshold=0.4
+            # MTCNN weights are in pyfaceau package
+            pyfaceau_dir = Path(__file__).parent.parent / "pyfaceau" / "pyfaceau" / "detectors"
+            mtcnn_weights = pyfaceau_dir / "openface_mtcnn_weights.pth"
+
+            if not mtcnn_weights.exists():
+                # Try alternative location
+                mtcnn_weights = model_dir / 'openface_mtcnn_weights.pth'
+
+            # Use relaxed thresholds for challenging videos (paralysis patients)
+            # Analysis showed [0.3, 0.4, 0.4] works for both IMG_8401 and IMG_9330
+            self.face_detector = OpenFaceMTCNN(
+                weights_path=str(mtcnn_weights),
+                min_face_size=60,
+                thresholds=[0.3, 0.4, 0.4]  # Relaxed for paralysis patients
             )
             if debug_mode:
-                print("  RetinaFace: Loaded (CoreML accelerated)")
+                print(f"  pyMTCNN: Loaded (primary detector)")
+                print(f"    Bbox correction: pyMTCNN-specific (optimized for raw pyMTCNN output)")
 
         # Initialize PFLD 68-point landmark detector
         self.landmark_detector = CunjianPFLDDetector(
@@ -96,30 +106,6 @@ class PyFaceAU68LandmarkDetector:
             self.clnf_refiner = None
             if debug_mode:
                 print("  CLNF Refiner: Disabled")
-
-        # Initialize MTCNN fallback detector
-        try:
-            # MTCNN weights are in pyfaceau package
-            pyfaceau_dir = Path(__file__).parent.parent / "pyfaceau" / "pyfaceau" / "detectors"
-            mtcnn_weights = pyfaceau_dir / "openface_mtcnn_weights.pth"
-
-            if not mtcnn_weights.exists():
-                # Try alternative location
-                mtcnn_weights = model_dir / 'openface_mtcnn_weights.pth'
-
-            # Use relaxed thresholds for challenging videos (paralysis patients)
-            # Analysis showed [0.3, 0.4, 0.4] works for both IMG_8401 and IMG_9330
-            self.mtcnn_detector = OpenFaceMTCNN(
-                weights_path=str(mtcnn_weights),
-                min_face_size=60,
-                thresholds=[0.3, 0.4, 0.4]  # Relaxed for paralysis patients
-            )
-            if debug_mode:
-                print("  MTCNN Fallback: Loaded (for failure recovery)")
-        except Exception as e:
-            self.mtcnn_detector = None
-            if debug_mode:
-                print(f"  MTCNN Fallback: Not available ({e})")
 
         if debug_mode:
             print("="*60 + "\n")
@@ -361,16 +347,19 @@ class PyFaceAU68LandmarkDetector:
 
         if should_detect:
             try:
-                detections, _ = self.face_detector.detect_faces(frame)
+                # pyMTCNN returns (bboxes, landmarks) where bboxes are [x1, y1, x2, y2] format
+                mtcnn_bboxes, _ = self.face_detector.detect(frame, return_landmarks=False)
 
-                if detections is None or len(detections) == 0:
+                if mtcnn_bboxes is None or len(mtcnn_bboxes) == 0:
                     self.cached_bbox = None
                     self.last_face = None
                     self.last_landmarks = None
                     return None, None
 
-                # Select best face bbox (not just highest confidence)
-                det = self._select_best_face_bbox(detections, frame.shape)
+                # Select best face bbox - convert to RetinaFace format for compatibility
+                # MTCNN returns [x1, y1, x2, y2], need to add conf column
+                mtcnn_dets = np.column_stack([mtcnn_bboxes, np.ones(len(mtcnn_bboxes))])
+                det = self._select_best_face_bbox(mtcnn_dets, frame.shape)
                 bbox = det[:4].astype(int)  # [x1, y1, x2, y2]
                 self.cached_bbox = bbox
                 self.last_face = det
@@ -425,97 +414,9 @@ class PyFaceAU68LandmarkDetector:
                 # Update cached bbox to expanded version for final output
                 self.cached_bbox = expanded_bbox
 
-                # If validation failed, try MTCNN fallback
-                if not is_valid and self.mtcnn_detector is not None:
-                    if self.debug_mode:
-                        print(f"  ⚠️  RetinaFace validation failed: {reason} (conf={confidence:.2f})")
-                        print(f"  🔄 Retrying with MTCNN fallback...")
-
-                    try:
-                        # Detect with MTCNN
-                        mtcnn_bboxes, _ = self.mtcnn_detector.detect(frame, return_landmarks=False)
-
-                        if mtcnn_bboxes is not None and len(mtcnn_bboxes) > 0:
-                            # Select best MTCNN bbox
-                            # MTCNN bboxes are already in [x1, y1, x2, y2] format
-                            mtcnn_dets = np.column_stack([mtcnn_bboxes, np.ones(len(mtcnn_bboxes))])
-                            mtcnn_det = self._select_best_face_bbox(mtcnn_dets, frame.shape)
-                            mtcnn_bbox = mtcnn_det[:4].astype(int)
-
-                            # Clip bbox to frame boundaries (MTCNN can return negative coords)
-                            h, w = frame.shape[:2]
-                            mtcnn_bbox[0] = max(0, mtcnn_bbox[0])
-                            mtcnn_bbox[1] = max(0, mtcnn_bbox[1])
-                            mtcnn_bbox[2] = min(w, mtcnn_bbox[2])
-                            mtcnn_bbox[3] = min(h, mtcnn_bbox[3])
-
-                            if self.debug_mode:
-                                print(f"  MTCNN bbox (clipped): {mtcnn_bbox}")
-
-                            # Re-detect landmarks with MTCNN bbox
-                            landmarks_68, _ = self.landmark_detector.detect_landmarks(frame, mtcnn_bbox)
-
-                            # Re-apply CLNF refinement
-                            if self.use_clnf_refinement and self.clnf_refiner is not None:
-                                landmarks_68 = self.clnf_refiner.refine_landmarks(frame, landmarks_68)
-
-                            # Re-validate with MTCNN bbox
-                            is_valid_mtcnn, reason_mtcnn, confidence_mtcnn = self._validate_landmarks(
-                                landmarks_68, mtcnn_bbox, frame.shape
-                            )
-
-                            if is_valid_mtcnn:
-                                # Success! Expand bbox to contain all landmarks
-                                lm_x_min, lm_x_max = np.min(landmarks_68[:, 0]), np.max(landmarks_68[:, 0])
-                                lm_y_min, lm_y_max = np.min(landmarks_68[:, 1]), np.max(landmarks_68[:, 1])
-
-                                lm_w = lm_x_max - lm_x_min
-                                lm_h = lm_y_max - lm_y_min
-
-                                padding_x = lm_w * 0.10
-                                padding_y = lm_h * 0.10
-
-                                mtcnn_bbox_expanded = np.array([
-                                    max(0, lm_x_min - padding_x),
-                                    max(0, lm_y_min - padding_y),
-                                    min(frame.shape[1], lm_x_max + padding_x),
-                                    min(frame.shape[0], lm_y_max + padding_y)
-                                ]).astype(int)
-
-                                # Use expanded bbox for final output
-                                self.cached_bbox = mtcnn_bbox_expanded
-
-                                # Update validation info for successful MTCNN fallback
-                                validation_info = {
-                                    'validation_passed': True,
-                                    'reason': reason_mtcnn,
-                                    'confidence': confidence_mtcnn,
-                                    'used_fallback': True
-                                }
-
-                                if self.debug_mode:
-                                    print(f"  ✅ MTCNN fallback succeeded: {reason_mtcnn} (conf={confidence_mtcnn:.2f})")
-                            else:
-                                # Update validation info for failed MTCNN fallback
-                                validation_info = {
-                                    'validation_passed': False,
-                                    'reason': f"Both detectors failed: RetinaFace ({reason}), MTCNN ({reason_mtcnn})",
-                                    'confidence': max(confidence, confidence_mtcnn),
-                                    'used_fallback': True
-                                }
-
-                                if self.debug_mode:
-                                    print(f"  ❌ MTCNN fallback also failed: {reason_mtcnn} (conf={confidence_mtcnn:.2f})")
-                        else:
-                            if self.debug_mode:
-                                print(f"  ❌ MTCNN found no faces")
-
-                    except Exception as e:
-                        if self.debug_mode:
-                            print(f"  ❌ MTCNN fallback error: {e}")
-
-                elif not is_valid and self.debug_mode:
-                    print(f"  ⚠️  Validation failed: {reason} (conf={confidence:.2f}, no MTCNN fallback)")
+                # Log validation result (no fallback - pyMTCNN is primary)
+                if not is_valid and self.debug_mode:
+                    print(f"  ⚠️  Validation failed: {reason} (conf={confidence:.2f})")
 
                 # Ensure float32 for calculations
                 landmarks_68 = landmarks_68.astype(np.float32)
