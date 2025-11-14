@@ -46,6 +46,19 @@ class ConvLayer(CPPCNNLayer):
         # Precompute weight matrix in C++ format for efficient BLAS-style matmul
         self.weight_matrix = self._create_weight_matrix()
 
+        # DEBUG: Save weight matrix for first PNet layer 0 (3 input channels, 3x3 kernel, 10 output channels)
+        if not hasattr(ConvLayer, '_weight_saved'):
+            ConvLayer._weight_saved = False
+        if not ConvLayer._weight_saved and self.num_in_maps == 3 and self.kernel_h == 3 and self.kernel_w == 3 and self.num_kernels == 10:
+            import struct
+            with open('/tmp/python_pnet_layer0_weight_matrix.bin', 'wb') as f:
+                rows, cols = self.weight_matrix.shape
+                f.write(struct.pack('i', rows))
+                f.write(struct.pack('i', cols))
+                f.write(self.weight_matrix.astype(np.float32).tobytes())
+            print(f"DEBUG: Saved PNet layer 0 weight matrix ({rows}x{cols}) to /tmp/python_pnet_layer0_weight_matrix.bin")
+            ConvLayer._weight_saved = True
+
     def _create_weight_matrix(self) -> np.ndarray:
         """
         Create weight matrix in C++ format: (num_in_maps * stride + 1, num_kernels)
@@ -62,8 +75,8 @@ class ConvLayer(CPPCNNLayer):
 
         for k in range(self.num_kernels):
             for i in range(self.num_in_maps):
-                # Transpose kernel (C++ .t() operation)
-                k_flat = self.kernels[k, i, :, :].T
+                # Flatten kernel without transpose (kernels are already in correct layout)
+                k_flat = self.kernels[k, i, :, :]
                 k_flat = k_flat.reshape(1, -1).T
 
                 start_row = i * stride
@@ -134,6 +147,19 @@ class ConvLayer(CPPCNNLayer):
         # im2col
         im2col = self._im2col_multimap_cpp(input_maps)
 
+        # DEBUG: Save im2col matrix for first PNet layer 0 forward (3 input channels, 3x3 kernel)
+        if not hasattr(ConvLayer, '_im2col_saved'):
+            ConvLayer._im2col_saved = False
+        if not ConvLayer._im2col_saved and self.num_in_maps == 3 and self.kernel_h == 3 and self.kernel_w == 3 and im2col.shape[0] == 81748:
+            import struct
+            with open('/tmp/python_pnet_layer0_im2col.bin', 'wb') as f:
+                rows, cols = im2col.shape
+                f.write(struct.pack('i', rows))
+                f.write(struct.pack('i', cols))
+                f.write(im2col.astype(np.float32).tobytes())
+            print(f"DEBUG: Saved PNet layer 0 im2col matrix ({rows}x{cols}) to /tmp/python_pnet_layer0_im2col.bin")
+            ConvLayer._im2col_saved = True
+
         # Matrix multiply: im2col @ weight_matrix
         output = im2col @ self.weight_matrix  # (num_positions, num_kernels)
 
@@ -165,8 +191,12 @@ class MaxPoolLayer(CPPCNNLayer):
         """
         num_maps, H, W = x.shape
         # Use ROUND like C++ CNN_utils.cpp line 169-170
-        out_h = int(round((H - self.kernel_size) / self.stride)) + 1
-        out_w = int(round((W - self.kernel_size) / self.stride)) + 1
+        # NOTE: C++ round() rounds half away from zero (22.5 -> 23)
+        # Python round() uses banker's rounding (22.5 -> 22)
+        # So we use floor(x + 0.5) to match C++ behavior
+        import math
+        out_h = int(math.floor((H - self.kernel_size) / self.stride + 0.5)) + 1
+        out_w = int(math.floor((W - self.kernel_size) / self.stride + 0.5)) + 1
 
         output = np.zeros((num_maps, out_h, out_w), dtype=np.float32)
 
@@ -215,8 +245,16 @@ class FullyConnectedLayer(CPPCNNLayer):
         # Check if input size matches what FC layer expects
         if actual_flat_size == expected_input_size:
             # Regular FC mode (for RNet, ONet with fixed input size)
-            # Flatten in C-major order (C, H, W) -> flatten
-            x_flat = x.flatten()
+            # CRITICAL: Must match C++ flattening order (CNN_utils.cpp:104-118)
+            # C++ transposes each map before flattening: add = add.t() (line 113)
+            # Build concatenated input: (C, H*W) where each row is transposed+flattened map
+            x_concat = np.zeros((C, H * W), dtype=np.float32)
+            for c in range(C):
+                # Transpose each map then flatten (matches C++ line 113-116)
+                x_concat[c, :] = x[c].T.flatten()
+
+            # Flatten to column vector (C * H * W,) in row-major order
+            x_flat = x_concat.flatten()
             return self.weights @ x_flat + self.biases
         elif H > 1 or W > 1:
             # Fully convolutional mode (for PNet)
@@ -490,26 +528,55 @@ class CPPCNN:
 
             print(f"Successfully loaded {network_depth} layers!")
 
-    def forward(self, x: np.ndarray) -> List[np.ndarray]:
+    def forward(self, x: np.ndarray, debug: bool = False) -> List[np.ndarray]:
         """
         Forward pass through network
 
         Args:
             x: Input tensor
+            debug: If True, save layer outputs for first forward pass
 
         Returns:
             List of outputs (multiple heads for MTCNN)
         """
+        # Static counter for debug (save first forward pass only, which is PNet scale 0)
+        if not hasattr(self.__class__, '_debug_forward_count'):
+            self.__class__._debug_forward_count = 0
+
         outputs = []
         current = x
 
         for i, layer in enumerate(self.layers):
             current = layer.forward(current)
 
+            # DEBUG: Save layer outputs for first PNet forward pass
+            if debug and self._debug_forward_count == 0:
+                import struct
+                # Layers return 3D numpy arrays with shape (C, H, W)
+                if isinstance(current, np.ndarray) and current.ndim == 3:
+                    num_channels, height, width = current.shape
+                    # Save in C++ format: num_channels, height, width, then channel data
+                    with open(f'/tmp/python_pnet_layer_{i}_output.bin', 'wb') as f:
+                        f.write(struct.pack('i', num_channels))
+                        f.write(struct.pack('i', height))
+                        f.write(struct.pack('i', width))
+                        # Save each channel (C++ iterates over channels too)
+                        for c in range(num_channels):
+                            f.write(current[c, :, :].astype(np.float32).tobytes())
+                    print(f"[Python CNN DEBUG] Layer {i} ({type(layer).__name__}): saved {num_channels} channels, {height}x{width}")
+                else:
+                    print(f"[Python CNN DEBUG] Layer {i} ({type(layer).__name__}): unexpected type/shape: {type(current)}, {current.shape if hasattr(current, 'shape') else 'N/A'}")
+
             # MTCNN networks output intermediate results
             # We'll return all outputs after FC/Sigmoid layers
             if isinstance(layer, (FullyConnectedLayer, SigmoidLayer)):
                 outputs.append(current.copy())
+
+        # Increment debug counter after forward pass completes
+        if debug:
+            if self._debug_forward_count == 0:
+                print("[Python CNN DEBUG] PNet layer-by-layer debug complete!")
+            self._debug_forward_count += 1
 
         return outputs if outputs else [current]
 
