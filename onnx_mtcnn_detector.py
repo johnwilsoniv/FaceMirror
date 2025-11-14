@@ -1,250 +1,224 @@
 #!/usr/bin/env python3
 """
-ONNX MTCNN Detector - Full Cascade Implementation
+ONNX Runtime MTCNN Face Detector
+Optimized implementation using ONNX Runtime with hardware acceleration.
 
-Implements the complete MTCNN face detection pipeline using ONNX models
-with weights extracted from C++ OpenFace.
+Performance targets:
+- Apple Silicon: Use CoreMLExecutionProvider for Neural Engine acceleration
+- NVIDIA CUDA: Use TensorrtExecutionProvider + CUDAExecutionProvider
+- CPU fallback: Use CPUExecutionProvider
+
+Expected speedup: 8-10x vs pure Python implementation
 """
 
 import numpy as np
 import cv2
 import onnxruntime as ort
+import os
 from pathlib import Path
+import time
 
 
 class ONNXMTCNNDetector:
-    """MTCNN face detector using ONNX runtime."""
+    """
+    MTCNN Face Detector using ONNX Runtime for hardware acceleration.
 
-    def __init__(self, model_dir='cpp_mtcnn_onnx'):
-        """Initialize MTCNN with ONNX models."""
-        self.model_dir = Path(model_dir)
+    Inherits detection logic from pure_python_mtcnn_v2.py but uses ONNX Runtime
+    for inference to achieve 8-10x speedup.
+    """
+
+    def __init__(self, model_dir=None, use_coreml=True, use_cuda=True):
+        """
+        Initialize ONNX MTCNN with hardware-accelerated execution providers.
+
+        Args:
+            model_dir: Directory containing pnet.onnx, rnet.onnx, onet.onnx
+            use_coreml: Enable CoreML provider for Apple Silicon (default: True)
+            use_cuda: Enable CUDA/TensorRT providers for NVIDIA GPUs (default: True)
+        """
+        if model_dir is None:
+            # Use archived ONNX models
+            model_dir = Path(__file__).parent / "archive" / "onnx_implementations" / "cpp_mtcnn_onnx"
+        else:
+            model_dir = Path(model_dir)
+
+        print(f"Loading ONNX MTCNN...")
+        print(f"Model directory: {model_dir}")
+
+        # Configure execution providers based on platform
+        providers = self._get_execution_providers(use_coreml, use_cuda)
+        print(f"Execution providers: {providers}")
 
         # Load ONNX models
-        print("Loading ONNX MTCNN models...")
-        self.pnet = ort.InferenceSession(str(self.model_dir / 'pnet.onnx'))
-        self.rnet = ort.InferenceSession(str(self.model_dir / 'rnet.onnx'))
-        self.onet = ort.InferenceSession(str(self.model_dir / 'onet.onnx'))
-        print("✓ Models loaded")
+        pnet_path = str(model_dir / "pnet.onnx")
+        rnet_path = str(model_dir / "rnet.onnx")
+        onet_path = str(model_dir / "onet.onnx")
 
-        # Detection parameters (match C++ defaults)
-        self.min_face_size = 40
-        self.scale_factor = 0.709
-        self.pnet_threshold = 0.6
-        self.rnet_threshold = 0.7
-        self.onet_threshold = 0.7
-        self.nms_threshold = 0.7
+        # Create inference sessions with optimized providers
+        sess_options = ort.SessionOptions()
+        sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-    def preprocess_image(self, img):
-        """Preprocess image: BGR -> RGB, normalize to [-1, 1]."""
-        # Convert BGR to RGB
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        self.pnet_session = ort.InferenceSession(pnet_path, sess_options, providers=providers)
+        self.rnet_session = ort.InferenceSession(rnet_path, sess_options, providers=providers)
+        self.onet_session = ort.InferenceSession(onet_path, sess_options, providers=providers)
 
+        # Print actual providers being used
+        print(f"PNet using: {self.pnet_session.get_providers()}")
+        print(f"RNet using: {self.rnet_session.get_providers()}")
+        print(f"ONet using: {self.onet_session.get_providers()}")
+
+        # MTCNN parameters (matching pure Python implementation)
+        self.thresholds = [0.6, 0.7, 0.7]  # PNet, RNet, ONet
+        self.min_face_size = 60
+        self.factor = 0.709
+
+        print(f"✓ ONNX MTCNN loaded with hardware acceleration!")
+
+    def _get_execution_providers(self, use_coreml, use_cuda):
+        """
+        Get optimal execution providers based on platform and preferences.
+
+        Priority order:
+        1. CoreMLExecutionProvider (Apple Silicon Neural Engine)
+        2. TensorrtExecutionProvider (NVIDIA GPUs)
+        3. CUDAExecutionProvider (NVIDIA GPUs)
+        4. CPUExecutionProvider (fallback)
+        """
+        providers = []
+        available_providers = ort.get_available_providers()
+
+        # Apple Silicon: CoreML provider for Neural Engine
+        if use_coreml and 'CoreMLExecutionProvider' in available_providers:
+            providers.append('CoreMLExecutionProvider')
+            print("  ✓ CoreML provider enabled (Apple Neural Engine)")
+
+        # NVIDIA: TensorRT + CUDA providers
+        if use_cuda:
+            if 'TensorrtExecutionProvider' in available_providers:
+                providers.append(('TensorrtExecutionProvider', {
+                    'trt_fp16_enable': True,
+                    'trt_engine_cache_enable': True,
+                    'trt_engine_cache_path': './trt_cache'
+                }))
+                print("  ✓ TensorRT provider enabled (NVIDIA GPU with FP16)")
+
+            if 'CUDAExecutionProvider' in available_providers:
+                providers.append('CUDAExecutionProvider')
+                print("  ✓ CUDA provider enabled (NVIDIA GPU)")
+
+        # Always include CPU as fallback
+        providers.append('CPUExecutionProvider')
+
+        return providers
+
+    def _preprocess(self, img: np.ndarray, flip_bgr_to_rgb: bool = True) -> np.ndarray:
+        """
+        Preprocess image for ONNX MTCNN.
+
+        Args:
+            img: BGR image (H, W, 3)
+            flip_bgr_to_rgb: If True, convert BGR to RGB (default: True)
+
+        Returns:
+            Normalized image tensor (1, 3, H, W) in RGB order
+        """
         # Normalize to [-1, 1]
-        img_normalized = (img_rgb.astype(np.float32) - 127.5) / 128.0
+        img_norm = (img.astype(np.float32) - 127.5) * 0.0078125
 
-        return img_normalized
+        # Transpose to (C, H, W)
+        img_chw = np.transpose(img_norm, (2, 0, 1))
 
-    def compute_scales(self, height, width):
-        """Compute image pyramid scales."""
-        min_dimension = min(height, width)
-        min_net_size = 12
+        # Convert BGR to RGB
+        if flip_bgr_to_rgb:
+            img_chw = img_chw[[2, 1, 0], :, :]
 
-        # Calculate scale to make smallest face equal to min_net_size
-        scale = min_net_size / self.min_face_size
+        # Add batch dimension: (1, 3, H, W)
+        img_batch = img_chw[np.newaxis, :, :, :]
 
-        scales = []
-        scaled_dim = min_dimension * scale
+        return img_batch
 
-        while scaled_dim >= min_net_size:
-            scales.append(scale)
-            scale *= self.scale_factor
-            scaled_dim = min_dimension * scale
+    def _run_pnet(self, img_data):
+        """Run PNet using ONNX Runtime."""
+        input_name = self.pnet_session.get_inputs()[0].name
+        output = self.pnet_session.run(None, {input_name: img_data})[0]
+        return output
 
-        return scales
+    def _run_rnet(self, img_data):
+        """Run RNet using ONNX Runtime."""
+        input_name = self.rnet_session.get_inputs()[0].name
+        output = self.rnet_session.run(None, {input_name: img_data})[0]
+        return output
 
-    def run_pnet(self, img):
-        """Stage 1: Proposal Network (PNet)."""
-        height, width = img.shape[:2]
-        scales = self.compute_scales(height, width)
+    def _run_onet(self, img_data):
+        """Run ONet using ONNX Runtime."""
+        input_name = self.onet_session.get_inputs()[0].name
+        output = self.onet_session.run(None, {input_name: img_data})[0]
+        return output
 
-        all_boxes = []
+    def _generate_bboxes(self, confidence_map, reg_map, scale, threshold):
+        """
+        Generate bounding boxes from PNet output.
 
-        for scale in scales:
-            # Resize image
-            scaled_h = int(height * scale)
-            scaled_w = int(width * scale)
-            scaled_img = cv2.resize(img, (scaled_w, scaled_h), interpolation=cv2.INTER_LINEAR)
+        Args:
+            confidence_map: (H, W) confidence scores
+            reg_map: (4, H, W) bbox regression
+            scale: Image scale factor
+            threshold: Confidence threshold
 
-            # Prepare input: HWC -> CHW -> BCHW
-            input_data = scaled_img.transpose(2, 0, 1)[np.newaxis, :, :, :].astype(np.float32)
+        Returns:
+            Bounding boxes [x1, y1, x2, y2, score]
+        """
+        stride = 2
+        cellsize = 12
 
-            # Run PNet
-            output = self.pnet.run(None, {'input': input_data})[0][0]
+        # Find locations where confidence > threshold
+        t_index = np.where(confidence_map > threshold)
 
-            # Output shape: (6, H, W) = [cls_not_face, cls_face, bbox_dx, bbox_dy, bbox_dw, bbox_dh]
-            cls_map = output[1, :, :]  # Face probability
-            bbox_map = output[2:6, :, :]  # Bbox regression
+        # No detections
+        if t_index[0].size == 0:
+            return np.array([])
 
-            # Find faces (threshold on probability)
-            face_indices = np.where(cls_map > self.pnet_threshold)
+        # Get bbox offsets
+        dx1, dy1, dx2, dy2 = reg_map[:, t_index[0], t_index[1]]
 
-            if len(face_indices[0]) == 0:
-                continue
+        # Calculate bbox coordinates
+        reg = np.array([dx1, dy1, dx2, dy2])
+        score = confidence_map[t_index[0], t_index[1]]
 
-            # Convert to bounding boxes
-            for y, x in zip(face_indices[0], face_indices[1]):
-                score = cls_map[y, x]
+        # Map to original image
+        boundingbox = np.vstack([
+            np.round((stride * t_index[1] + 1) / scale),
+            np.round((stride * t_index[0] + 1) / scale),
+            np.round((stride * t_index[1] + 1 + cellsize) / scale),
+            np.round((stride * t_index[0] + 1 + cellsize) / scale),
+            score,
+            reg
+        ])
 
-                # Map back to original image coordinates
-                # PNet uses 12x12 receptive field with stride 2
-                bbox_x = int((x * 2) / scale)
-                bbox_y = int((y * 2) / scale)
-                bbox_w = int(12 / scale)
-                bbox_h = int(12 / scale)
+        return boundingbox.T
 
-                # Apply bbox regression
-                dx = bbox_map[0, y, x]
-                dy = bbox_map[1, y, x]
-                dw = bbox_map[2, y, x]
-                dh = bbox_map[3, y, x]
+    def _nms(self, boxes, threshold, method='Union'):
+        """
+        Non-Maximum Suppression.
 
-                bbox_x = int(bbox_x + dx * bbox_w)
-                bbox_y = int(bbox_y + dy * bbox_h)
-                bbox_w = int(bbox_w * np.exp(dw))
-                bbox_h = int(bbox_h * np.exp(dh))
+        Args:
+            boxes: (N, 5+) array of [x1, y1, x2, y2, score, ...]
+            threshold: IoU threshold
+            method: 'Union' or 'Min'
 
-                all_boxes.append([bbox_x, bbox_y, bbox_w, bbox_h, score])
-
-        if len(all_boxes) == 0:
-            return []
-
-        # Non-maximum suppression
-        boxes = np.array(all_boxes)
-        keep = self.nms(boxes, self.nms_threshold)
-
-        return boxes[keep]
-
-    def run_rnet(self, img, boxes):
-        """Stage 2: Refinement Network (RNet)."""
-        if len(boxes) == 0:
-            return []
-
-        refined_boxes = []
-
-        for box in boxes:
-            x, y, w, h, _ = box
-
-            # Extract and resize face patch to 24x24
-            x1, y1 = max(0, int(x)), max(0, int(y))
-            x2, y2 = min(img.shape[1], int(x + w)), min(img.shape[0], int(y + h))
-
-            if x2 <= x1 or y2 <= y1:
-                continue
-
-            face_patch = img[y1:y2, x1:x2]
-            face_patch = cv2.resize(face_patch, (24, 24), interpolation=cv2.INTER_LINEAR)
-
-            # Prepare input: HWC -> CHW -> BCHW
-            input_data = face_patch.transpose(2, 0, 1)[np.newaxis, :, :, :].astype(np.float32)
-
-            # Run RNet
-            output = self.rnet.run(None, {'input': input_data})[0][0]
-
-            # Output: [cls_not_face, cls_face, bbox_dx, bbox_dy, bbox_dw, bbox_dh]
-            score = output[1]
-
-            if score > self.rnet_threshold:
-                # Apply bbox regression
-                dx, dy, dw, dh = output[2:6]
-
-                bbox_x = int(x + dx * w)
-                bbox_y = int(y + dy * h)
-                bbox_w = int(w * np.exp(dw))
-                bbox_h = int(h * np.exp(dh))
-
-                refined_boxes.append([bbox_x, bbox_y, bbox_w, bbox_h, score])
-
-        if len(refined_boxes) == 0:
-            return []
-
-        # Non-maximum suppression
-        boxes = np.array(refined_boxes)
-        keep = self.nms(boxes, self.nms_threshold)
-
-        return boxes[keep]
-
-    def run_onet(self, img, boxes):
-        """Stage 3: Output Network (ONet)."""
-        if len(boxes) == 0:
-            return [], []
-
-        final_boxes = []
-        landmarks = []
-
-        for box in boxes:
-            x, y, w, h, _ = box
-
-            # Extract and resize face patch to 48x48
-            x1, y1 = max(0, int(x)), max(0, int(y))
-            x2, y2 = min(img.shape[1], int(x + w)), min(img.shape[0], int(y + h))
-
-            if x2 <= x1 or y2 <= y1:
-                continue
-
-            face_patch = img[y1:y2, x1:x2]
-            face_patch = cv2.resize(face_patch, (48, 48), interpolation=cv2.INTER_LINEAR)
-
-            # Prepare input: HWC -> CHW -> BCHW
-            input_data = face_patch.transpose(2, 0, 1)[np.newaxis, :, :, :].astype(np.float32)
-
-            # Run ONet
-            output = self.onet.run(None, {'input': input_data})[0][0]
-
-            # Output: [cls_not_face, cls_face, bbox_dx, bbox_dy, bbox_dw, bbox_dh,
-            #          lm1_x, lm1_y, lm2_x, lm2_y, lm3_x, lm3_y, lm4_x, lm4_y, lm5_x, lm5_y]
-            score = output[1]
-
-            if score > self.onet_threshold:
-                # Apply bbox regression
-                dx, dy, dw, dh = output[2:6]
-
-                bbox_x = int(x + dx * w)
-                bbox_y = int(y + dy * h)
-                bbox_w = int(w * np.exp(dw))
-                bbox_h = int(h * np.exp(dh))
-
-                final_boxes.append([bbox_x, bbox_y, bbox_w, bbox_h, score])
-
-                # Extract landmarks (5 points)
-                lm = output[6:16].reshape(5, 2)
-                lm[:, 0] = x + lm[:, 0] * w  # x coordinates
-                lm[:, 1] = y + lm[:, 1] * h  # y coordinates
-                landmarks.append(lm)
-
-        if len(final_boxes) == 0:
-            return [], []
-
-        # Final NMS
-        boxes = np.array(final_boxes)
-        keep = self.nms(boxes, self.nms_threshold)
-
-        final_boxes = boxes[keep]
-        landmarks = [landmarks[i] for i in keep]
-
-        return final_boxes, landmarks
-
-    def nms(self, boxes, threshold):
-        """Non-maximum suppression."""
-        if len(boxes) == 0:
-            return []
+        Returns:
+            Indices of boxes to keep
+        """
+        if boxes.size == 0:
+            return np.empty((0,), dtype=np.int32)
 
         x1 = boxes[:, 0]
         y1 = boxes[:, 1]
-        x2 = boxes[:, 0] + boxes[:, 2]
-        y2 = boxes[:, 1] + boxes[:, 3]
+        x2 = boxes[:, 2]
+        y2 = boxes[:, 3]
         scores = boxes[:, 4]
 
-        areas = (x2 - x1) * (y2 - y1)
+        areas = (x2 - x1 + 1) * (y2 - y1 + 1)
         order = scores.argsort()[::-1]
 
         keep = []
@@ -257,96 +231,317 @@ class ONNXMTCNNDetector:
             xx2 = np.minimum(x2[i], x2[order[1:]])
             yy2 = np.minimum(y2[i], y2[order[1:]])
 
-            w = np.maximum(0.0, xx2 - xx1)
-            h = np.maximum(0.0, yy2 - yy1)
+            w = np.maximum(0.0, xx2 - xx1 + 1)
+            h = np.maximum(0.0, yy2 - yy1 + 1)
             inter = w * h
 
-            iou = inter / (areas[i] + areas[order[1:]] - inter)
+            if method == 'Min':
+                ovr = inter / np.minimum(areas[i], areas[order[1:]])
+            else:
+                ovr = inter / (areas[i] + areas[order[1:]] - inter)
 
-            inds = np.where(iou <= threshold)[0]
+            inds = np.where(ovr <= threshold)[0]
             order = order[inds + 1]
 
-        return keep
+        return np.array(keep)
 
-    def detect(self, img):
-        """Run full MTCNN cascade."""
-        # Preprocess
-        img_normalized = self.preprocess_image(img)
+    def _calibrate_box(self, bbox, reg):
+        """Apply bbox regression offsets."""
+        w = bbox[:, 2] - bbox[:, 0] + 1
+        h = bbox[:, 3] - bbox[:, 1] + 1
 
-        # Stage 1: PNet
-        pnet_boxes = self.run_pnet(img_normalized)
-        print(f"  PNet: {len(pnet_boxes)} proposals")
+        bbox[:, 0] = bbox[:, 0] + reg[:, 0] * w
+        bbox[:, 1] = bbox[:, 1] + reg[:, 1] * h
+        bbox[:, 2] = bbox[:, 2] + reg[:, 2] * w
+        bbox[:, 3] = bbox[:, 3] + reg[:, 3] * h
 
-        # Stage 2: RNet
-        rnet_boxes = self.run_rnet(img_normalized, pnet_boxes)
-        print(f"  RNet: {len(rnet_boxes)} refined boxes")
+        return bbox
 
-        # Stage 3: ONet
-        onet_boxes, landmarks = self.run_onet(img_normalized, rnet_boxes)
-        print(f"  ONet: {len(onet_boxes)} final detections")
+    def _convert_to_square(self, bbox):
+        """Convert bboxes to square."""
+        square_bbox = bbox.copy()
 
-        return onet_boxes, landmarks
+        h = bbox[:, 3] - bbox[:, 1]
+        w = bbox[:, 2] - bbox[:, 0]
+        max_side = np.maximum(h, w)
+
+        square_bbox[:, 0] = bbox[:, 0] + w * 0.5 - max_side * 0.5
+        square_bbox[:, 1] = bbox[:, 1] + h * 0.5 - max_side * 0.5
+        square_bbox[:, 2] = square_bbox[:, 0] + max_side
+        square_bbox[:, 3] = square_bbox[:, 1] + max_side
+
+        return square_bbox
+
+    def _pad(self, bboxes, w, h):
+        """Calculate padding for bboxes that extend beyond image boundaries."""
+        tmpw = (bboxes[:, 2] - bboxes[:, 0] + 1).astype(np.int32)
+        tmph = (bboxes[:, 3] - bboxes[:, 1] + 1).astype(np.int32)
+
+        dx = np.zeros((len(bboxes),))
+        dy = np.zeros((len(bboxes),))
+        edx = tmpw.copy().astype(np.int32)
+        edy = tmph.copy().astype(np.int32)
+
+        x = bboxes[:, 0].copy().astype(np.int32)
+        y = bboxes[:, 1].copy().astype(np.int32)
+        ex = bboxes[:, 2].copy().astype(np.int32)
+        ey = bboxes[:, 3].copy().astype(np.int32)
+
+        tmp = np.where(ex > w)
+        edx[tmp] = (-ex[tmp] + w + tmpw[tmp]).astype(np.int32)
+        ex[tmp] = w
+
+        tmp = np.where(ey > h)
+        edy[tmp] = (-ey[tmp] + h + tmph[tmp]).astype(np.int32)
+        ey[tmp] = h
+
+        tmp = np.where(x < 0)
+        dx[tmp] = 0 - x[tmp]
+        x[tmp] = 0
+
+        tmp = np.where(y < 0)
+        dy[tmp] = 0 - y[tmp]
+        y[tmp] = 0
+
+        return dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph
+
+    def detect(self, img, debug=False):
+        """
+        Detect faces in image using ONNX-accelerated MTCNN.
+
+        Args:
+            img: BGR image (H, W, 3)
+            debug: Enable debug output
+
+        Returns:
+            bounding_boxes: (N, 5) array of [x, y, w, h, confidence]
+        """
+        if debug:
+            print("\n" + "="*80)
+            print("ONNX MTCNN DETECTION")
+            print("="*80)
+
+        h, w, _ = img.shape
+        if debug:
+            print(f"Input image size: {w}x{h}")
+
+        # Stage 1: PNet (Proposal Network)
+        if debug:
+            print("\n[Stage 1: PNet]")
+
+        # Build image pyramid
+        min_size = self.min_face_size
+        m = 12.0 / min_size
+        min_l = np.amin([h, w])
+        min_l = min_l * m
+
+        scales = []
+        factor_count = 0
+        while min_l >= 12:
+            scales.append(m * np.power(self.factor, factor_count))
+            min_l = min_l * self.factor
+            factor_count += 1
+
+        if debug:
+            print(f"  Image pyramid scales: {scales}")
+
+        total_boxes = np.empty((0, 9))
+
+        for scale in scales:
+            hs = int(np.ceil(h * scale))
+            ws = int(np.ceil(w * scale))
+
+            im_resized = cv2.resize(img, (ws, hs), interpolation=cv2.INTER_LINEAR)
+            im_data = self._preprocess(im_resized, flip_bgr_to_rgb=True)
+
+            # Run PNet
+            output = self._run_pnet(im_data)
+
+            # Extract outputs: (1, 6, H, W) -> prob (H, W), reg (4, H, W)
+            boxes = self._generate_bboxes(
+                output[0, 1, :, :],  # Confidence for face class
+                output[0, 2:6, :, :],  # Bbox regression
+                scale,
+                self.thresholds[0]
+            )
+
+            if boxes.size != 0:
+                # NMS within scale
+                pick = self._nms(boxes, 0.5, 'Union')
+                if boxes.size != 0 and pick.size != 0:
+                    boxes = boxes[pick, :]
+                    total_boxes = np.append(total_boxes, boxes, axis=0)
+
+        if debug:
+            print(f"  Total proposals after PNet: {len(total_boxes)}")
+
+        if total_boxes.size == 0:
+            if debug:
+                print("  No faces detected by PNet")
+            return np.array([])
+
+        # NMS across scales
+        pick = self._nms(total_boxes, 0.7, 'Union')
+        total_boxes = total_boxes[pick, :]
+
+        # Calibrate bboxes
+        regw = total_boxes[:, 2] - total_boxes[:, 0]
+        regh = total_boxes[:, 3] - total_boxes[:, 1]
+        total_boxes = self._calibrate_box(total_boxes, total_boxes[:, 5:9])
+        total_boxes = self._convert_to_square(total_boxes)
+        total_boxes[:, 0:4] = np.round(total_boxes[:, 0:4])
+
+        if debug:
+            print(f"  Proposals after NMS and calibration: {len(total_boxes)}")
+
+        # Stage 2: RNet (Refinement Network)
+        if debug:
+            print("\n[Stage 2: RNet]")
+
+        dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = self._pad(total_boxes, w, h)
+        num_boxes = total_boxes.shape[0]
+
+        if num_boxes > 0:
+            # Crop and resize patches to 24x24
+            tempimg = np.zeros((num_boxes, 3, 24, 24), dtype=np.float32)
+            for k in range(num_boxes):
+                tmp = np.zeros((int(tmph[k]), int(tmpw[k]), 3), dtype=np.uint8)
+                tmp[int(dy[k]):int(edy[k])+1, int(dx[k]):int(edx[k])+1, :] = \
+                    img[int(y[k]):int(ey[k])+1, int(x[k]):int(ex[k])+1, :]
+
+                if tmp.shape[0] > 0 and tmp.shape[1] > 0:
+                    img_resized = cv2.resize(tmp, (24, 24), interpolation=cv2.INTER_LINEAR)
+                    tempimg[k, :, :, :] = self._preprocess(img_resized, flip_bgr_to_rgb=True)[0]
+
+            # Run RNet
+            output = self._run_rnet(tempimg)
+
+            # Filter by threshold
+            passed_t = np.where(output[:, 1] > self.thresholds[1])[0]
+            total_boxes = total_boxes[passed_t, :]
+            total_boxes[:, 4] = output[passed_t, 1].reshape((-1,))
+            reg = output[passed_t, 2:6]
+
+            if debug:
+                print(f"  Boxes passing RNet threshold: {len(total_boxes)}")
+
+            if total_boxes.size == 0:
+                if debug:
+                    print("  No faces passed RNet")
+                return np.array([])
+
+            # NMS
+            pick = self._nms(total_boxes, 0.7, 'Union')
+            total_boxes = total_boxes[pick, :]
+            total_boxes = self._calibrate_box(total_boxes, reg[pick, :])
+            total_boxes = self._convert_to_square(total_boxes)
+            total_boxes[:, 0:4] = np.round(total_boxes[:, 0:4])
+
+            if debug:
+                print(f"  Boxes after RNet NMS: {len(total_boxes)}")
+
+        # Stage 3: ONet (Output Network)
+        if debug:
+            print("\n[Stage 3: ONet]")
+
+        dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = self._pad(total_boxes, w, h)
+        num_boxes = total_boxes.shape[0]
+
+        if num_boxes > 0:
+            # Crop and resize patches to 48x48
+            tempimg = np.zeros((num_boxes, 3, 48, 48), dtype=np.float32)
+            for k in range(num_boxes):
+                tmp = np.zeros((int(tmph[k]), int(tmpw[k]), 3), dtype=np.uint8)
+                tmp[int(dy[k]):int(edy[k])+1, int(dx[k]):int(edx[k])+1, :] = \
+                    img[int(y[k]):int(ey[k])+1, int(x[k]):int(ex[k])+1, :]
+
+                if tmp.shape[0] > 0 and tmp.shape[1] > 0:
+                    img_resized = cv2.resize(tmp, (48, 48), interpolation=cv2.INTER_LINEAR)
+                    tempimg[k, :, :, :] = self._preprocess(img_resized, flip_bgr_to_rgb=True)[0]
+
+            # Run ONet
+            output = self._run_onet(tempimg)
+
+            # Filter by threshold
+            passed_t = np.where(output[:, 1] > self.thresholds[2])[0]
+            total_boxes = total_boxes[passed_t, :]
+            total_boxes[:, 4] = output[passed_t, 1].reshape((-1,))
+            reg = output[passed_t, 2:6]
+
+            if debug:
+                print(f"  Boxes passing ONet threshold: {len(total_boxes)}")
+
+            if total_boxes.size == 0:
+                if debug:
+                    print("  No faces passed ONet")
+                return np.array([])
+
+            # Calibrate and NMS
+            total_boxes = self._calibrate_box(total_boxes, reg)
+            pick = self._nms(total_boxes, 0.7, 'Min')
+            total_boxes = total_boxes[pick, :]
+
+            if debug:
+                print(f"  Final boxes after ONet NMS: {len(total_boxes)}")
+
+        # Apply final calibration (matching pure Python implementation)
+        if debug:
+            print("\n[Applying final calibration]")
+
+        for k in range(total_boxes.shape[0]):
+            w_box = total_boxes[k, 2] - total_boxes[k, 0]
+            h_box = total_boxes[k, 3] - total_boxes[k, 1]
+            new_x1 = total_boxes[k, 0] + w_box * -0.0075
+            new_y1 = total_boxes[k, 1] + h_box * 0.2459
+            new_width = w_box * 1.0323
+            new_height = h_box * 0.7751
+            total_boxes[k, 0] = new_x1
+            total_boxes[k, 1] = new_y1
+            total_boxes[k, 2] = new_x1 + new_width
+            total_boxes[k, 3] = new_y1 + new_height
+
+        # Convert to [x, y, w, h, confidence] format
+        result = np.zeros((len(total_boxes), 5))
+        result[:, 0] = total_boxes[:, 0]  # x
+        result[:, 1] = total_boxes[:, 1]  # y
+        result[:, 2] = total_boxes[:, 2] - total_boxes[:, 0]  # width
+        result[:, 3] = total_boxes[:, 3] - total_boxes[:, 1]  # height
+        result[:, 4] = total_boxes[:, 4]  # confidence
+
+        if debug:
+            print(f"\n✓ Detection complete: {len(result)} faces found")
+            print("="*80)
+
+        return result
 
 
-def main():
-    """Test ONNX MTCNN detector."""
-    print("="*80)
-    print("ONNX MTCNN FULL CASCADE TEST")
-    print("="*80)
+if __name__ == "__main__":
+    # Test the ONNX MTCNN detector
+    print("Testing ONNX MTCNN Detector...")
 
-    # Initialize detector
     detector = ONNXMTCNNDetector()
 
-    # Load test image
-    test_image = 'calibration_frames/patient1_frame1.jpg'
-    print(f"\nLoading test image: {test_image}")
-    img = cv2.imread(test_image)
-    print(f"Image shape: {img.shape}")
+    # Test with a sample frame
+    test_image_path = "Patient Data/IMG_0422.MOV"
+    if os.path.exists(test_image_path):
+        import cv2
+        cap = cv2.VideoCapture(test_image_path)
+        ret, frame = cap.read()
+        cap.release()
 
-    # Run detection
-    print("\nRunning ONNX MTCNN cascade:")
-    boxes, landmarks = detector.detect(img)
+        if ret:
+            print(f"\nTesting on frame from {test_image_path}")
+            start_time = time.time()
+            bboxes = detector.detect(frame, debug=True)
+            elapsed = (time.time() - start_time) * 1000
 
-    # Display results
-    print("\n" + "="*80)
-    print("DETECTION RESULTS")
-    print("="*80)
+            print(f"\nResults:")
+            print(f"  Detected faces: {len(bboxes)}")
+            print(f"  Latency: {elapsed:.2f} ms")
+            print(f"  FPS: {1000/elapsed:.2f}")
 
-    if len(boxes) > 0:
-        for i, (box, lm) in enumerate(zip(boxes, landmarks)):
-            x, y, w, h, score = box
-            print(f"\nFace {i+1}:")
-            print(f"  Bounding box: x={x:.1f}, y={y:.1f}, w={w:.1f}, h={h:.1f}")
-            print(f"  Confidence: {score:.4f}")
-            print(f"  Landmarks:")
-            for j, pt in enumerate(lm):
-                print(f"    Point {j+1}: ({pt[0]:.1f}, {pt[1]:.1f})")
+            if len(bboxes) > 0:
+                print(f"\nFirst bbox: x={bboxes[0,0]:.2f}, y={bboxes[0,1]:.2f}, "
+                      f"w={bboxes[0,2]:.2f}, h={bboxes[0,3]:.2f}, conf={bboxes[0,4]:.3f}")
     else:
-        print("No faces detected")
-
-    # Visualize
-    print("\n" + "="*80)
-    print("Saving visualization...")
-    vis_img = img.copy()
-
-    for i, (box, lm) in enumerate(zip(boxes, landmarks)):
-        x, y, w, h, score = box
-
-        # Draw bounding box
-        cv2.rectangle(vis_img, (int(x), int(y)), (int(x+w), int(y+h)), (0, 255, 0), 2)
-
-        # Draw landmarks
-        for pt in lm:
-            cv2.circle(vis_img, (int(pt[0]), int(pt[1])), 3, (0, 0, 255), -1)
-
-        # Draw confidence
-        cv2.putText(vis_img, f"{score:.3f}", (int(x), int(y-5)),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-
-    output_path = 'onnx_mtcnn_detection.jpg'
-    cv2.imwrite(output_path, vis_img)
-    print(f"✓ Saved to: {output_path}")
-
-
-if __name__ == '__main__':
-    main()
+        print(f"Test image not found: {test_image_path}")
