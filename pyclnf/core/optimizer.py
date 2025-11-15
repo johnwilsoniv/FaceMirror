@@ -167,6 +167,16 @@ class NURLMSOptimizer:
                 sim_img_to_ref, sim_ref_to_img, sigma_components, iteration
             )
 
+            # Debug: Print mean-shift vectors for tracked landmarks
+            if self.debug_mode and iteration == 0:
+                print(f"[PY][ITER{iteration}_WS{window_size}] Mean-shift vectors:")
+                for lm_idx in self.tracked_landmarks:
+                    if lm_idx < len(landmarks_2d):
+                        ms_x = mean_shift[2 * lm_idx]
+                        ms_y = mean_shift[2 * lm_idx + 1]
+                        ms_mag = np.sqrt(ms_x**2 + ms_y**2)
+                        print(f"[PY][ITER{iteration}_WS{window_size}]   Landmark_{lm_idx}: ms=({ms_x:.4f}, {ms_y:.4f}) mag={ms_mag:.4f}")
+
             # Debug: Print iteration 0 landmarks
             if self.debug_mode and iteration == 0:
                 print(f"\n[PY][ITER{iteration}_WS{window_size}] Landmark positions:")
@@ -202,6 +212,14 @@ class NURLMSOptimizer:
             # Matches OpenFace LandmarkDetectorModel.cpp:1134 where pdm.Clamp() is called
             # after every parameter update to clamp both rotation and shape parameters.
             params = pdm.clamp_params(params)
+
+            # Debug: Print landmarks after each iteration (matching C++ format)
+            if self.debug_mode:
+                iter_landmarks = pdm.params_to_landmarks_2d(params)
+                print(f"[PY][ITER{iteration + 1}_WS{window_size}] Landmark positions:")
+                for lm_idx in self.tracked_landmarks:
+                    if lm_idx < len(iter_landmarks):
+                        print(f"[PY][ITER{iteration + 1}_WS{window_size}]   Landmark_{lm_idx}: ({iter_landmarks[lm_idx][0]:.4f}, {iter_landmarks[lm_idx][1]:.4f})")
 
             # 10. Check parameter-based convergence (secondary check)
             update_magnitude = np.linalg.norm(delta_p)
@@ -321,6 +339,11 @@ class NURLMSOptimizer:
 
             if response_map is None:
                 continue
+
+            # DEBUG: Save response map for landmark 36 at iteration 0, window_size 11
+            if landmark_idx == 36 and iteration == 0 and window_size == 11:
+                np.save('/tmp/python_response_map_lm36_iter0_ws11.npy', response_map)
+                print(f"[PY][DEBUG] Saved response map for landmark 36 (WS={window_size}): shape={response_map.shape}, min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
 
             # DEBUG: Collect response map statistics and peak location
             resp_values.extend([response_map.min(), response_map.max(), response_map.mean()])
@@ -512,7 +535,11 @@ class NURLMSOptimizer:
         if sim_img_to_ref is not None:
             # WARPING MODE: Mimic OpenFace's exact approach (line 240 in Patch_experts.cpp)
             # Calculate area of interest size
-            patch_dim = max(patch_expert.width, patch_expert.height)
+            # CEN uses width_support/height_support, CCNF uses width/height
+            if hasattr(patch_expert, 'width_support'):
+                patch_dim = max(patch_expert.width_support, patch_expert.height_support)
+            else:
+                patch_dim = max(patch_expert.width, patch_expert.height)
             area_of_interest_width = window_size + patch_dim - 1
             area_of_interest_height = window_size + patch_dim - 1
 
@@ -546,45 +573,85 @@ class NURLMSOptimizer:
             # The landmark is centered at (area_of_interest_width-1)/2
             center_warped = int((area_of_interest_width - 1) / 2)
 
-            start_x = center_warped - half_window
-            start_y = center_warped - half_window
+            # Check if this is CEN (has response() method) or CCNF (has compute_response())
+            if hasattr(patch_expert, 'response') and not hasattr(patch_expert, 'compute_response'):
+                # CEN: Call response() directly on area_of_interest - much faster!
+                # This matches C++ CEN_patch_expert::Response() exactly
+                response_map = patch_expert.response(area_of_interest)
+            else:
+                # CCNF: Nested loop to evaluate each position
+                start_x = center_warped - half_window
+                start_y = center_warped - half_window
 
-            for i in range(window_size):
-                for j in range(window_size):
-                    patch_x = start_x + j
-                    patch_y = start_y + i
+                for i in range(window_size):
+                    for j in range(window_size):
+                        patch_x = start_x + j
+                        patch_y = start_y + i
 
-                    # Extract patch from warped area_of_interest
-                    patch = self._extract_patch(
-                        area_of_interest, patch_x, patch_y,
-                        patch_expert.width, patch_expert.height
-                    )
+                        # Extract patch from warped area_of_interest
+                        patch = self._extract_patch(
+                            area_of_interest, patch_x, patch_y,
+                            patch_expert.width, patch_expert.height
+                        )
 
-                    if patch is not None:
-                        response_map[i, j] = patch_expert.compute_response(patch)
-                    else:
-                        response_map[i, j] = -1e10
+                        if patch is not None:
+                            response_map[i, j] = patch_expert.compute_response(patch)
+                        else:
+                            response_map[i, j] = -1e10
         else:
-            # NO WARPING: Original direct extraction from image
-            start_x = int(center_x) - half_window
-            start_y = int(center_y) - half_window
+            # NO WARPING: Direct extraction from image (not typically used with OpenFace)
+            # Check if this is CEN (has response() method) or CCNF (has compute_response())
+            if hasattr(patch_expert, 'response') and not hasattr(patch_expert, 'compute_response'):
+                # CEN: Extract area_of_interest and call response()
+                # Calculate area size needed
+                if hasattr(patch_expert, 'width_support'):
+                    patch_dim = max(patch_expert.width_support, patch_expert.height_support)
+                else:
+                    patch_dim = max(patch_expert.width, patch_expert.height)
 
-            # Compute response at each position in window
-            for i in range(window_size):
-                for j in range(window_size):
-                    patch_x = start_x + j
-                    patch_y = start_y + i
+                area_width = window_size + patch_dim - 1
+                area_height = window_size + patch_dim - 1
+                half_area = area_width // 2
 
-                    # Extract patch at this position
-                    patch = self._extract_patch(
-                        image, patch_x, patch_y,
-                        patch_expert.width, patch_expert.height
-                    )
+                # Extract area around landmark
+                x1 = int(center_x - half_area)
+                y1 = int(center_y - half_area)
+                x2 = x1 + area_width
+                y2 = y1 + area_height
 
-                    if patch is not None:
-                        response_map[i, j] = patch_expert.compute_response(patch)
-                    else:
-                        response_map[i, j] = -1e10  # Very low response for out-of-bounds
+                # Ensure bounds
+                if x1 >= 0 and y1 >= 0 and x2 <= image.shape[1] and y2 <= image.shape[0]:
+                    area_of_interest = image[y1:y2, x1:x2]
+                    response_map = patch_expert.response(area_of_interest)
+                else:
+                    # Out of bounds - use low response
+                    response_map[:] = -1e10
+            else:
+                # CCNF: Nested loop to evaluate each position
+                start_x = int(center_x) - half_window
+                start_y = int(center_y) - half_window
+
+                # Compute response at each position in window
+                for i in range(window_size):
+                    for j in range(window_size):
+                        patch_x = start_x + j
+                        patch_y = start_y + i
+
+                        # Extract patch at this position
+                        patch = self._extract_patch(
+                            image, patch_x, patch_y,
+                            patch_expert.width, patch_expert.height
+                        )
+
+                        if patch is not None:
+                            response_map[i, j] = patch_expert.compute_response(patch)
+                        else:
+                            response_map[i, j] = -1e10  # Very low response for out-of-bounds
+
+        # DEBUG: Save response map BEFORE sigma for landmark 36
+        if landmark_idx == 36 and iteration == 0 and window_size == 11:
+            np.save('/tmp/python_response_map_lm36_iter0_ws11_BEFORE_SIGMA.npy', response_map)
+            print(f"[PY][DEBUG] Saved BEFORE SIGMA response map for landmark 36 (WS={window_size}): shape={response_map.shape}, min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
 
         # Apply CCNF Sigma transformation for spatial correlation modeling
         # (OpenFace CCNF_patch_expert.cpp lines 400-404)

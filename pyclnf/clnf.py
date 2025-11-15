@@ -34,7 +34,7 @@ import cv2
 from pathlib import Path
 
 from .core.pdm import PDM
-from .core.patch_expert import CCNFModel
+from .core.cen_patch_expert import CENModel
 from .core.optimizer import NURLMSOptimizer
 from .utils.retinaface_correction import RetinaFaceCorrectedDetector
 
@@ -103,8 +103,8 @@ class CLNF:
         pdm_dir = self.model_dir / "exported_pdm"
         self.pdm = PDM(str(pdm_dir))
 
-        # Load CCNF patch experts for ALL scales
-        self.ccnf = CCNFModel(str(self.model_dir), scales=self.patch_scaling)
+        # Load CEN patch experts for ALL scales
+        self.ccnf = CENModel(str(self.model_dir), scales=self.patch_scaling)
 
         # Initialize optimizer with OpenFace parameters
         self.optimizer = NURLMSOptimizer(
