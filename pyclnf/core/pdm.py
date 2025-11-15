@@ -353,6 +353,28 @@ class PDM:
             [-v[1],  v[0],  0]
         ])
 
+    def _apply_mtcnn_bbox_preprocessing(self, bbox: Tuple[float, float, float, float]) -> Tuple[float, float, float, float]:
+        """
+        Apply MTCNN-style bbox preprocessing to match C++ OpenFace initialization.
+
+        NOTE: C++ OpenFace runs MTCNN detection even when a manual bbox is provided.
+        The MTCNN detector outputs a bbox with:
+        1. Square aspect ratio (rectify)
+        2. Landmark-tightening corrections from ONet regression
+
+        For Python to match C++ initialization, we need to apply equivalent preprocessing.
+
+        Args:
+            bbox: Raw bbox [x, y, width, height] from detector
+
+        Returns:
+            bbox: Preprocessed [x, y, width, height]
+        """
+        # For now, return bbox as-is since applying MTCNN corrections
+        # without full MTCNN detection doesn't match C++ behavior
+        # TODO: Either run MTCNN in Python, or accept the small initialization difference
+        return bbox
+
     def init_params(self, bbox: Optional[Tuple[float, float, float, float]] = None) -> np.ndarray:
         """
         Initialize parameter vector from face bounding box or to neutral pose.
@@ -369,6 +391,8 @@ class PDM:
         params = np.zeros(self.n_params)
 
         if bbox is not None:
+            # Apply MTCNN-style preprocessing if needed (currently a no-op)
+            bbox = self._apply_mtcnn_bbox_preprocessing(bbox)
             x, y, width, height = bbox
 
             # OpenFace-style initialization (aspect-ratio aware)

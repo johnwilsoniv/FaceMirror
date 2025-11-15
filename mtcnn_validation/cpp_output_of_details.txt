@@ -1,0 +1,13 @@
+Input:/Users/johnwilsoniv/Documents/SplitFace Open3/calibration_frames/patient1_frame1.jpg
+Input full path:/Users/johnwilsoniv/Documents/SplitFace Open3/calibration_frames/patient1_frame1.jpg
+Camera parameters:1421.88,1421.88,540,960
+Output HOG:cpp_output.hog
+Output video:cpp_output.avi
+Output aligned directory:cpp_output_aligned
+Output csv:cpp_output.csv
+Gaze: 1
+AUs: 1
+Landmarks 2D: 1
+Landmarks 3D: 1
+Pose: 1
+Shape parameters: 1

@@ -50,7 +50,7 @@ class CLNF:
     def __init__(self,
                  model_dir: str = "pyclnf/models",
                  scale: float = 0.25,
-                 regularization: float = 25.0,
+                 regularization: float = 35,  # Match C++ OpenFace default reg_factor=35
                  max_iterations: int = 10,
                  convergence_threshold: float = 0.005,
                  sigma: float = 1.5,
@@ -58,7 +58,9 @@ class CLNF:
                  window_sizes: list = None,
                  detector: str = "retinaface",
                  detector_model_path: Optional[str] = None,
-                 use_coreml: bool = False):
+                 use_coreml: bool = False,
+                 debug_mode: bool = False,
+                 tracked_landmarks: list = None):
         """
         Initialize CLNF model.
 
@@ -85,6 +87,8 @@ class CLNF:
         self.regularization = regularization
         self.sigma = sigma
         self.weight_multiplier = weight_multiplier
+        self.debug_mode = debug_mode
+        self.tracked_landmarks = tracked_landmarks if tracked_landmarks is not None else [36, 48, 30, 8]
         # Changed from [11, 9, 7, 5] to [11, 9, 7] because ws=5 has no sigma components
         self.window_sizes = window_sizes if window_sizes is not None else [11, 9, 7]
 
@@ -108,7 +112,9 @@ class CLNF:
             max_iterations=max_iterations,
             convergence_threshold=convergence_threshold,
             sigma=sigma,
-            weight_multiplier=weight_multiplier  # CRITICAL: Apply weight multiplier
+            weight_multiplier=weight_multiplier,  # CRITICAL: Apply weight multiplier
+            debug_mode=debug_mode,
+            tracked_landmarks=self.tracked_landmarks
         )
 
         # Initialize face detector (PRIMARY: Corrected RetinaFace for ARM Mac optimization)

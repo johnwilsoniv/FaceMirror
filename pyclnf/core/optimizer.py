@@ -41,7 +41,9 @@ class NURLMSOptimizer:
                  max_iterations: int = 10,
                  convergence_threshold: float = 0.01,
                  sigma: float = 1.75,
-                 weight_multiplier: float = 5.0):
+                 weight_multiplier: float = 5.0,
+                 debug_mode: bool = False,
+                 tracked_landmarks: list = None):
         """
         Initialize NU-RLMS optimizer.
 
@@ -53,6 +55,8 @@ class NURLMSOptimizer:
             weight_multiplier: Weight multiplier w for patch confidences
                              (OpenFace uses w=7 for Multi-PIE, w=5 for in-the-wild)
                              Controls how much to trust patch responses vs shape prior
+            debug_mode: Enable detailed debug output (similar to MTCNN debug mode)
+            tracked_landmarks: Landmarks to track in detail when debug_mode=True (default: [36, 48, 30, 8])
         """
         self.regularization = regularization
         self.max_iterations = max_iterations
@@ -60,6 +64,8 @@ class NURLMSOptimizer:
         self.sigma = sigma
         self.weight_multiplier = weight_multiplier
         self.kde_cache = {}  # Cache for precomputed KDE kernels
+        self.debug_mode = debug_mode
+        self.tracked_landmarks = tracked_landmarks if tracked_landmarks is not None else [36, 48, 30, 8]
 
     def optimize(self,
                  pdm,
@@ -109,6 +115,19 @@ class NURLMSOptimizer:
         # Create regularization matrix Λ^(-1)
         Lambda_inv = self._compute_lambda_inv(pdm, n_params)
 
+        # Debug: Print initialization
+        if self.debug_mode:
+            init_landmarks = pdm.params_to_landmarks_2d(params)
+            print(f"\n[PY][INIT] Initial parameters:")
+            print(f"[PY][INIT]   params_local (first 5): {params[:5]}")
+            print(f"[PY][INIT]   scale: {params[0]:.6f}")
+            print(f"[PY][INIT]   rotation: ({params[1]:.6f}, {params[2]:.6f}, {params[3]:.6f})")
+            print(f"[PY][INIT]   translation: ({params[4]:.6f}, {params[5]:.6f})")
+            print(f"[PY][INIT] Initial tracked landmarks:")
+            for lm_idx in self.tracked_landmarks:
+                if lm_idx < len(init_landmarks):
+                    print(f"[PY][INIT]   Landmark_{lm_idx}: ({init_landmarks[lm_idx][0]:.4f}, {init_landmarks[lm_idx][1]:.4f})")
+
         # Optimization loop
         iteration_info = []
         converged = False
@@ -121,6 +140,7 @@ class NURLMSOptimizer:
             # 2. Check shape-based convergence (OpenFace early stopping)
             # OpenFace: if(norm(current_shape, previous_shape) < 0.01) break;
             # (LandmarkDetectorModel.cpp lines 1044-1046)
+            shape_change = None
             if previous_landmarks is not None:
                 shape_change = np.linalg.norm(landmarks_2d - previous_landmarks)
                 if shape_change < 0.01:  # OpenFace threshold
@@ -144,8 +164,15 @@ class NURLMSOptimizer:
             # Patches are evaluated on WARPED images at reference scale
             mean_shift = self._compute_mean_shift(
                 landmarks_2d, patch_experts, image, pdm, window_size,
-                sim_img_to_ref, sim_ref_to_img, sigma_components
+                sim_img_to_ref, sim_ref_to_img, sigma_components, iteration
             )
+
+            # Debug: Print iteration 0 landmarks
+            if self.debug_mode and iteration == 0:
+                print(f"\n[PY][ITER{iteration}_WS{window_size}] Landmark positions:")
+                for lm_idx in self.tracked_landmarks:
+                    if lm_idx < len(landmarks_2d):
+                        print(f"[PY][ITER{iteration}_WS{window_size}]   Landmark_{lm_idx}: ({landmarks_2d[lm_idx][0]:.4f}, {landmarks_2d[lm_idx][1]:.4f})")
 
             # 6. Compute Jacobian at current parameters
             J = pdm.compute_jacobian(params)
@@ -158,7 +185,11 @@ class NURLMSOptimizer:
                 ms_mag = np.linalg.norm(mean_shift)
                 dp_mag = np.linalg.norm(delta_p)
                 w_mean = np.mean(np.diag(W))
-                print(f"Iter {iteration:2d} (ws={window_size}): MS={ms_mag:8.4f} DP={dp_mag:8.4f} W_mean={w_mean:6.4f}")
+                # Print shape change if we have it
+                if shape_change is not None:
+                    print(f"Iter {iteration:2d} (ws={window_size}): MS={ms_mag:8.4f} DP={dp_mag:8.4f} SC={shape_change:8.4f} (thresh=0.01)")
+                else:
+                    print(f"Iter {iteration:2d} (ws={window_size}): MS={ms_mag:8.4f} DP={dp_mag:8.4f}")
 
             # 8. Update parameters using manifold-aware update for rotations
             # CRITICAL: Cannot use naive addition (params = params + delta_p) for rotation parameters!
@@ -228,7 +259,8 @@ class NURLMSOptimizer:
                            window_size: int = 11,
                            sim_img_to_ref: np.ndarray = None,
                            sim_ref_to_img: np.ndarray = None,
-                           sigma_components: dict = None) -> np.ndarray:
+                           sigma_components: dict = None,
+                           iteration: int = None) -> np.ndarray:
         """
         Compute mean-shift vector from patch expert responses using KDE.
 
@@ -283,7 +315,8 @@ class NURLMSOptimizer:
                 image, lm_x, lm_y, patch_expert, window_size,
                 sim_img_to_ref if use_warping else None,
                 sim_ref_to_img if use_warping else None,
-                sigma_components
+                sigma_components,
+                landmark_idx, iteration
             )
 
             if response_map is None:
@@ -450,7 +483,9 @@ class NURLMSOptimizer:
                              window_size: int,
                              sim_img_to_ref: np.ndarray = None,
                              sim_ref_to_img: np.ndarray = None,
-                             sigma_components: dict = None) -> Optional[np.ndarray]:
+                             sigma_components: dict = None,
+                             landmark_idx: int = None,
+                             iteration: int = None) -> Optional[np.ndarray]:
         """
         Compute response map for a landmark in a window around current position.
 
@@ -555,13 +590,37 @@ class NURLMSOptimizer:
         # (OpenFace CCNF_patch_expert.cpp lines 400-404)
         # Use response_map size (window_size × window_size), NOT patch size
         response_window_size = response_map.shape[0]  # Square response map
+
+        # DEBUG: Track Sigma transformation
+        sigma_applied = False
+        peak_before = None
+        peak_after = None
+
         if sigma_components is not None and response_window_size in sigma_components:
             try:
+                # DEBUG: Peak location before Sigma
+                peak_idx_before = np.unravel_index(response_map.argmax(), response_map.shape)
+                center = response_window_size // 2
+                offset_before = (peak_idx_before[1] - center, peak_idx_before[0] - center)
+                peak_before = (peak_idx_before, offset_before, response_map.max())
+
                 # Get sigma components for this response map window size
                 sigma_comps = sigma_components[response_window_size]
 
+                # DEBUG: Enable detailed Sigma computation logging for first landmark on first iteration
+                debug_sigma = (landmark_idx == 36 and iteration == 0 and response_window_size == 11)
+
+                if debug_sigma:
+                    print(f"\n  [Sigma Component Selection Debug]")
+                    print(f"    landmark_idx={landmark_idx}, iteration={iteration}")
+                    print(f"    response_window_size={response_window_size}")
+                    print(f"    Available sigma_components window sizes: {list(sigma_components.keys())}")
+                    print(f"    Selected sigma_comps length: {len(sigma_comps)}")
+                    for i, sc in enumerate(sigma_comps):
+                        print(f"    sigma_comps[{i}].shape = {sc.shape}")
+
                 # Compute Sigma covariance matrix with correct window size
-                Sigma = patch_expert.compute_sigma(sigma_comps, window_size=response_window_size)
+                Sigma = patch_expert.compute_sigma(sigma_comps, window_size=response_window_size, debug=debug_sigma)
 
                 # Apply transformation: response = Sigma @ response.reshape(-1, 1)
                 # This models spatial correlations in the response map
@@ -569,9 +628,31 @@ class NURLMSOptimizer:
                 response_vec = response_map.reshape(-1, 1)
                 response_transformed = Sigma @ response_vec
                 response_map = response_transformed.reshape(response_shape)
+
+                # DEBUG: Peak location after Sigma
+                peak_idx_after = np.unravel_index(response_map.argmax(), response_map.shape)
+                offset_after = (peak_idx_after[1] - center, peak_idx_after[0] - center)
+                peak_after = (peak_idx_after, offset_after, response_map.max())
+
+                sigma_applied = True
             except Exception as e:
                 # If Sigma transformation fails, continue with untransformed response
                 print(f"Warning: Sigma transformation failed: {e}")
+
+        # DEBUG: Print Sigma transformation results (only if significant offset)
+        if peak_before is not None and peak_after is not None:
+            offset_dist_before = np.sqrt(peak_before[1][0]**2 + peak_before[1][1]**2)
+            offset_dist_after = np.sqrt(peak_after[1][0]**2 + peak_after[1][1]**2)
+            if offset_dist_before > 3.0 or offset_dist_after > 3.0:
+                # Check Sigma matrix properties
+                response_range_before = response_map.max() - response_map.min()
+                response_std = response_map.std()
+                print(f"  SIGMA: ws={response_window_size} BEFORE: offset={peak_before[1]} dist={offset_dist_before:.1f}px peak={peak_before[2]:.3f}")
+                print(f"  SIGMA: ws={response_window_size} AFTER:  offset={peak_after[1]} dist={offset_dist_after:.1f}px peak={peak_after[2]:.3f} range={response_range_before:.3f} std={response_std:.3f}")
+        elif sigma_components is None:
+            print(f"  WARNING: sigma_components is None! Sigma transformation skipped.")
+        elif response_window_size not in sigma_components:
+            print(f"  WARNING: window_size={response_window_size} not in sigma_components! Available: {list(sigma_components.keys())}")
 
         # OpenFace CCNF Response normalization (CCNF_patch_expert.cpp lines 406-413)
         # After computing responses, remove negative values by shifting

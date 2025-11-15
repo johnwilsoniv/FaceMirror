@@ -1,0 +1,25 @@
+scikit-learn version 1.6.1 is not supported. Minimum required version: 0.17. Maximum required version: 1.5.1. Disabling scikit-learn conversion API.
+XGBoost version 2.1.4 has not been tested with coremltools. You may run into unexpected errors. XGBoost 1.4.2 is the most recent version that has been tested.
+================================================================================
+MTCNN C++ .dat → CoreML Direct Conversion
+================================================================================
+
+Phase 3: Building from source weights
+Path: C++ binary .dat → PyTorch → CoreML
+
+
+################################################################################
+# Processing PNet
+################################################################################
+
+Loading C++ CNN from /Users/johnwilsoniv/repo/fea_tool/external_libs/openFace/OpenFace/lib/local/LandmarkDetector/model/mtcnn/det1.dat...
+Traceback (most recent call last):
+  File "/Users/johnwilsoniv/Documents/SplitFace Open3/convert_dat_to_coreml.py", line 297, in <module>
+    main()
+  File "/Users/johnwilsoniv/Documents/SplitFace Open3/convert_dat_to_coreml.py", line 243, in main
+    cpp_cnn = CPPCNN(str(config['dat']))
+  File "/Users/johnwilsoniv/Documents/SplitFace Open3/cpp_cnn_loader.py", line 353, in __init__
+    self._load_from_binary(model_path)
+  File "/Users/johnwilsoniv/Documents/SplitFace Open3/cpp_cnn_loader.py", line 501, in _load_from_binary
+    with open(model_path, 'rb') as f:
+FileNotFoundError: [Errno 2] No such file or directory: '/Users/johnwilsoniv/repo/fea_tool/external_libs/openFace/OpenFace/lib/local/LandmarkDetector/model/mtcnn/det1.dat'
