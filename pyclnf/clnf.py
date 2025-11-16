@@ -56,7 +56,7 @@ class CLNF:
                  sigma: float = 1.5,
                  weight_multiplier: float = 0.0,
                  window_sizes: list = None,
-                 detector: str = "retinaface",
+                 detector: str = "pymtcnn",
                  detector_model_path: Optional[str] = None,
                  use_coreml: bool = False,
                  debug_mode: bool = False,
@@ -79,16 +79,17 @@ class CLNF:
                              (OpenFace uses w=7 for Multi-PIE, w=5 for in-the-wild)
             window_sizes: List of window sizes for hierarchical refinement (default: [11, 9, 7])
                          Note: Only window sizes with sigma components are supported ([7, 9, 11, 15])
-            detector: Face detector to use ("retinaface" or None). Default: "retinaface"
+            detector: Face detector to use ("pymtcnn", "retinaface", or None). Default: "pymtcnn"
             detector_model_path: Path to detector model. If None, uses default path
-            use_coreml: Enable CoreML acceleration for RetinaFace (ARM Mac optimization)
+            use_coreml: Enable CoreML acceleration (ARM Mac optimization)
+            debug_mode: Enable debug output for development
+            tracked_landmarks: List of landmark indices to track for debugging
         """
         self.model_dir = Path(model_dir)
         self.regularization = regularization
         self.sigma = sigma
         self.weight_multiplier = weight_multiplier
-        # TEMP: Force debug_mode off for cleaner output
-        self.debug_mode = False  # debug_mode
+        self.debug_mode = debug_mode  # Use parameter value
         self.tracked_landmarks = tracked_landmarks if tracked_landmarks is not None else [36, 48, 30, 8]
         # Match C++ OpenFace default: [11, 9, 7, 5]
         # Note: Window size 5 has no sigma components, will be filtered if sigma is used
@@ -128,19 +129,30 @@ class CLNF:
             tracked_landmarks=self.tracked_landmarks
         )
 
-        # Initialize face detector (PRIMARY: Corrected RetinaFace for ARM Mac optimization)
+        # Initialize face detector (PRIMARY: PyMTCNN with all performance optimizations)
         self.detector = None
-        if detector == "retinaface":
-            # Default model path if not specified
+        if detector == "pymtcnn":
+            # Use PyMTCNN detector (default for production)
+            try:
+                import sys
+                sys.path.insert(0, str(Path(__file__).parent.parent / "pymtcnn"))
+                from pymtcnn import MTCNN
+                self.detector = MTCNN()
+                print("✓ PyMTCNN detector initialized (CoreML/ONNX auto-selection)")
+            except Exception as e:
+                print(f"Warning: Could not initialize PyMTCNN detector: {e}")
+                print("Detector will not be available. Use fit() with manual bbox instead.")
+        elif detector == "retinaface":
+            # Fallback: Corrected RetinaFace for ARM Mac optimization
             if detector_model_path is None:
                 detector_model_path = "S1 Face Mirror/weights/retinaface_mobilenet025_coreml.onnx"
 
-            # Initialize corrected RetinaFace detector
             try:
                 self.detector = RetinaFaceCorrectedDetector(
                     model_path=detector_model_path,
                     use_coreml=use_coreml
                 )
+                print("✓ RetinaFace detector initialized")
             except Exception as e:
                 print(f"Warning: Could not initialize RetinaFace detector: {e}")
                 print("Detector will not be available. Use fit() with manual bbox instead.")
