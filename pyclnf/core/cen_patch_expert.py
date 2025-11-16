@@ -104,6 +104,31 @@ class CENPatchExpert:
 
         return expert
 
+    def compute_sigma(self, sigma_components, window_size=None, debug=False):
+        """
+        Compute Sigma covariance matrix for CEN patch experts.
+
+        For CEN models without betas (quick/video mode), returns identity matrix.
+        This matches OpenFace behavior when sigma is set to 0 for fast processing.
+
+        Args:
+            sigma_components: List of sigma component matrices (unused for CEN)
+            window_size: Response map window size
+            debug: Print debugging information
+
+        Returns:
+            Identity matrix for CEN (no spatial correlation modeling in quick mode)
+        """
+        if window_size is None:
+            window_size = self.width_support
+        matrix_size = window_size * window_size
+
+        if debug:
+            print(f"    [CEN Sigma] Returning identity matrix for quick mode (size={matrix_size}x{matrix_size})")
+
+        # Return identity matrix - no spatial correlation modeling for CEN in quick mode
+        return np.eye(matrix_size, dtype=np.float32)
+
     def response(self, area_of_interest):
         """
         Compute patch expert response map for an image patch.
@@ -191,8 +216,15 @@ class CENModel:
         # Load CEN patch experts
         self.cen_experts = CENPatchExperts(model_base_dir)
 
-        # CEN doesn't use sigma components (only CCNF does)
-        self.sigma_components = {}
+        # Load sigma components for response normalization
+        # (Both CEN and CCNF use sigma components in OpenFace)
+        from ..models.openface_loader import load_sigma_components
+        self.sigma_components = load_sigma_components(str(model_base_dir))
+        if self.sigma_components is not None:
+            print(f"Loaded CEN sigma components for window sizes: {list(self.sigma_components.keys())}")
+        else:
+            print("Warning: No sigma components found for CEN model")
+            self.sigma_components = {}
 
         # Build scale_models dict matching CCNFModel interface:
         # scale_models[scale]['views'][view_idx]['patches'][landmark_idx] -> patch_expert

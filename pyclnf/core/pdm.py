@@ -260,6 +260,25 @@ class PDM:
 
         return J
 
+    def compute_jacobian_rigid(self, params: np.ndarray) -> np.ndarray:
+        """
+        Compute Jacobian matrix for ONLY rigid (global) parameters.
+
+        This is used in the RIGID phase of two-phase optimization where we only
+        update scale, rotation, and translation while keeping shape params at 0.
+
+        Args:
+            params: Parameter vector [s, wx, wy, wz, tx, ty, q0, ..., qm]
+
+        Returns:
+            jacobian: Jacobian matrix, shape (2*n_points, 6) for rigid params only
+        """
+        # Compute full Jacobian
+        J_full = self.compute_jacobian(params)
+
+        # Return only rigid parameter columns (0-5: scale, wx, wy, wz, tx, ty)
+        return J_full[:, :6]
+
     def _euler_to_rotation_matrix(self, euler: np.ndarray) -> np.ndarray:
         """
         Convert Euler angles to rotation matrix.

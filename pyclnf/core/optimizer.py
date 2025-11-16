@@ -128,110 +128,191 @@ class NURLMSOptimizer:
                 if lm_idx < len(init_landmarks):
                     print(f"[PY][INIT]   Landmark_{lm_idx}: ({init_landmarks[lm_idx][0]:.4f}, {init_landmarks[lm_idx][1]:.4f})")
 
-        # Optimization loop
-        iteration_info = []
-        converged = False
-        previous_landmarks = None  # Track previous shape for convergence check
+        # =================================================================
+        # STRUCTURE MATCHING C++ NU_RLMS (lines 1148-1278)
+        # =================================================================
 
-        for iteration in range(self.max_iterations):
-            # 1. Get current landmark positions in IMAGE coordinates
-            landmarks_2d = pdm.params_to_landmarks_2d(params)
+        # 1. Get initial landmark positions in IMAGE coordinates
+        landmarks_2d_initial = pdm.params_to_landmarks_2d(params)
 
-            # 2. Check shape-based convergence (OpenFace early stopping)
-            # OpenFace: if(norm(current_shape, previous_shape) < 0.01) break;
-            # (LandmarkDetectorModel.cpp lines 1044-1046)
-            shape_change = None
+        # 2. Get REFERENCE shape at patch_scaling (canonical pose)
+        reference_shape = pdm.get_reference_shape(patch_scaling, params[6:])
+
+        # 3. Compute similarity transform: IMAGE ↔ REFERENCE
+        from .utils import align_shapes_with_scale, invert_similarity_transform
+        sim_img_to_ref = align_shapes_with_scale(landmarks_2d_initial, reference_shape)
+        sim_ref_to_img = invert_similarity_transform(sim_img_to_ref)
+
+        # 4. PRECOMPUTE response maps ONCE at initial positions (C++ line 798)
+        # These are reused for ALL iterations in both rigid and non-rigid phases!
+        response_maps = self._precompute_response_maps(
+            landmarks_2d_initial, patch_experts, image, window_size,
+            sim_img_to_ref, sim_ref_to_img, sigma_components, iteration=0
+        )
+
+        # Debug: Print initial landmarks
+        if self.debug_mode:
+            print(f"\n[PY][ITER0_WS{window_size}] Initial landmark positions:")
+            for lm_idx in self.tracked_landmarks:
+                if lm_idx < len(landmarks_2d_initial):
+                    print(f"[PY][ITER0_WS{window_size}]   Landmark_{lm_idx}: ({landmarks_2d_initial[lm_idx][0]:.4f}, {landmarks_2d_initial[lm_idx][1]:.4f})")
+
+        # =================================================================
+        # PHASE 1: RIGID optimization with inner convergence loop
+        # Matches OpenFace LandmarkDetectorModel.cpp:844 NU_RLMS(..., rigid=true)
+        # =================================================================
+
+        rigid_params = params.copy()
+        base_landmarks_rigid = landmarks_2d_initial.copy()  # Base for rigid = initial
+        previous_landmarks = None
+        rigid_converged = False
+
+        for rigid_iter in range(self.max_iterations):
+            # Compute current shape from rigid params
+            current_landmarks = pdm.params_to_landmarks_2d(rigid_params)
+
+            # Check convergence: ||current - previous|| < 0.01 (C++ line 1173)
             if previous_landmarks is not None:
-                shape_change = np.linalg.norm(landmarks_2d - previous_landmarks)
-                if shape_change < 0.01:  # OpenFace threshold
-                    converged = True
+                shape_change = np.linalg.norm(current_landmarks - previous_landmarks)
+                if shape_change < 0.01:
+                    rigid_converged = True
                     break
+            previous_landmarks = current_landmarks.copy()
 
-            previous_landmarks = landmarks_2d.copy()
-
-            # 3. Get REFERENCE shape at patch_scaling (canonical pose)
-            # This creates the coordinate system in which patches were trained
-            reference_shape = pdm.get_reference_shape(patch_scaling, params[6:])
-
-            # 4. Compute similarity transform: IMAGE ↔ REFERENCE
-            # This allows us to warp image patches to the coordinate system
-            # where patches were trained (at patch_scaling)
-            from .utils import align_shapes_with_scale, invert_similarity_transform
-            sim_img_to_ref = align_shapes_with_scale(landmarks_2d, reference_shape)
-            sim_ref_to_img = invert_similarity_transform(sim_img_to_ref)
-
-            # 5. Compute mean-shift vector from patch responses
-            # Patches are evaluated on WARPED images at reference scale
+            # Compute mean-shift using PRECOMPUTED response maps and current offsets
             mean_shift = self._compute_mean_shift(
-                landmarks_2d, patch_experts, image, pdm, window_size,
-                sim_img_to_ref, sim_ref_to_img, sigma_components, iteration
+                current_landmarks, base_landmarks_rigid, response_maps, patch_experts,
+                window_size, sim_img_to_ref, sim_ref_to_img, iteration=rigid_iter
             )
 
-            # Debug: Print mean-shift vectors for tracked landmarks
-            if self.debug_mode and iteration == 0:
-                print(f"[PY][ITER{iteration}_WS{window_size}] Mean-shift vectors:")
+            # Debug: Print mean-shift for first iteration
+            if self.debug_mode and rigid_iter == 0:
+                print(f"[PY][ITER0_WS{window_size}] RIGID Mean-shift vectors:")
                 for lm_idx in self.tracked_landmarks:
-                    if lm_idx < len(landmarks_2d):
+                    if lm_idx < len(current_landmarks):
                         ms_x = mean_shift[2 * lm_idx]
                         ms_y = mean_shift[2 * lm_idx + 1]
                         ms_mag = np.sqrt(ms_x**2 + ms_y**2)
-                        print(f"[PY][ITER{iteration}_WS{window_size}]   Landmark_{lm_idx}: ms=({ms_x:.4f}, {ms_y:.4f}) mag={ms_mag:.4f}")
+                        print(f"[PY][ITER0_WS{window_size}]   Landmark_{lm_idx}: ms=({ms_x:.4f}, {ms_y:.4f}) mag={ms_mag:.4f}")
 
-            # Debug: Print iteration 0 landmarks
-            if self.debug_mode and iteration == 0:
-                print(f"\n[PY][ITER{iteration}_WS{window_size}] Landmark positions:")
+            # Compute Jacobian for RIGID parameters only
+            J_rigid = pdm.compute_jacobian_rigid(rigid_params)
+
+            # Solve for rigid parameter update
+            delta_p_rigid = self._solve_rigid_update(J_rigid, mean_shift, W, rigid_iter, window_size)
+
+            # Update ONLY global parameters
+            delta_p_full = np.zeros(len(rigid_params))
+            delta_p_full[:6] = delta_p_rigid
+            rigid_params = pdm.update_params(rigid_params, delta_p_full)
+            rigid_params = pdm.clamp_params(rigid_params)
+
+        # Copy rigid updates to params
+        params[:6] = rigid_params[:6]
+
+        # Debug: Print params after rigid phase
+        if window_size == 11:
+            print(f"\n[DEBUG] RIGID phase completed: {rigid_iter + 1} iterations, converged={rigid_converged}")
+            print(f"[DEBUG]   Final rigid params: scale={params[0]:.6f}, rot=({params[1]:.6f}, {params[2]:.6f}, {params[3]:.6f})")
+        if self.debug_mode:
+            print(f"[PY][RIGID_COMPLETE] Rigid params after {rigid_iter + 1} iterations:")
+            print(f"[PY][RIGID_COMPLETE]   scale: {params[0]:.6f}")
+            print(f"[PY][RIGID_COMPLETE]   rotation: ({params[1]:.6f}, {params[2]:.6f}, {params[3]:.6f})")
+
+        # =================================================================
+        # PHASE 2: NON-RIGID optimization with inner convergence loop
+        # Matches OpenFace LandmarkDetectorModel.cpp:868 NU_RLMS(..., rigid=false)
+        # =================================================================
+
+        # CRITICAL: base_landmarks for non-rigid uses RIGID-UPDATED params!
+        # This makes first iteration offsets ≈ 0 (C++ lines 1197-1201)
+        base_landmarks_nonrigid = pdm.params_to_landmarks_2d(params)
+        previous_landmarks = None
+        nonrigid_converged = False
+        iteration_info = []
+
+        # DEBUG: Print base_landmarks for non-rigid
+        if window_size == 11:
+            print(f"\n[DEBUG] NON-RIGID base landmarks (from rigid-updated params):")
+            for lm_idx in [36, 48]:
+                print(f"[DEBUG]   base_nonrigid[{lm_idx}]: ({base_landmarks_nonrigid[lm_idx][0]:.4f}, {base_landmarks_nonrigid[lm_idx][1]:.4f})")
+            print(f"[DEBUG]   This should be DIFFERENT from initial landmarks!")
+            print(f"[DEBUG]   Initial landmarks:")
+            for lm_idx in [36, 48]:
+                print(f"[DEBUG]   initial[{lm_idx}]: ({landmarks_2d_initial[lm_idx][0]:.4f}, {landmarks_2d_initial[lm_idx][1]:.4f})")
+
+        for nonrigid_iter in range(self.max_iterations):
+            # Compute current shape from params
+            current_landmarks = pdm.params_to_landmarks_2d(params)
+
+            # DEBUG: Print iteration info
+            if window_size == 11 and nonrigid_iter < 2:
+                print(f"\n[DEBUG] NON-RIGID iteration {nonrigid_iter}:")
+                for lm_idx in [36, 48]:
+                    offset_x = current_landmarks[lm_idx][0] - base_landmarks_nonrigid[lm_idx][0]
+                    offset_y = current_landmarks[lm_idx][1] - base_landmarks_nonrigid[lm_idx][1]
+                    print(f"[DEBUG]   Landmark {lm_idx}: current=({current_landmarks[lm_idx][0]:.4f}, {current_landmarks[lm_idx][1]:.4f})")
+                    print(f"[DEBUG]   Landmark {lm_idx}: offset=({offset_x:.4f}, {offset_y:.4f})")
+
+            # Check convergence: ||current - previous|| < 0.01
+            if previous_landmarks is not None:
+                shape_change = np.linalg.norm(current_landmarks - previous_landmarks)
+                if shape_change < 0.01:
+                    nonrigid_converged = True
+                    if window_size == 11:
+                        print(f"[DEBUG] NON-RIGID converged at iteration {nonrigid_iter}: shape_change={shape_change:.6f}")
+                    break
+            previous_landmarks = current_landmarks.copy()
+
+            # Compute mean-shift using PRECOMPUTED response maps and current offsets
+            # Offsets = current - base_nonrigid (where base = rigid-updated params)
+            mean_shift = self._compute_mean_shift(
+                current_landmarks, base_landmarks_nonrigid, response_maps, patch_experts,
+                window_size, sim_img_to_ref, sim_ref_to_img, iteration=nonrigid_iter
+            )
+
+            # Debug: Print mean-shift for first iteration
+            if self.debug_mode and nonrigid_iter == 0:
+                print(f"[PY][ITER0_WS{window_size}] NONRIGID Mean-shift vectors:")
                 for lm_idx in self.tracked_landmarks:
-                    if lm_idx < len(landmarks_2d):
-                        print(f"[PY][ITER{iteration}_WS{window_size}]   Landmark_{lm_idx}: ({landmarks_2d[lm_idx][0]:.4f}, {landmarks_2d[lm_idx][1]:.4f})")
+                    if lm_idx < len(current_landmarks):
+                        ms_x = mean_shift[2 * lm_idx]
+                        ms_y = mean_shift[2 * lm_idx + 1]
+                        ms_mag = np.sqrt(ms_x**2 + ms_y**2)
+                        print(f"[PY][ITER0_WS{window_size}]   Landmark_{lm_idx}: ms=({ms_x:.4f}, {ms_y:.4f}) mag={ms_mag:.4f}")
 
-            # 6. Compute Jacobian at current parameters
+            # Compute full Jacobian (global + local)
             J = pdm.compute_jacobian(params)
 
-            # 7. Solve for parameter update: Δp
-            delta_p = self._solve_update(J, mean_shift, W, Lambda_inv, params)
+            # Solve for full parameter update with regularization
+            delta_p = self._solve_update(J, mean_shift, W, Lambda_inv, params, nonrigid_iter, window_size)
 
-            # DEBUG: Print convergence metrics
-            if iteration < 3 or iteration % 5 == 0:  # Print first 3 iterations, then every 5th
-                ms_mag = np.linalg.norm(mean_shift)
-                dp_mag = np.linalg.norm(delta_p)
-                w_mean = np.mean(np.diag(W))
-                # Print shape change if we have it
-                if shape_change is not None:
-                    print(f"Iter {iteration:2d} (ws={window_size}): MS={ms_mag:8.4f} DP={dp_mag:8.4f} SC={shape_change:8.4f} (thresh=0.01)")
-                else:
-                    print(f"Iter {iteration:2d} (ws={window_size}): MS={ms_mag:8.4f} DP={dp_mag:8.4f}")
-
-            # 8. Update parameters using manifold-aware update for rotations
-            # CRITICAL: Cannot use naive addition (params = params + delta_p) for rotation parameters!
-            # Must compose rotations properly on SO(3) manifold using pdm.update_params()
-            # This matches OpenFace's PDM::UpdateModelParameters (PDM.cpp lines 454-503)
+            # Update ALL parameters
             params = pdm.update_params(params, delta_p)
-
-            # 9. Clamp ALL parameters to valid range
-            # CRITICAL: This prevents rotation divergence!
-            # Matches OpenFace LandmarkDetectorModel.cpp:1134 where pdm.Clamp() is called
-            # after every parameter update to clamp both rotation and shape parameters.
             params = pdm.clamp_params(params)
 
-            # Debug: Print landmarks after each iteration (matching C++ format)
-            if self.debug_mode:
-                iter_landmarks = pdm.params_to_landmarks_2d(params)
-                print(f"[PY][ITER{iteration + 1}_WS{window_size}] Landmark positions:")
-                for lm_idx in self.tracked_landmarks:
-                    if lm_idx < len(iter_landmarks):
-                        print(f"[PY][ITER{iteration + 1}_WS{window_size}]   Landmark_{lm_idx}: ({iter_landmarks[lm_idx][0]:.4f}, {iter_landmarks[lm_idx][1]:.4f})")
-
-            # 10. Check parameter-based convergence (secondary check)
-            update_magnitude = np.linalg.norm(delta_p)
+            # Track iteration info
             iteration_info.append({
-                'iteration': iteration,
-                'update_magnitude': update_magnitude,
+                'iteration': nonrigid_iter,
+                'update_magnitude': np.linalg.norm(delta_p),
                 'params': params.copy()
             })
 
-            if update_magnitude < self.convergence_threshold:
-                converged = True
-                break
+            # Debug: Print landmarks after iteration
+            if self.debug_mode:
+                iter_landmarks = pdm.params_to_landmarks_2d(params)
+                print(f"[PY][ITER{nonrigid_iter + 1}_WS{window_size}] Landmark positions:")
+                for lm_idx in self.tracked_landmarks:
+                    if lm_idx < len(iter_landmarks):
+                        print(f"[PY][ITER{nonrigid_iter + 1}_WS{window_size}]   Landmark_{lm_idx}: ({iter_landmarks[lm_idx][0]:.4f}, {iter_landmarks[lm_idx][1]:.4f})")
+
+        # Determine overall convergence
+        converged = rigid_converged and nonrigid_converged
+
+        # Debug: Print non-rigid phase completion
+        if window_size == 11:
+            print(f"\n[DEBUG] NON-RIGID phase completed: {nonrigid_iter + 1} iterations, converged={nonrigid_converged}")
+            print(f"[DEBUG]   Final params: scale={params[0]:.6f}, local[0]={params[6]:.6f}")
 
         # Return optimized parameters and info
         info = {
@@ -269,66 +350,38 @@ class NURLMSOptimizer:
 
         return Lambda_inv
 
-    def _compute_mean_shift(self,
-                           landmarks_2d: np.ndarray,
-                           patch_experts: dict,
-                           image: np.ndarray,
-                           pdm,
-                           window_size: int = 11,
-                           sim_img_to_ref: np.ndarray = None,
-                           sim_ref_to_img: np.ndarray = None,
-                           sigma_components: dict = None,
-                           iteration: int = None) -> np.ndarray:
+    def _precompute_response_maps(self,
+                                   landmarks_2d: np.ndarray,
+                                   patch_experts: dict,
+                                   image: np.ndarray,
+                                   window_size: int,
+                                   sim_img_to_ref: np.ndarray = None,
+                                   sim_ref_to_img: np.ndarray = None,
+                                   sigma_components: dict = None,
+                                   iteration: int = None) -> dict:
         """
-        Compute mean-shift vector from patch expert responses using KDE.
+        Precompute response maps at initial landmark positions.
 
-        This implements OpenFace's KDE-based mean-shift algorithm with image warping.
-
-        When transforms are provided, patches are evaluated on WARPED image windows
-        that have been transformed to the reference coordinate system. This ensures
-        patches see features at the scale they were trained on:
-        1. Extract response map for each landmark
-        2. Apply Gaussian KDE smoothing
-        3. Compute weighted mean-shift
+        This matches OpenFace's Response() call which computes response maps ONCE
+        before optimization, then reuses them for both rigid and non-rigid phases.
 
         Args:
-            landmarks_2d: Current 2D landmark positions (n_points, 2)
+            landmarks_2d: Initial 2D landmark positions (n_points, 2)
             patch_experts: Dict mapping landmark_idx -> CCNFPatchExpert
             image: Grayscale image
-            pdm: PDM instance
-            window_size: Search window size (OpenFace uses [11, 9, 7, 5])
+            window_size: Response map size
+            sim_img_to_ref: Similarity transform (image → reference)
+            sim_ref_to_img: Similarity transform (reference → image)
 
         Returns:
-            mean_shift: Mean-shift vector, shape (2 * n_points,)
+            response_maps: Dict mapping landmark_idx -> response_map array
         """
-        n_points = landmarks_2d.shape[0]
-        mean_shift = np.zeros(2 * n_points)
-
-        # Precompute KDE kernel for this window size if needed
-        kde_kernel = self._get_kde_kernel(window_size)
-
-        # Gaussian kernel parameter: a = -0.5 / sigma^2
-        # Use self.sigma which has been adjusted by clnf.py based on patch scale
-        # (clnf.py:161: adjusted_sigma = self.sigma + 0.25 * log2(scale_ratio))
-        a = -0.5 / (self.sigma * self.sigma)
-
-        # Check if we should use warping (transforms provided)
+        response_maps = {}
         use_warping = (sim_img_to_ref is not None and sim_ref_to_img is not None)
 
-        # DEBUG: Track response map statistics and peak locations
-        resp_values = []
-        peak_locations = []  # Track peak offsets from center
-
-        # For each landmark with a patch expert
         for landmark_idx, patch_expert in patch_experts.items():
-            if landmark_idx >= n_points:
-                continue
-
-            # Get current landmark position in IMAGE coordinates
             lm_x, lm_y = landmarks_2d[landmark_idx]
 
-            # Compute response map in window around current position
-            # If warping enabled, this will warp the window to reference coordinates
             response_map = self._compute_response_map(
                 image, lm_x, lm_y, patch_expert, window_size,
                 sim_img_to_ref if use_warping else None,
@@ -337,50 +390,121 @@ class NURLMSOptimizer:
                 landmark_idx, iteration
             )
 
-            if response_map is None:
+            if response_map is not None:
+                response_maps[landmark_idx] = response_map
+
+        return response_maps
+
+    def _compute_mean_shift(self,
+                           landmarks_2d: np.ndarray,
+                           base_landmarks_2d: np.ndarray,
+                           response_maps: dict,
+                           patch_experts: dict,
+                           window_size: int = 11,
+                           sim_img_to_ref: np.ndarray = None,
+                           sim_ref_to_img: np.ndarray = None,
+                           iteration: int = None) -> np.ndarray:
+        """
+        Compute mean-shift vector using PRECOMPUTED response maps and offsets.
+
+        This matches OpenFace's NU_RLMS algorithm which:
+        1. Uses response maps computed ONCE at initial positions
+        2. Computes offsets: (current_landmarks - base_landmarks)
+        3. Transforms offsets to reference coords (matching response map coords)
+        4. Uses offsets to index into precomputed response maps
+        5. Applies KDE mean-shift on the indexed responses
+
+        Args:
+            landmarks_2d: Current 2D landmark positions (n_points, 2)
+            base_landmarks_2d: Base landmark positions where response maps were extracted
+            response_maps: Dict of precomputed response maps (from _precompute_response_maps)
+            patch_experts: Dict mapping landmark_idx -> CCNFPatchExpert
+            window_size: Search window size
+            sim_img_to_ref: Similarity transform (image → reference) for transforming offsets
+            sim_ref_to_img: Similarity transform (reference → image) for transforming mean-shifts
+
+        Returns:
+            mean_shift: Mean-shift vector, shape (2 * n_points,)
+        """
+        n_points = landmarks_2d.shape[0]
+        mean_shift = np.zeros(2 * n_points)
+
+        # Gaussian kernel parameter for KDE: a_kde = -0.5 / sigma^2
+        a_kde = -0.5 / (self.sigma * self.sigma)
+
+        # Check if we should use warping (transforms provided)
+        use_warping = (sim_img_to_ref is not None and sim_ref_to_img is not None)
+
+        # Response map size
+        resp_size = window_size
+
+        # For each landmark with a precomputed response map
+        for landmark_idx in response_maps.keys():
+            if landmark_idx >= n_points:
                 continue
 
-            # DEBUG: Save response map for landmark 36 at iteration 0, window_size 11
-            if landmark_idx == 36 and iteration == 0 and window_size == 11:
-                np.save('/tmp/python_response_map_lm36_iter0_ws11.npy', response_map)
-                print(f"[PY][DEBUG] Saved response map for landmark 36 (WS={window_size}): shape={response_map.shape}, min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
+            # Get precomputed response map (extracted at base landmark position)
+            response_map = response_maps[landmark_idx]
 
-            # DEBUG: Collect response map statistics and peak location
-            resp_values.extend([response_map.min(), response_map.max(), response_map.mean()])
-            peak_idx = np.unravel_index(np.argmax(response_map), response_map.shape)
-            peak_y, peak_x = peak_idx  # row, col = y, x
-            peak_value = response_map[peak_y, peak_x]
-            resp_size = response_map.shape[0]
+            # Compute offset from base landmark to current landmark position IN IMAGE COORDS
+            # This matches OpenFace C++ line 1197-1201:
+            #   offsets = (current_shape - base_shape) * sim_img_to_ref
+            curr_lm = landmarks_2d[landmark_idx]
+            base_lm = base_landmarks_2d[landmark_idx]
+            offset_img_x = curr_lm[0] - base_lm[0]
+            offset_img_y = curr_lm[1] - base_lm[1]
+
+            # DEBUG: Print offsets for landmark 36 on first iteration
+            if landmark_idx == 36 and iteration == 0:
+                print(f"[DEBUG] Landmark 36 offset (image coords): ({offset_img_x:.4f}, {offset_img_y:.4f})")
+                print(f"[DEBUG]   curr_lm: ({curr_lm[0]:.4f}, {curr_lm[1]:.4f})")
+                print(f"[DEBUG]   base_lm: ({base_lm[0]:.4f}, {base_lm[1]:.4f})")
+                print(f"[DEBUG]   a_kde (Gaussian param): {a_kde:.6f}")
+
+            # CRITICAL: Response maps are in REFERENCE coordinates (warped patches)
+            # C++ transforms offsets: offsets = (current - base) * sim_img_to_ref
+            if use_warping:
+                # Transform offset vector from image to reference using 2x2 rotation/scale part
+                # sim_img_to_ref format: [[a_sim, -b_sim, tx], [b_sim, a_sim, ty]]
+                # For vector transformation we use: [a_sim -b_sim; b_sim a_sim] (the rotation/scale part)
+                a_sim = sim_img_to_ref[0, 0]
+                b_sim = sim_img_to_ref[1, 0]
+                offset_ref_x = a_sim * offset_img_x + (-b_sim) * offset_img_y
+                offset_ref_y = b_sim * offset_img_x + a_sim * offset_img_y
+
+                # DEBUG: Print transformed offsets
+                if landmark_idx == 36 and iteration == 0:
+                    print(f"[DEBUG] Landmark 36 offset (ref coords): ({offset_ref_x:.4f}, {offset_ref_y:.4f})")
+                    print(f"[DEBUG]   sim_img_to_ref[0,0] (a_sim): {a_sim:.6f}, sim_img_to_ref[1,0] (b_sim): {b_sim:.6f}")
+            else:
+                offset_ref_x = offset_img_x
+                offset_ref_y = offset_img_y
+
+            # Compute position within response map to evaluate
+            # OpenFace C++ line 1203-1204:
+            #   dxs = offsets.col(0) + (resp_size-1)/2
+            #   dys = offsets.col(1) + (resp_size-1)/2
             center = (resp_size - 1) / 2.0
-            # Store peak offset from center (should be near 0 for good convergence)
-            peak_locations.append((landmark_idx, peak_x - center, peak_y - center, peak_value))
 
-            # Current offset within response map
-            # (center of response map corresponds to current landmark position)
-            resp_size = response_map.shape[0]
-            center = (resp_size - 1) / 2.0  # Float for sub-pixel precision, matches OpenFace
-
-            # Compute position within response map
-            # The response map is centered at the current landmark position
-            # For sub-pixel positions, we need the fractional offset
-            dx_frac = lm_x - int(lm_x)
-            dy_frac = lm_y - int(lm_y)
-            dx = dx_frac + center
-            dy = dy_frac + center
+            # For RIGID: offset_ref = 0, so dx/dy = center
+            # For NON-RIGID: offset_ref != 0, tracks how far rigid moved landmarks
+            dx = offset_ref_x + center
+            dy = offset_ref_y + center
 
             # Compute KDE mean-shift using OpenFace's algorithm
             # Result is in REFERENCE coordinates if warping was used
+            # CRITICAL FIX: Pass a_kde (Gaussian param), not a_sim (similarity transform)!
             ms_ref_x, ms_ref_y = self._kde_mean_shift(
-                response_map, dx, dy, a
+                response_map, dx, dy, a_kde, landmark_idx
             )
 
             if use_warping:
                 # Transform mean-shift from REFERENCE back to IMAGE coordinates
-                # Apply 2x2 rotation/scale matrix: [a -b; b a]
+                # Apply 2x2 rotation/scale matrix: [a_sim -b_sim; b_sim a_sim]
                 a_mat = sim_ref_to_img[0, 0]
                 b_mat = sim_ref_to_img[1, 0]
-                ms_x = a_mat * ms_ref_x - b_mat * ms_ref_y  # Fixed: + to -
-                ms_y = b_mat * ms_ref_x + a_mat * ms_ref_y  # Fixed: - to +
+                ms_x = a_mat * ms_ref_x - b_mat * ms_ref_y
+                ms_y = b_mat * ms_ref_x + a_mat * ms_ref_y
             else:
                 ms_x = ms_ref_x
                 ms_y = ms_ref_y
@@ -388,21 +512,25 @@ class NURLMSOptimizer:
             mean_shift[2 * landmark_idx] = ms_x
             mean_shift[2 * landmark_idx + 1] = ms_y
 
-        # DEBUG: Print response map statistics (only print occasionally to avoid spam)
-        import random
-        if resp_values and random.random() < 0.1:  # 10% chance to print
-            resp_vals = np.array(resp_values)
-            print(f"  Response maps: min={resp_vals.min():.6f}, max={resp_vals.max():.6f}, mean={resp_vals.mean():.6f}")
+            # DEBUG: Print mean-shift computation details for landmark 36
+            if landmark_idx == 36 and iteration == 0 and window_size == 11:
+                print(f"\n[DEBUG] Mean-shift computation for landmark 36:")
+                print(f"[DEBUG]   dx={dx:.4f}, dy={dy:.4f} (position in response map)")
+                print(f"[DEBUG]   ms_ref=({ms_ref_x:.4f}, {ms_ref_y:.4f}) (in reference coords)")
+                print(f"[DEBUG]   ms_img=({ms_x:.4f}, {ms_y:.4f}) (in image coords)")
+                print(f"[DEBUG]   Response map stats: min={response_map.min():.6f}, max={response_map.max():.6f}")
 
-            # Print worst 3 peak offsets (landmarks where peak is farthest from center)
-            if peak_locations:
-                peak_offsets = [(lm_idx, np.sqrt(dx**2 + dy**2), dx, dy, val)
-                               for lm_idx, dx, dy, val in peak_locations]
-                peak_offsets.sort(key=lambda x: x[1], reverse=True)
-                print(f"  Worst 3 peak offsets (dist from center):")
-                for i in range(min(3, len(peak_offsets))):
-                    lm_idx, dist, dx, dy, val = peak_offsets[i]
-                    print(f"    Landmark {lm_idx}: offset=({dx:+.1f}, {dy:+.1f}) dist={dist:.1f}px peak_val={val:.6f}")
+        # DEBUG: Print mean_shift vector stats
+        if iteration == 0 and window_size == 11:
+            print(f"\n[DEBUG] Mean-shift vector computed:")
+            print(f"[DEBUG]   Total landmarks: {len(response_maps)}")
+            print(f"[DEBUG]   Mean-shift norm: {np.linalg.norm(mean_shift):.4f}")
+            print(f"[DEBUG]   Mean-shift for landmarks 36, 48:")
+            for lm_idx in [36, 48]:
+                if lm_idx in response_maps:
+                    ms_x = mean_shift[2 * lm_idx]
+                    ms_y = mean_shift[2 * lm_idx + 1]
+                    print(f"[DEBUG]     Landmark {lm_idx}: ({ms_x:.4f}, {ms_y:.4f})")
 
         return mean_shift
 
@@ -443,58 +571,180 @@ class NURLMSOptimizer:
         self.kde_cache[window_size] = kernel
         return kernel
 
+    def _precompute_kde_grid(self, resp_size: int, a: float) -> np.ndarray:
+        """
+        Precompute KDE kernel grid for fast mean-shift calculation.
+
+        Matches OpenFace C++ implementation (line 918-950) which uses
+        0.1 pixel grid spacing for efficiency.
+
+        Args:
+            resp_size: Response map size
+            a: Gaussian kernel parameter (-0.5 / sigma^2)
+
+        Returns:
+            kde_grid: Precomputed KDE weights, shape ((resp_size/0.1)^2, resp_size^2)
+        """
+        step_size = 0.1
+
+        # Number of grid points in each dimension
+        grid_size = int(resp_size / step_size + 0.5)
+
+        # Precompute KDE weights for all grid positions
+        # Each row corresponds to one (dx, dy) grid position
+        # Each row has resp_size*resp_size values (one per response map pixel)
+        kde_grid = np.zeros((grid_size * grid_size, resp_size * resp_size), dtype=np.float32)
+
+        # Iterate over grid positions (matching C++ line 924-929)
+        for x in range(grid_size):
+            dx_grid = x * step_size
+            for y in range(grid_size):
+                dy_grid = y * step_size
+
+                # Compute index for this grid position
+                idx = x * grid_size + y
+
+                # Compute KDE weights for all response map positions
+                # C++ iterates ii then jj (lines 934-945)
+                kde_idx = 0
+                for ii in range(resp_size):
+                    # vx = (dy - ii)^2 matching C++ line 936
+                    vx = (dy_grid - ii) * (dy_grid - ii)
+                    for jj in range(resp_size):
+                        # vy = (dx - jj)^2 matching C++ line 939
+                        vy = (dx_grid - jj) * (dx_grid - jj)
+
+                        # KDE weight at this position (C++ line 942)
+                        kde_grid[idx, kde_idx] = np.exp(a * (vx + vy))
+                        kde_idx += 1
+
+        return kde_grid
+
     def _kde_mean_shift(self,
                        response_map: np.ndarray,
                        dx: float,
                        dy: float,
-                       a: float) -> Tuple[float, float]:
+                       a: float,
+                       landmark_idx: int = -1) -> Tuple[float, float]:
         """
         Compute KDE-based mean-shift for a single landmark.
 
-        Implements OpenFace's NonVectorisedMeanShift_precalc_kde algorithm.
+        Implements OpenFace's NonVectorisedMeanShift_precalc_kde algorithm
+        with precomputed KDE grid for 0.1 pixel spacing.
 
         Args:
             response_map: Patch expert response map (window_size, window_size)
             dx: Current x offset within response map
             dy: Current y offset within response map
             a: Gaussian kernel parameter (-0.5 / sigma^2)
+            landmark_idx: Landmark index for debugging
 
         Returns:
             (ms_x, ms_y): Mean-shift in x and y directions
         """
         resp_size = response_map.shape[0]
+        step_size = 0.1
 
-        # Clamp dx, dy to valid range
-        dx = np.clip(dx, 0, resp_size - 0.1)
-        dy = np.clip(dy, 0, resp_size - 0.1)
+        # Get or create precomputed KDE grid for this response size
+        cache_key = (resp_size, a)
+        if cache_key not in self.kde_cache:
+            self.kde_cache[cache_key] = self._precompute_kde_grid(resp_size, a)
+        kde_grid = self.kde_cache[cache_key]
 
-        # Compute Gaussian kernel centered at (dx, dy)
+        # DEBUG: Print for landmark 36
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+            print(f"\n[PY][MEANSHIFT] Landmark 36 mean-shift computation:")
+            print(f"[PY][MEANSHIFT]   dx (before clamp): {dx}")
+            print(f"[PY][MEANSHIFT]   dy (before clamp): {dy}")
+            print(f"[PY][MEANSHIFT]   resp_size: {resp_size}")
+
+        # Clamp dx, dy to valid range (C++ line 973-980)
+        if dx < 0:
+            dx = 0
+        if dy < 0:
+            dy = 0
+        if dx > resp_size - step_size:
+            dx = resp_size - step_size
+        if dy > resp_size - step_size:
+            dy = resp_size - step_size
+
+        # Round to nearest grid point (C++ line 983-984)
+        # C++ uses int cast which rounds down, +0.5 achieves rounding
+        closest_col = int(dy / step_size + 0.5)
+        closest_row = int(dx / step_size + 0.5)
+
+        # Compute grid index (C++ line 986)
+        grid_size = int(resp_size / step_size + 0.5)
+        idx = closest_row * grid_size + closest_col
+
+        # DEBUG: Print after clamp
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+            print(f"[PY][MEANSHIFT]   dx (after clamp): {dx}")
+            print(f"[PY][MEANSHIFT]   dy (after clamp): {dy}")
+            print(f"[PY][MEANSHIFT]   closest_row: {closest_row}, closest_col: {closest_col}")
+            print(f"[PY][MEANSHIFT]   kde_idx: {idx}")
+            print(f"[PY][MEANSHIFT]   Response map stats:")
+            print(f"[PY][MEANSHIFT]     shape: {response_map.shape}")
+            print(f"[PY][MEANSHIFT]     min: {response_map.min()}")
+            print(f"[PY][MEANSHIFT]     max: {response_map.max()}")
+            print(f"[PY][MEANSHIFT]     mean: {response_map.mean()}")
+
+        # Get precomputed KDE weights for this grid position
+        kde_weights = kde_grid[idx]
+
+        # Compute weighted mean-shift (C++ line 994-1013)
         mx = 0.0
         my = 0.0
         total_weight = 0.0
 
+        # Iterate through response map and KDE weights
+        # C++ uses iterators that advance sequentially through both
+        kde_idx = 0
+
+        # DEBUG: Print center values for landmark 36
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+            center_ii, center_jj = 5, 5  # Center of 11x11 map
+            print(f"[PY][MEANSHIFT]   Response at center (5,5): {response_map[center_ii, center_jj]:.8f}")
+            print(f"[PY][MEANSHIFT]   Response at peak (5,4): {response_map[5, 4]:.8f}")
+            # Save response map for detailed comparison
+            import numpy as np
+            np.save('/tmp/py_response_lm36.npy', response_map)
+
         for ii in range(resp_size):
             for jj in range(resp_size):
-                # Distance from (dx, dy) to (jj, ii)
-                dist_sq = (dy - ii)**2 + (dx - jj)**2
+                # Get response value at this position
+                resp_val = response_map[ii, jj]
 
-                # Gaussian weight
-                kde_weight = np.exp(a * dist_sq)
+                # Get KDE weight (stored sequentially as we iterate ii, jj)
+                kde_weight = kde_weights[kde_idx]
 
-                # Combined weight: KDE weight × patch response
-                weight = kde_weight * response_map[ii, jj]
+                # Combined weight (C++ line 1004)
+                weight = resp_val * kde_weight
 
                 total_weight += weight
                 mx += weight * jj
                 my += weight * ii
 
+                kde_idx += 1
+
+        # Compute mean-shift (C++ line 1015-1016)
         if total_weight > 1e-10:
-            # Mean-shift = weighted mean - current position
             ms_x = (mx / total_weight) - dx
             ms_y = (my / total_weight) - dy
         else:
             ms_x = 0.0
             ms_y = 0.0
+
+        # DEBUG: Print final mean-shift for landmark 36
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+            print(f"[PY][MEANSHIFT]   Accumulation results:")
+            print(f"[PY][MEANSHIFT]     mx: {mx}")
+            print(f"[PY][MEANSHIFT]     my: {my}")
+            print(f"[PY][MEANSHIFT]     total_weight: {total_weight}")
+            print(f"[PY][MEANSHIFT]   Final mean-shift:")
+            print(f"[PY][MEANSHIFT]     ms_x: {ms_x}")
+            print(f"[PY][MEANSHIFT]     ms_y: {ms_y}")
+            self._printed_lm36_meanshift = True
 
         return ms_x, ms_y
 
@@ -573,11 +823,46 @@ class NURLMSOptimizer:
             # The landmark is centered at (area_of_interest_width-1)/2
             center_warped = int((area_of_interest_width - 1) / 2)
 
+            # DEBUG: Save area_of_interest for landmark 36
+            if landmark_idx == 36 and iteration == 0:
+                np.save('/tmp/area_of_interest_lm36.npy', area_of_interest)
+                cv2.imwrite('/tmp/area_of_interest_lm36.png', area_of_interest)
+                print(f"[PY][DEBUG] Saved area_of_interest for landmark 36:")
+                print(f"[PY][DEBUG]   Shape: {area_of_interest.shape}")
+                print(f"[PY][DEBUG]   Stats: min={area_of_interest.min()}, max={area_of_interest.max()}, mean={area_of_interest.mean():.1f}")
+                print(f"[PY][DEBUG]   area_of_interest_width: {area_of_interest_width}")
+                print(f"[PY][DEBUG]   patch_dim: {patch_dim}")
+                print(f"[PY][DEBUG]   window_size: {window_size}")
+                print(f"[PY][DEBUG]   sim_matrix:")
+                print(f"[PY][DEBUG]     {sim_matrix}")
+
             # Check if this is CEN (has response() method) or CCNF (has compute_response())
             if hasattr(patch_expert, 'response') and not hasattr(patch_expert, 'compute_response'):
                 # CEN: Call response() directly on area_of_interest - much faster!
                 # This matches C++ CEN_patch_expert::Response() exactly
+
+                # DEBUG: Check area_of_interest before calling response()
+                if landmark_idx == 36 and iteration == 0:
+                    print(f"[PY][DEBUG] area_of_interest BEFORE response():")
+                    print(f"[PY][DEBUG]   dtype: {area_of_interest.dtype}, shape: {area_of_interest.shape}")
+                    print(f"[PY][DEBUG]   min={area_of_interest.min()}, max={area_of_interest.max()}, mean={area_of_interest.mean():.1f}")
+                    print(f"[PY][DEBUG]   sum={area_of_interest.sum()}")
+                    print(f"[PY][DEBUG] patch_expert info:")
+                    print(f"[PY][DEBUG]   type: {type(patch_expert)}")
+                    print(f"[PY][DEBUG]   width: {patch_expert.width}, height: {patch_expert.height}")
+                    if hasattr(patch_expert, 'width_support'):
+                        print(f"[PY][DEBUG]   width_support: {patch_expert.width_support}, height_support: {patch_expert.height_support}")
+                    # Save a second copy to compare
+                    np.save('/tmp/area_of_interest_lm36_before_response.npy', area_of_interest.copy())
+
                 response_map = patch_expert.response(area_of_interest)
+
+                # DEBUG: Check response_map after calling response()
+                if landmark_idx == 36 and iteration == 0:
+                    print(f"[PY][DEBUG] response_map AFTER response():")
+                    print(f"[PY][DEBUG]   dtype: {response_map.dtype}, shape: {response_map.shape}")
+                    print(f"[PY][DEBUG]   min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
+                    print(f"[PY][DEBUG]   peak: {np.unravel_index(np.argmax(response_map), response_map.shape)} = {response_map.max():.6f}")
             else:
                 # CCNF: Nested loop to evaluate each position
                 start_x = center_warped - half_window
@@ -765,12 +1050,100 @@ class NURLMSOptimizer:
 
         return patch
 
+    def _solve_rigid_update(self,
+                           J_rigid: np.ndarray,
+                           v: np.ndarray,
+                           W: np.ndarray,
+                           iteration: int = -1,
+                           window_size: int = -1) -> np.ndarray:
+        """
+        Solve for RIGID parameter update (scale, rotation, translation only).
+
+        This is Phase 1 of two-phase optimization. Only updates global params
+        while keeping local shape params at 0.
+
+        Solves: Δp_global = (J_rigid^T·W·J_rigid)^(-1) · (J_rigid^T·W·v)
+
+        Args:
+            J_rigid: Jacobian for rigid params only (2n, 6)
+            v: Mean-shift vector (2n,)
+            W: Weight matrix (2n, 2n)
+            iteration: Current iteration number (for debug)
+            window_size: Current window size (for debug)
+
+        Returns:
+            delta_p_rigid: Parameter update for rigid params only (6,)
+        """
+        # Compute Hessian: A = J^T·W·J (no regularization for rigid params)
+        A = J_rigid.T @ W @ J_rigid  # (6, 6)
+
+        # Compute right-hand side: b = J^T·W·v
+        b = J_rigid.T @ W @ v  # (6,)
+
+        # DEBUG: Save parameter update details for first iteration RIGID phase
+        if iteration == 0 and window_size == 11:
+            import os
+            with open('/tmp/python_param_update_iter0.txt', 'a' if os.path.exists('/tmp/python_param_update_iter0.txt') else 'w') as f:
+                f.write(f"=== ITER0_WS11_RIGID ===\n")
+
+                # Print intermediate computation details
+                print(f"\n[DEBUG] RIGID J_w_t_m computation:")
+                print(f"[DEBUG]   mean_shift norm: {np.linalg.norm(v):.4f}")
+                print(f"[DEBUG]   W trace: {np.trace(W):.4f}, mean: {np.mean(np.diag(W)):.4f}")
+                print(f"[DEBUG]   J_rigid shape: {J_rigid.shape}")
+                print(f"[DEBUG]   J_rigid norm: {np.linalg.norm(J_rigid):.4f}")
+
+                # Compute step by step
+                W_v = W @ v
+                print(f"[DEBUG]   W @ v norm: {np.linalg.norm(W_v):.4f}")
+                print(f"[DEBUG]   b = J^T @ W @ v:")
+                for i in range(len(b)):
+                    print(f"[DEBUG]     b[{i}] = {b[i]:.4f}")
+
+                # Save J_w_t_m (which is b in our case)
+                f.write(f"J_w_t_m (size {len(b)}):\n")
+                for i in range(len(b)):
+                    f.write(f"  J_w_t_m[{i}]: {b[i]:.8f}\n")
+
+                # Save Hessian diagonal
+                f.write(f"Hessian diagonal:\n")
+                for i in range(len(A)):
+                    f.write(f"  Hessian[{i},{i}]: {A[i,i]:.8f}\n")
+
+        # Solve linear system: A·Δp = b
+        try:
+            delta_p_rigid = np.linalg.solve(A, b)
+        except np.linalg.LinAlgError:
+            delta_p_rigid = np.linalg.lstsq(A, b, rcond=None)[0]
+
+        # DEBUG: Save param_update after solving
+        if iteration == 0 and window_size == 11:
+            with open('/tmp/python_param_update_iter0.txt', 'a') as f:
+                f.write(f"param_update (size {len(delta_p_rigid)}) BEFORE damping:\n")
+                for i in range(len(delta_p_rigid)):
+                    f.write(f"  param_update[{i}]: {delta_p_rigid[i]:.8f}\n")
+
+        # Apply learning rate damping (OpenFace PDM.cpp line 660)
+        delta_p_rigid = 0.75 * delta_p_rigid
+
+        # DEBUG: Save param_update after damping
+        if iteration == 0 and window_size == 11:
+            with open('/tmp/python_param_update_iter0.txt', 'a') as f:
+                f.write(f"param_update (size {len(delta_p_rigid)}) AFTER damping (0.75):\n")
+                for i in range(len(delta_p_rigid)):
+                    f.write(f"  param_update[{i}]: {delta_p_rigid[i]:.8f}\n")
+                f.write(f"\n")
+
+        return delta_p_rigid
+
     def _solve_update(self,
                      J: np.ndarray,
                      v: np.ndarray,
                      W: np.ndarray,
                      Lambda_inv: np.ndarray,
-                     params: np.ndarray) -> np.ndarray:
+                     params: np.ndarray,
+                     iteration: int = -1,
+                     window_size: int = -1) -> np.ndarray:
         """
         Solve for parameter update using NU-RLMS equation.
 
@@ -782,6 +1155,8 @@ class NURLMSOptimizer:
             W: Weight matrix (2n, 2n)
             Lambda_inv: Inverse regularization matrix (m,)
             params: Current parameters (m,)
+            iteration: Current iteration number (for debug)
+            window_size: Current window size (for debug)
 
         Returns:
             delta_p: Parameter update (m,)
@@ -796,6 +1171,38 @@ class NURLMSOptimizer:
         reg_term = self.regularization * Lambda_inv * params  # (m,)
         b = JtWv - reg_term
 
+        # DEBUG: Save parameter update details for first iteration NON-RIGID phase
+        if iteration == 0 and window_size == 11:
+            import os
+            with open('/tmp/python_param_update_iter0.txt', 'a' if os.path.exists('/tmp/python_param_update_iter0.txt') else 'w') as f:
+                f.write(f"=== ITER0_WS11_NONRIGID ===\n")
+
+                # Save J_w_t_m (which is b in our case)
+                f.write(f"J_w_t_m (size {len(b)}):\n")
+                for i in range(min(20, len(b))):
+                    f.write(f"  J_w_t_m[{i}]: {b[i]:.8f}\n")
+
+                # Save Hessian diagonal (which is A in our case)
+                f.write(f"Hessian diagonal (first 20):\n")
+                for i in range(min(20, len(A))):
+                    f.write(f"  Hessian[{i},{i}]: {A[i,i]:.8f}\n")
+
+                # Will save param_update after solving
+                f.write(f"(param_update will be computed next)\n")
+
+                # Save current params before update
+                f.write(f"current_params BEFORE update:\n")
+                f.write(f"  scale: {params[0]:.8f}\n")
+                f.write(f"  rot_x: {params[1]:.8f}\n")
+                f.write(f"  rot_y: {params[2]:.8f}\n")
+                f.write(f"  rot_z: {params[3]:.8f}\n")
+                f.write(f"  trans_x: {params[4]:.8f}\n")
+                f.write(f"  trans_y: {params[5]:.8f}\n")
+
+                f.write(f"current_local BEFORE update (first 10):\n")
+                for i in range(min(10, len(params) - 6)):
+                    f.write(f"  current_local[{i}]: {params[6+i]:.8f}\n")
+
         # Solve linear system: A·Δp = b
         try:
             delta_p = np.linalg.solve(A, b)
@@ -803,9 +1210,24 @@ class NURLMSOptimizer:
             # If singular, use pseudo-inverse
             delta_p = np.linalg.lstsq(A, b, rcond=None)[0]
 
+        # DEBUG: Save param_update after solving
+        if iteration == 0 and window_size == 11:
+            with open('/tmp/python_param_update_iter0.txt', 'a') as f:
+                f.write(f"param_update (size {len(delta_p)}) BEFORE damping:\n")
+                for i in range(min(20, len(delta_p))):
+                    f.write(f"  param_update[{i}]: {delta_p[i]:.8f}\n")
+
         # Apply learning rate damping (OpenFace PDM.cpp line 660)
         # OpenFace uses 0.75 learning rate to dampen parameter updates
         delta_p = 0.75 * delta_p
+
+        # DEBUG: Save param_update after damping
+        if iteration == 0 and window_size == 11:
+            with open('/tmp/python_param_update_iter0.txt', 'a') as f:
+                f.write(f"param_update (size {len(delta_p)}) AFTER damping (0.75):\n")
+                for i in range(min(20, len(delta_p))):
+                    f.write(f"  param_update[{i}]: {delta_p[i]:.8f}\n")
+                f.write(f"\n")
 
         return delta_p
 

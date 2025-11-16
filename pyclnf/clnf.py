@@ -87,10 +87,13 @@ class CLNF:
         self.regularization = regularization
         self.sigma = sigma
         self.weight_multiplier = weight_multiplier
-        self.debug_mode = debug_mode
+        # TEMP: Force debug_mode off for cleaner output
+        self.debug_mode = False  # debug_mode
         self.tracked_landmarks = tracked_landmarks if tracked_landmarks is not None else [36, 48, 30, 8]
-        # Changed from [11, 9, 7, 5] to [11, 9, 7] because ws=5 has no sigma components
-        self.window_sizes = window_sizes if window_sizes is not None else [11, 9, 7]
+        # Match C++ OpenFace default: [11, 9, 7, 5]
+        # Note: Window size 5 has no sigma components, will be filtered if sigma is used
+        default_windows = [11, 9, 7, 5]
+        self.window_sizes = window_sizes if window_sizes is not None else default_windows
 
         # OpenFace uses multiple patch scales
         self.patch_scaling = [0.25, 0.35, 0.5]
@@ -105,6 +108,14 @@ class CLNF:
 
         # Load CEN patch experts for ALL scales
         self.ccnf = CENModel(str(self.model_dir), scales=self.patch_scaling)
+
+        # Filter window sizes to only those with sigma components
+        if self.ccnf.sigma_components:
+            available_windows = list(self.ccnf.sigma_components.keys())
+            filtered_windows = [ws for ws in self.window_sizes if ws in available_windows]
+            if filtered_windows != self.window_sizes:
+                print(f"Filtering window sizes to those with sigma components: {self.window_sizes} -> {filtered_windows}")
+                self.window_sizes = filtered_windows
 
         # Initialize optimizer with OpenFace parameters
         self.optimizer = NURLMSOptimizer(
@@ -167,6 +178,27 @@ class CLNF:
             params = self.pdm.init_params(face_bbox)
         else:
             params = initial_params.copy()
+
+        # DEBUG: Save initial landmarks and params
+        init_landmarks = self.pdm.params_to_landmarks_2d(params)
+        with open('/tmp/python_init_landmarks_68.txt', 'w') as f:
+            f.write(f"Initial landmarks (ITER0):\n")
+            f.write(f"Number of points (n): {len(init_landmarks)}\n")
+
+            # Print params (Python format: [scale, rot_x, rot_y, rot_z, trans_x, trans_y, local...])
+            f.write(f"params (size {len(params)}):\n")
+            f.write(f"  params[0] (scale): {params[0]:.6f}\n")
+            f.write(f"  params[1] (rot_x): {params[1]:.6f}\n")
+            f.write(f"  params[2] (rot_y): {params[2]:.6f}\n")
+            f.write(f"  params[3] (rot_z): {params[3]:.6f}\n")
+            f.write(f"  params[4] (trans_x): {params[4]:.6f}\n")
+            f.write(f"  params[5] (trans_y): {params[5]:.6f}\n")
+            f.write(f"params_local (first 10):\n")
+            for i in range(min(10, len(params) - 6)):
+                f.write(f"  params_local[{i}]: {params[6+i]:.6f}\n")
+
+            for i, (x, y) in enumerate(init_landmarks):
+                f.write(f"Landmark_{i}: ({x:.6f}, {y:.6f})\n")
 
         # Estimate head pose from bbox for view selection
         # For now, assume frontal view (view 0)
@@ -420,23 +452,21 @@ class CLNF:
         """
         Map window sizes to patch scale indices.
 
-        OpenFace uses coarse-to-fine strategy:
-        - Large windows → coarse patch scale (0.25)
-        - Medium windows → medium patch scale (0.35)
-        - Small windows → fine patch scale (0.5)
+        OpenFace C++ convention: window_sizes array is indexed by scale
+        - window_sizes[0] → scale 0 (0.25)
+        - window_sizes[1] → scale 1 (0.35)
+        - window_sizes[2] → scale 2 (0.5)
+
+        Default: [11, 9, 7, 5] means ws=11 uses scale 0.25, ws=9 uses 0.35, etc.
 
         Returns:
             Dictionary mapping window_size -> scale_index
         """
         mapping = {}
         for i, window_size in enumerate(self.window_sizes):
-            # Coarse-to-fine: first third uses scale 0, second third uses scale 1, final third uses scale 2
-            if i < len(self.window_sizes) // 3:
-                scale_idx = 0  # 0.25
-            elif i < 2 * len(self.window_sizes) // 3:
-                scale_idx = 1  # 0.35
-            else:
-                scale_idx = min(2, len(self.patch_scaling) - 1)  # 0.5
+            # Match C++ convention: array position = scale index
+            # Clamp to available scales
+            scale_idx = min(i, len(self.patch_scaling) - 1)
             mapping[window_size] = scale_idx
         return mapping
 
