@@ -187,12 +187,84 @@ class CENPatchExpert:
         # Flatten to 1D if needed
         layer_output_flat = layer_output.flatten()
 
-        # Reshape in column-major (Fortran) order to match C++ patch ordering
-        # C++ uses column-major ordering: patches are ordered by x then y
-        # So we reshape directly to (response_height, response_width) with order='F'
+        # Reshape in column-major (Fortran) order to match im2col_bias output
+        # im2col_bias generates patches in column-major order (x outer loop, y inner loop)
         response = layer_output_flat.reshape(response_height, response_width, order='F')
 
         return response.astype(np.float32)
+
+
+class MirroredCENPatchExpert:
+    """
+    Wrapper for CEN patch expert that applies horizontal flipping for mirrored landmarks.
+
+    This implements OpenFace's mirroring logic where symmetric landmarks (e.g., left eye)
+    use the same neural network as their mirror (e.g., right eye) but with flipped patches.
+
+    The process is:
+    1. Flip input patch horizontally
+    2. Run through the mirror's neural network
+    3. Flip output response horizontally
+    """
+
+    def __init__(self, mirror_expert: CENPatchExpert):
+        """
+        Create a mirrored patch expert wrapper.
+
+        Args:
+            mirror_expert: The actual CEN expert to use (from the mirror landmark)
+        """
+        self._mirror_expert = mirror_expert
+        self.is_empty = False  # This wrapper is not empty
+
+    @property
+    def width_support(self):
+        return self._mirror_expert.width_support
+
+    @property
+    def height_support(self):
+        return self._mirror_expert.height_support
+
+    @property
+    def width(self):
+        return self._mirror_expert.width
+
+    @property
+    def height(self):
+        return self._mirror_expert.height
+
+    @property
+    def confidence(self):
+        return self._mirror_expert.confidence
+
+    @property
+    def patch_confidence(self):
+        return self._mirror_expert.patch_confidence
+
+    def response(self, area_of_interest):
+        """
+        Compute response with horizontal flipping for mirrored landmarks.
+
+        Args:
+            area_of_interest: Input patch (H, W)
+
+        Returns:
+            response: Response map with flipping applied
+        """
+        # Step 1: Flip input horizontally (cv2.flip with axis=1)
+        flipped_input = cv2.flip(area_of_interest.astype(np.float32), 1)
+
+        # Step 2: Run through mirror expert's neural network
+        flipped_response = self._mirror_expert.response(flipped_input)
+
+        # Step 3: Flip output horizontally
+        response = cv2.flip(flipped_response, 1)
+
+        return response
+
+    def compute_sigma(self, sigma_components, window_size=None, debug=False):
+        """Forward sigma computation to mirror expert."""
+        return self._mirror_expert.compute_sigma(sigma_components, window_size, debug)
 
 
 class CENModel:
@@ -230,6 +302,9 @@ class CENModel:
         # scale_models[scale]['views'][view_idx]['patches'][landmark_idx] -> patch_expert
         self.scale_models = {}
 
+        # Get mirror indices for creating mirrored patch experts
+        mirror_inds = self.cen_experts.mirror_inds
+
         for scale_idx, scale in enumerate(self.cen_experts.patch_scaling):
             if scale not in self.scales:
                 continue
@@ -237,10 +312,29 @@ class CENModel:
             experts_at_scale = self.cen_experts.patch_experts[scale_idx]
 
             # Build patches dict: landmark_idx -> patch_expert
+            # For empty landmarks, create MirroredCENPatchExpert using their mirror's expert
             patches = {}
+            n_empty = 0
+            n_mirrored = 0
+
             for lm_idx, expert in enumerate(experts_at_scale):
-                if not expert.is_empty:  # Only include non-empty patches
+                if not expert.is_empty:
+                    # Normal expert with weights
                     patches[lm_idx] = expert
+                else:
+                    # Empty expert - use mirrored version
+                    n_empty += 1
+                    mirror_idx = mirror_inds[lm_idx]
+                    mirror_expert = experts_at_scale[mirror_idx]
+
+                    if not mirror_expert.is_empty:
+                        # Create mirrored expert wrapper
+                        patches[lm_idx] = MirroredCENPatchExpert(mirror_expert)
+                        n_mirrored += 1
+                    # else: Both empty (shouldn't happen for valid landmarks)
+
+            if n_mirrored > 0:
+                print(f"    Scale {scale}: {n_empty} empty landmarks, {n_mirrored} using mirrored experts")
 
             # Store in CCNFModel-compatible structure (frontal view = 0)
             self.scale_models[scale] = {
@@ -272,6 +366,7 @@ class CENPatchExperts:
 
         # patch_experts[scale][landmark]
         self.patch_experts = []
+        self.mirror_inds = None  # Will store mirror indices (same for all scales)
 
         # Load all scale levels
         print(f"Loading CEN patch experts (410 MB, ~5-10 seconds)...")
@@ -284,8 +379,13 @@ class CENPatchExperts:
                 raise FileNotFoundError(f"CEN model not found: {scale_file}")
 
             print(f"  [{idx+1}/4] Loading scale {scale}...")
-            experts_at_scale = self._load_scale(scale_file)
+            experts_at_scale, mirror_inds = self._load_scale(scale_file)
             self.patch_experts.append(experts_at_scale)
+
+            # Store mirror_inds (same for all scales)
+            if self.mirror_inds is None:
+                self.mirror_inds = mirror_inds.flatten().astype(int)
+
             print(f"      ✓ {len(experts_at_scale)} patch experts loaded")
 
     def _load_scale(self, dat_file):
@@ -347,7 +447,7 @@ class CENPatchExperts:
 
         # Return only frontal view (view 0) for now
         # TODO: Add multi-view support for profile faces
-        return all_experts[0]
+        return all_experts[0], mirror_inds
 
     def response(self, image, landmarks, scale_idx):
         """

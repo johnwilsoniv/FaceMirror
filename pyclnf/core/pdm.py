@@ -690,11 +690,27 @@ class PDM:
 
         R = np.eye(3, dtype=np.float32) + np.sin(theta) * K + (1 - np.cos(theta)) * (K @ K)
 
-        # Extract Euler angles from rotation matrix (XYZ convention)
-        # R = Rx(pitch) * Ry(yaw) * Rz(roll)
-        pitch = np.arctan2(-R[2, 1], R[2, 2])
-        yaw = np.arcsin(np.clip(R[2, 0], -1.0, 1.0))
-        roll = np.arctan2(-R[1, 0], R[0, 0])
+        # Extract Euler angles from rotation matrix using quaternion intermediate
+        # This matches OpenFace's RotationMatrix2Euler (RotationHelpers.h lines 73-89)
+
+        # Convert rotation matrix to quaternion
+        q0 = np.sqrt(1 + R[0, 0] + R[1, 1] + R[2, 2]) / 2.0
+
+        # Handle numerical stability
+        if q0 < 1e-10:
+            q0 = 1e-10
+
+        q1 = (R[2, 1] - R[1, 2]) / (4.0 * q0)
+        q2 = (R[0, 2] - R[2, 0]) / (4.0 * q0)
+        q3 = (R[1, 0] - R[0, 1]) / (4.0 * q0)
+
+        # Convert quaternion to Euler angles (XYZ convention)
+        t1 = 2.0 * (q0 * q2 + q1 * q3)
+        t1 = np.clip(t1, -1.0, 1.0)
+
+        yaw = np.arcsin(t1)
+        pitch = np.arctan2(2.0 * (q0 * q1 - q2 * q3), q0*q0 - q1*q1 - q2*q2 + q3*q3)
+        roll = np.arctan2(2.0 * (q0 * q3 - q1 * q2), q0*q0 + q1*q1 - q2*q2 - q3*q3)
 
         return np.array([pitch, yaw, roll], dtype=np.float32)
 

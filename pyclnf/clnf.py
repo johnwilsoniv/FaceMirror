@@ -50,8 +50,8 @@ class CLNF:
     def __init__(self,
                  model_dir: str = "pyclnf/models",
                  scale: float = 0.25,
-                 regularization: float = 35,  # Match C++ OpenFace default reg_factor=35
-                 max_iterations: int = 10,
+                 regularization: float = 20,  # Optimal for Python (C++ uses 35 but Python needs lower)
+                 max_iterations: int = 10,  # Optimal with damping=0.5 (more iterations diverge)
                  convergence_threshold: float = 0.005,
                  sigma: float = 1.5,
                  weight_multiplier: float = 0.0,
@@ -68,7 +68,7 @@ class CLNF:
             model_dir: Directory containing exported PDM and CCNF models
             scale: DEPRECATED - now loads all scales [0.25, 0.35, 0.5]
             regularization: Shape regularization weight (higher = stricter shape prior)
-                          (OpenFace default: r=25)
+                          Python optimal: 20 (C++ uses 35 but Python needs lower for best accuracy)
             max_iterations: Maximum optimization iterations TOTAL across all window sizes
                           (OpenFace default: 5 per window × 4 windows = 20 total)
             convergence_threshold: Convergence threshold for parameter updates
@@ -96,8 +96,9 @@ class CLNF:
         default_windows = [11, 9, 7, 5]
         self.window_sizes = window_sizes if window_sizes is not None else default_windows
 
-        # OpenFace uses multiple patch scales
-        self.patch_scaling = [0.25, 0.35, 0.5]
+        # OpenFace uses multiple patch scales (coarse to fine)
+        # Each window size maps to a patch scale: 11→0.25, 9→0.35, 7→0.5, 5→1.0
+        self.patch_scaling = [0.25, 0.35, 0.5, 1.0]
 
         # Map window sizes to patch scale indices (coarse-to-fine)
         # Larger windows use coarser scales, smaller windows use finer scales
@@ -110,13 +111,15 @@ class CLNF:
         # Load CEN patch experts for ALL scales
         self.ccnf = CENModel(str(self.model_dir), scales=self.patch_scaling)
 
-        # Filter window sizes to only those with sigma components
+        # NOTE: Previously filtered window sizes to only those with sigma components,
+        # but this removes window size 5 which is needed for the finest scale.
+        # Sigma components are optional (for CCNF spatial correlation), so we keep all window sizes.
+        # The optimizer will skip sigma transformation for window sizes without components.
         if self.ccnf.sigma_components:
             available_windows = list(self.ccnf.sigma_components.keys())
-            filtered_windows = [ws for ws in self.window_sizes if ws in available_windows]
-            if filtered_windows != self.window_sizes:
-                print(f"Filtering window sizes to those with sigma components: {self.window_sizes} -> {filtered_windows}")
-                self.window_sizes = filtered_windows
+            missing_windows = [ws for ws in self.window_sizes if ws not in available_windows]
+            if missing_windows:
+                print(f"Note: No sigma components for window sizes {missing_windows}, using identity transform")
 
         # Initialize optimizer with OpenFace parameters
         self.optimizer = NURLMSOptimizer(
@@ -263,7 +266,9 @@ class CLNF:
 
             # Update optimizer parameters for this scale
             self.optimizer.regularization = adjusted_reg
-            # NOTE: Don't override optimizer.sigma - respect the value set by user or __init__
+            # NOTE: C++ also adjusts sigma per scale but testing shows it doesn't help Python
+            # (increases error from 1.55px to 1.64px - likely due to other implementation differences)
+            # self.optimizer.sigma = self.sigma + 0.25 * np.log(scale_ratio) / np.log(2)
 
             # Run optimization for this window size
             # Using patch experts trained at patch_scale for this window
@@ -354,8 +359,21 @@ class CLNF:
         else:
             image_bgr = image
 
-        # Detect faces with corrected RetinaFace
-        bboxes = self.detector.detect_and_correct(image_bgr)
+        # Detect faces - handle different detector APIs
+        if hasattr(self.detector, 'detect_and_correct'):
+            # RetinaFace corrected detector
+            bboxes = self.detector.detect_and_correct(image_bgr)
+        elif hasattr(self.detector, 'detect'):
+            # MTCNN detector - returns (bboxes, landmarks)
+            result = self.detector.detect(image_bgr)
+            if isinstance(result, tuple):
+                bboxes = result[0]  # (N, 4) array of [x, y, w, h]
+                # Convert numpy array to list of tuples for compatibility
+                bboxes = [tuple(bbox) for bbox in bboxes]
+            else:
+                bboxes = result
+        else:
+            raise ValueError("Detector does not have detect() or detect_and_correct() method")
 
         if len(bboxes) == 0:
             raise ValueError("No faces detected in image")

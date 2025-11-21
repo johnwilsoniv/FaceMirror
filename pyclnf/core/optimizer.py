@@ -211,7 +211,7 @@ class NURLMSOptimizer:
         params[:6] = rigid_params[:6]
 
         # Debug: Print params after rigid phase
-        if window_size == 11:
+        if window_size == 11 and self.debug_mode:
             print(f"\n[DEBUG] RIGID phase completed: {rigid_iter + 1} iterations, converged={rigid_converged}")
             print(f"[DEBUG]   Final rigid params: scale={params[0]:.6f}, rot=({params[1]:.6f}, {params[2]:.6f}, {params[3]:.6f})")
         if self.debug_mode:
@@ -232,7 +232,7 @@ class NURLMSOptimizer:
         iteration_info = []
 
         # DEBUG: Print base_landmarks for non-rigid
-        if window_size == 11:
+        if window_size == 11 and self.debug_mode:
             print(f"\n[DEBUG] NON-RIGID base landmarks (from rigid-updated params):")
             for lm_idx in [36, 48]:
                 print(f"[DEBUG]   base_nonrigid[{lm_idx}]: ({base_landmarks_nonrigid[lm_idx][0]:.4f}, {base_landmarks_nonrigid[lm_idx][1]:.4f})")
@@ -246,7 +246,7 @@ class NURLMSOptimizer:
             current_landmarks = pdm.params_to_landmarks_2d(params)
 
             # DEBUG: Print iteration info
-            if window_size == 11 and nonrigid_iter < 2:
+            if window_size == 11 and nonrigid_iter < 2 and self.debug_mode:
                 print(f"\n[DEBUG] NON-RIGID iteration {nonrigid_iter}:")
                 for lm_idx in [36, 48]:
                     offset_x = current_landmarks[lm_idx][0] - base_landmarks_nonrigid[lm_idx][0]
@@ -259,7 +259,7 @@ class NURLMSOptimizer:
                 shape_change = np.linalg.norm(current_landmarks - previous_landmarks)
                 if shape_change < 0.01:
                     nonrigid_converged = True
-                    if window_size == 11:
+                    if window_size == 11 and self.debug_mode:
                         print(f"[DEBUG] NON-RIGID converged at iteration {nonrigid_iter}: shape_change={shape_change:.6f}")
                     break
             previous_landmarks = current_landmarks.copy()
@@ -310,7 +310,7 @@ class NURLMSOptimizer:
         converged = rigid_converged and nonrigid_converged
 
         # Debug: Print non-rigid phase completion
-        if window_size == 11:
+        if window_size == 11 and self.debug_mode:
             print(f"\n[DEBUG] NON-RIGID phase completed: {nonrigid_iter + 1} iterations, converged={nonrigid_converged}")
             print(f"[DEBUG]   Final params: scale={params[0]:.6f}, local[0]={params[6]:.6f}")
 
@@ -455,7 +455,7 @@ class NURLMSOptimizer:
             offset_img_y = curr_lm[1] - base_lm[1]
 
             # DEBUG: Print offsets for landmark 36 on first iteration
-            if landmark_idx == 36 and iteration == 0:
+            if landmark_idx == 36 and iteration == 0 and self.debug_mode:
                 print(f"[DEBUG] Landmark 36 offset (image coords): ({offset_img_x:.4f}, {offset_img_y:.4f})")
                 print(f"[DEBUG]   curr_lm: ({curr_lm[0]:.4f}, {curr_lm[1]:.4f})")
                 print(f"[DEBUG]   base_lm: ({base_lm[0]:.4f}, {base_lm[1]:.4f})")
@@ -473,7 +473,7 @@ class NURLMSOptimizer:
                 offset_ref_y = b_sim * offset_img_x + a_sim * offset_img_y
 
                 # DEBUG: Print transformed offsets
-                if landmark_idx == 36 and iteration == 0:
+                if landmark_idx == 36 and iteration == 0 and self.debug_mode:
                     print(f"[DEBUG] Landmark 36 offset (ref coords): ({offset_ref_x:.4f}, {offset_ref_y:.4f})")
                     print(f"[DEBUG]   sim_img_to_ref[0,0] (a_sim): {a_sim:.6f}, sim_img_to_ref[1,0] (b_sim): {b_sim:.6f}")
             else:
@@ -513,7 +513,7 @@ class NURLMSOptimizer:
             mean_shift[2 * landmark_idx + 1] = ms_y
 
             # DEBUG: Print mean-shift computation details for landmark 36
-            if landmark_idx == 36 and iteration == 0 and window_size == 11:
+            if landmark_idx == 36 and iteration == 0 and window_size == 11 and self.debug_mode:
                 print(f"\n[DEBUG] Mean-shift computation for landmark 36:")
                 print(f"[DEBUG]   dx={dx:.4f}, dy={dy:.4f} (position in response map)")
                 print(f"[DEBUG]   ms_ref=({ms_ref_x:.4f}, {ms_ref_y:.4f}) (in reference coords)")
@@ -521,7 +521,7 @@ class NURLMSOptimizer:
                 print(f"[DEBUG]   Response map stats: min={response_map.min():.6f}, max={response_map.max():.6f}")
 
         # DEBUG: Print mean_shift vector stats
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             print(f"\n[DEBUG] Mean-shift vector computed:")
             print(f"[DEBUG]   Total landmarks: {len(response_maps)}")
             print(f"[DEBUG]   Mean-shift norm: {np.linalg.norm(mean_shift):.4f}")
@@ -652,7 +652,7 @@ class NURLMSOptimizer:
         kde_grid = self.kde_cache[cache_key]
 
         # DEBUG: Print for landmark 36
-        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
             print(f"\n[PY][MEANSHIFT] Landmark 36 mean-shift computation:")
             print(f"[PY][MEANSHIFT]   dx (before clamp): {dx}")
             print(f"[PY][MEANSHIFT]   dy (before clamp): {dy}")
@@ -678,7 +678,7 @@ class NURLMSOptimizer:
         idx = closest_row * grid_size + closest_col
 
         # DEBUG: Print after clamp
-        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
             print(f"[PY][MEANSHIFT]   dx (after clamp): {dx}")
             print(f"[PY][MEANSHIFT]   dy (after clamp): {dy}")
             print(f"[PY][MEANSHIFT]   closest_row: {closest_row}, closest_col: {closest_col}")
@@ -702,7 +702,7 @@ class NURLMSOptimizer:
         kde_idx = 0
 
         # DEBUG: Print center values for landmark 36
-        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
             center_ii, center_jj = 5, 5  # Center of 11x11 map
             print(f"[PY][MEANSHIFT]   Response at center (5,5): {response_map[center_ii, center_jj]:.8f}")
             print(f"[PY][MEANSHIFT]   Response at peak (5,4): {response_map[5, 4]:.8f}")
@@ -736,7 +736,7 @@ class NURLMSOptimizer:
             ms_y = 0.0
 
         # DEBUG: Print final mean-shift for landmark 36
-        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift'):
+        if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
             print(f"[PY][MEANSHIFT]   Accumulation results:")
             print(f"[PY][MEANSHIFT]     mx: {mx}")
             print(f"[PY][MEANSHIFT]     my: {my}")
@@ -824,7 +824,7 @@ class NURLMSOptimizer:
             center_warped = int((area_of_interest_width - 1) / 2)
 
             # DEBUG: Save area_of_interest for landmark 36
-            if landmark_idx == 36 and iteration == 0:
+            if landmark_idx == 36 and iteration == 0 and self.debug_mode:
                 np.save('/tmp/area_of_interest_lm36.npy', area_of_interest)
                 cv2.imwrite('/tmp/area_of_interest_lm36.png', area_of_interest)
                 print(f"[PY][DEBUG] Saved area_of_interest for landmark 36:")
@@ -842,7 +842,7 @@ class NURLMSOptimizer:
                 # This matches C++ CEN_patch_expert::Response() exactly
 
                 # DEBUG: Check area_of_interest before calling response()
-                if landmark_idx == 36 and iteration == 0:
+                if landmark_idx == 36 and iteration == 0 and self.debug_mode:
                     print(f"[PY][DEBUG] area_of_interest BEFORE response():")
                     print(f"[PY][DEBUG]   dtype: {area_of_interest.dtype}, shape: {area_of_interest.shape}")
                     print(f"[PY][DEBUG]   min={area_of_interest.min()}, max={area_of_interest.max()}, mean={area_of_interest.mean():.1f}")
@@ -858,7 +858,7 @@ class NURLMSOptimizer:
                 response_map = patch_expert.response(area_of_interest)
 
                 # DEBUG: Check response_map after calling response()
-                if landmark_idx == 36 and iteration == 0:
+                if landmark_idx == 36 and iteration == 0 and self.debug_mode:
                     print(f"[PY][DEBUG] response_map AFTER response():")
                     print(f"[PY][DEBUG]   dtype: {response_map.dtype}, shape: {response_map.shape}")
                     print(f"[PY][DEBUG]   min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
@@ -934,7 +934,7 @@ class NURLMSOptimizer:
                             response_map[i, j] = -1e10  # Very low response for out-of-bounds
 
         # DEBUG: Save response map BEFORE sigma for landmark 36
-        if landmark_idx == 36 and iteration == 0 and window_size == 11:
+        if landmark_idx == 36 and iteration == 0 and window_size == 11 and self.debug_mode:
             np.save('/tmp/python_response_map_lm36_iter0_ws11_BEFORE_SIGMA.npy', response_map)
             print(f"[PY][DEBUG] Saved BEFORE SIGMA response map for landmark 36 (WS={window_size}): shape={response_map.shape}, min={response_map.min():.6f}, max={response_map.max():.6f}, mean={response_map.mean():.6f}")
 
@@ -960,7 +960,7 @@ class NURLMSOptimizer:
                 sigma_comps = sigma_components[response_window_size]
 
                 # DEBUG: Enable detailed Sigma computation logging for first landmark on first iteration
-                debug_sigma = (landmark_idx == 36 and iteration == 0 and response_window_size == 11)
+                debug_sigma = (landmark_idx == 36 and iteration == 0 and response_window_size == 11 and self.debug_mode)
 
                 if debug_sigma:
                     print(f"\n  [Sigma Component Selection Debug]")
@@ -992,19 +992,8 @@ class NURLMSOptimizer:
                 print(f"Warning: Sigma transformation failed: {e}")
 
         # DEBUG: Print Sigma transformation results (only if significant offset)
-        if peak_before is not None and peak_after is not None:
-            offset_dist_before = np.sqrt(peak_before[1][0]**2 + peak_before[1][1]**2)
-            offset_dist_after = np.sqrt(peak_after[1][0]**2 + peak_after[1][1]**2)
-            if offset_dist_before > 3.0 or offset_dist_after > 3.0:
-                # Check Sigma matrix properties
-                response_range_before = response_map.max() - response_map.min()
-                response_std = response_map.std()
-                print(f"  SIGMA: ws={response_window_size} BEFORE: offset={peak_before[1]} dist={offset_dist_before:.1f}px peak={peak_before[2]:.3f}")
-                print(f"  SIGMA: ws={response_window_size} AFTER:  offset={peak_after[1]} dist={offset_dist_after:.1f}px peak={peak_after[2]:.3f} range={response_range_before:.3f} std={response_std:.3f}")
-        elif sigma_components is None:
-            print(f"  WARNING: sigma_components is None! Sigma transformation skipped.")
-        elif response_window_size not in sigma_components:
-            print(f"  WARNING: window_size={response_window_size} not in sigma_components! Available: {list(sigma_components.keys())}")
+        # Disabled by default to reduce output
+        pass
 
         # OpenFace CCNF Response normalization (CCNF_patch_expert.cpp lines 406-413)
         # After computing responses, remove negative values by shifting
@@ -1081,7 +1070,7 @@ class NURLMSOptimizer:
         b = J_rigid.T @ W @ v  # (6,)
 
         # DEBUG: Save parameter update details for first iteration RIGID phase
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             import os
             with open('/tmp/python_param_update_iter0.txt', 'a' if os.path.exists('/tmp/python_param_update_iter0.txt') else 'w') as f:
                 f.write(f"=== ITER0_WS11_RIGID ===\n")
@@ -1117,17 +1106,19 @@ class NURLMSOptimizer:
             delta_p_rigid = np.linalg.lstsq(A, b, rcond=None)[0]
 
         # DEBUG: Save param_update after solving
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             with open('/tmp/python_param_update_iter0.txt', 'a') as f:
                 f.write(f"param_update (size {len(delta_p_rigid)}) BEFORE damping:\n")
                 for i in range(len(delta_p_rigid)):
                     f.write(f"  param_update[{i}]: {delta_p_rigid[i]:.8f}\n")
 
-        # Apply learning rate damping (OpenFace PDM.cpp line 660)
-        delta_p_rigid = 0.75 * delta_p_rigid
+        # Apply learning rate damping (OpenFace PDM.cpp line 677)
+        # Python requires 0.5 damping (C++ uses 0.75) - exact cause under investigation
+        # Possibly related to mean-shift computation differences
+        delta_p_rigid = 0.5 * delta_p_rigid
 
         # DEBUG: Save param_update after damping
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             with open('/tmp/python_param_update_iter0.txt', 'a') as f:
                 f.write(f"param_update (size {len(delta_p_rigid)}) AFTER damping (0.75):\n")
                 for i in range(len(delta_p_rigid)):
@@ -1172,7 +1163,7 @@ class NURLMSOptimizer:
         b = JtWv - reg_term
 
         # DEBUG: Save parameter update details for first iteration NON-RIGID phase
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             import os
             with open('/tmp/python_param_update_iter0.txt', 'a' if os.path.exists('/tmp/python_param_update_iter0.txt') else 'w') as f:
                 f.write(f"=== ITER0_WS11_NONRIGID ===\n")
@@ -1211,20 +1202,21 @@ class NURLMSOptimizer:
             delta_p = np.linalg.lstsq(A, b, rcond=None)[0]
 
         # DEBUG: Save param_update after solving
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             with open('/tmp/python_param_update_iter0.txt', 'a') as f:
                 f.write(f"param_update (size {len(delta_p)}) BEFORE damping:\n")
                 for i in range(min(20, len(delta_p))):
                     f.write(f"  param_update[{i}]: {delta_p[i]:.8f}\n")
 
-        # Apply learning rate damping (OpenFace PDM.cpp line 660)
-        # OpenFace uses 0.75 learning rate to dampen parameter updates
-        delta_p = 0.75 * delta_p
+        # Apply learning rate damping (OpenFace PDM.cpp line 677)
+        # Python requires 0.5 damping (C++ uses 0.75) - exact cause under investigation
+        # Possibly related to mean-shift computation differences
+        delta_p = 0.5 * delta_p
 
         # DEBUG: Save param_update after damping
-        if iteration == 0 and window_size == 11:
+        if iteration == 0 and window_size == 11 and self.debug_mode:
             with open('/tmp/python_param_update_iter0.txt', 'a') as f:
-                f.write(f"param_update (size {len(delta_p)}) AFTER damping (0.75):\n")
+                f.write(f"param_update (size {len(delta_p)}) AFTER damping (0.45):\n")
                 for i in range(min(20, len(delta_p))):
                     f.write(f"  param_update[{i}]: {delta_p[i]:.8f}\n")
                 f.write(f"\n")
