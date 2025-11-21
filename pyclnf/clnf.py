@@ -51,8 +51,8 @@ class CLNF:
                  model_dir: str = "pyclnf/models",
                  scale: float = 0.25,
                  regularization: float = 20,  # Optimal for Python (C++ uses 35 but Python needs lower)
-                 max_iterations: int = 10,  # Optimal with damping=0.5 (more iterations diverge)
-                 convergence_threshold: float = 0.005,
+                 max_iterations: int = 5,  # Reduced for faster processing (was 10)
+                 convergence_threshold: float = 0.5,  # Mean per-landmark change threshold (pixels) - increased for faster convergence
                  sigma: float = 1.5,
                  weight_multiplier: float = 0.0,
                  window_sizes: list = None,
@@ -71,8 +71,8 @@ class CLNF:
                           Python optimal: 20 (C++ uses 35 but Python needs lower for best accuracy)
             max_iterations: Maximum optimization iterations TOTAL across all window sizes
                           (OpenFace default: 5 per window × 4 windows = 20 total)
-            convergence_threshold: Convergence threshold for parameter updates
-                          (OpenFace default: 0.01 for shape change)
+            convergence_threshold: Mean per-landmark convergence threshold in pixels
+                          (default: 0.1 pixels mean change for early convergence)
             sigma: Gaussian kernel sigma for KDE mean-shift
                   (OpenFace uses σ=1.5 for Multi-PIE, σ=2.0 for in-the-wild)
             weight_multiplier: Weight multiplier w for patch confidences

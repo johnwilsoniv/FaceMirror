@@ -24,8 +24,68 @@ Where W is a diagonal weight matrix (typically identity for uniform weighting).
 import numpy as np
 from typing import Tuple, Optional
 import cv2
+from numba import jit
 
 from .utils import align_shapes_with_scale, apply_similarity_transform, invert_similarity_transform
+
+
+@jit(nopython=True, cache=True)
+def _kde_mean_shift_numba(response_map: np.ndarray,
+                          dx: float,
+                          dy: float,
+                          a: float,
+                          kde_weights: np.ndarray) -> Tuple[float, float]:
+    """
+    Numba-optimized KDE-based mean-shift computation.
+
+    This is extracted from _kde_mean_shift for JIT compilation.
+
+    Args:
+        response_map: Patch expert response map (window_size, window_size)
+        dx: Current x offset within response map (clamped)
+        dy: Current y offset within response map (clamped)
+        a: Gaussian kernel parameter (-0.5 / sigma^2)
+        kde_weights: Precomputed KDE weights for the grid position
+
+    Returns:
+        (ms_x, ms_y): Mean-shift in x and y directions
+    """
+    resp_size = response_map.shape[0]
+
+    # Compute weighted mean-shift
+    mx = 0.0
+    my = 0.0
+    total_weight = 0.0
+
+    # Iterate through response map and KDE weights
+    kde_idx = 0
+
+    for ii in range(resp_size):
+        for jj in range(resp_size):
+            # Get response value at this position
+            resp_val = response_map[ii, jj]
+
+            # Get KDE weight (stored sequentially as we iterate ii, jj)
+            kde_weight = kde_weights[kde_idx]
+
+            # Combined weight
+            weight = resp_val * kde_weight
+
+            total_weight += weight
+            mx += weight * jj
+            my += weight * ii
+
+            kde_idx += 1
+
+    # Compute mean-shift
+    if total_weight > 1e-10:
+        ms_x = (mx / total_weight) - dx
+        ms_y = (my / total_weight) - dy
+    else:
+        ms_x = 0.0
+        ms_y = 0.0
+
+    return ms_x, ms_y
 
 
 class NURLMSOptimizer:
@@ -171,10 +231,12 @@ class NURLMSOptimizer:
             # Compute current shape from rigid params
             current_landmarks = pdm.params_to_landmarks_2d(rigid_params)
 
-            # Check convergence: ||current - previous|| < 0.01 (C++ line 1173)
+            # Check convergence: ||current - previous|| < threshold
+            # Use mean per-landmark change for more intuitive threshold
             if previous_landmarks is not None:
                 shape_change = np.linalg.norm(current_landmarks - previous_landmarks)
-                if shape_change < 0.01:
+                mean_change = shape_change / np.sqrt(len(current_landmarks))
+                if mean_change < self.convergence_threshold:
                     rigid_converged = True
                     break
             previous_landmarks = current_landmarks.copy()
@@ -254,13 +316,15 @@ class NURLMSOptimizer:
                     print(f"[DEBUG]   Landmark {lm_idx}: current=({current_landmarks[lm_idx][0]:.4f}, {current_landmarks[lm_idx][1]:.4f})")
                     print(f"[DEBUG]   Landmark {lm_idx}: offset=({offset_x:.4f}, {offset_y:.4f})")
 
-            # Check convergence: ||current - previous|| < 0.01
+            # Check convergence: ||current - previous|| < threshold
+            # Use mean per-landmark change for more intuitive threshold
             if previous_landmarks is not None:
                 shape_change = np.linalg.norm(current_landmarks - previous_landmarks)
-                if shape_change < 0.01:
+                mean_change = shape_change / np.sqrt(len(current_landmarks))
+                if mean_change < self.convergence_threshold:
                     nonrigid_converged = True
                     if window_size == 11 and self.debug_mode:
-                        print(f"[DEBUG] NON-RIGID converged at iteration {nonrigid_iter}: shape_change={shape_change:.6f}")
+                        print(f"[DEBUG] NON-RIGID converged at iteration {nonrigid_iter}: mean_change={mean_change:.6f}")
                     break
             previous_landmarks = current_landmarks.copy()
 
@@ -692,15 +756,6 @@ class NURLMSOptimizer:
         # Get precomputed KDE weights for this grid position
         kde_weights = kde_grid[idx]
 
-        # Compute weighted mean-shift (C++ line 994-1013)
-        mx = 0.0
-        my = 0.0
-        total_weight = 0.0
-
-        # Iterate through response map and KDE weights
-        # C++ uses iterators that advance sequentially through both
-        kde_idx = 0
-
         # DEBUG: Print center values for landmark 36
         if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
             center_ii, center_jj = 5, 5  # Center of 11x11 map
@@ -710,37 +765,11 @@ class NURLMSOptimizer:
             import numpy as np
             np.save('/tmp/py_response_lm36.npy', response_map)
 
-        for ii in range(resp_size):
-            for jj in range(resp_size):
-                # Get response value at this position
-                resp_val = response_map[ii, jj]
-
-                # Get KDE weight (stored sequentially as we iterate ii, jj)
-                kde_weight = kde_weights[kde_idx]
-
-                # Combined weight (C++ line 1004)
-                weight = resp_val * kde_weight
-
-                total_weight += weight
-                mx += weight * jj
-                my += weight * ii
-
-                kde_idx += 1
-
-        # Compute mean-shift (C++ line 1015-1016)
-        if total_weight > 1e-10:
-            ms_x = (mx / total_weight) - dx
-            ms_y = (my / total_weight) - dy
-        else:
-            ms_x = 0.0
-            ms_y = 0.0
+        # Use Numba-optimized mean-shift computation
+        ms_x, ms_y = _kde_mean_shift_numba(response_map, dx, dy, a, kde_weights)
 
         # DEBUG: Print final mean-shift for landmark 36
         if landmark_idx == 36 and not hasattr(self, '_printed_lm36_meanshift') and self.debug_mode:
-            print(f"[PY][MEANSHIFT]   Accumulation results:")
-            print(f"[PY][MEANSHIFT]     mx: {mx}")
-            print(f"[PY][MEANSHIFT]     my: {my}")
-            print(f"[PY][MEANSHIFT]     total_weight: {total_weight}")
             print(f"[PY][MEANSHIFT]   Final mean-shift:")
             print(f"[PY][MEANSHIFT]     ms_x: {ms_x}")
             print(f"[PY][MEANSHIFT]     ms_y: {ms_y}")

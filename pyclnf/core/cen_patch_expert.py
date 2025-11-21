@@ -150,6 +150,29 @@ class CENPatchExpert:
             response_width = max(1, area_of_interest.shape[1] - self.width_support + 1)
             return np.zeros((response_height, response_width), dtype=np.float32)
 
+        response_height = area_of_interest.shape[0] - self.height_support + 1
+        response_width = area_of_interest.shape[1] - self.width_support + 1
+
+        # Use Numba-optimized version for 2-layer networks (most common case)
+        if NUMBA_AVAILABLE and len(self.weights) == 2:
+            # Ensure input is contiguous float32
+            input_patch = np.ascontiguousarray(area_of_interest, dtype=np.float32)
+
+            return _response_core_numba(
+                input_patch,
+                self.width_support,
+                self.height_support,
+                self.weights[0],
+                self.biases[0],
+                self.activation_function[0],
+                self.weights[1],
+                self.biases[1],
+                self.activation_function[1],
+                response_height,
+                response_width
+            )
+
+        # Fallback for non-2-layer networks or when Numba unavailable
         # STEP 1: Convert to column format with bias (im2col)
         # Matches C++ im2colBias: extracts all patches
         input_col = im2col_bias(area_of_interest, self.width_support, self.height_support)
@@ -180,9 +203,6 @@ class CENPatchExpert:
             # else: linear (no activation)
 
         # STEP 4: Reshape output to 2D response map
-        response_height = area_of_interest.shape[0] - self.height_support + 1
-        response_width = area_of_interest.shape[1] - self.width_support + 1
-
         # layer_output shape: (num_patches,) where num_patches = response_height * response_width
         # Flatten to 1D if needed
         layer_output_flat = layer_output.flatten()
@@ -585,6 +605,200 @@ def _contrast_norm_numba(input_patch, output):
     return output
 
 
+@njit(fastmath=True, cache=True)
+def _im2col_bias_numba(input_patch, width, height, output):
+    """
+    Numba-optimized im2col with bias column.
+
+    Extracts sliding window patches from input image in column-major order.
+    This is a hot path called 16,320 times - optimized for nopython mode.
+    """
+    m = input_patch.shape[0]
+    n = input_patch.shape[1]
+    y_blocks = m - height + 1
+    x_blocks = n - width + 1
+
+    # Match C++ im2colBias loop structure EXACTLY:
+    # Column-major patch ordering (x outer, y inner)
+    for j in range(x_blocks):  # X positions (columns)
+        for i in range(y_blocks):  # Y positions (rows)
+            row_idx = i + j * y_blocks  # Column-major patch ordering
+
+            # Extract patch at (i, j) position in column-major order
+            # colIdx = xx*height + yy (column-major within patch)
+            col_idx = 1  # Skip bias column
+            for xx in range(width):
+                for yy in range(height):
+                    output[row_idx, col_idx] = input_patch[i + yy, j + xx]
+                    col_idx += 1
+
+    return output
+
+
+@njit(fastmath=True, cache=True)
+def _forward_pass_numba(layer_input, weights_T, bias, activation_type):
+    """
+    Numba-optimized single layer forward pass.
+
+    Computes: output = input @ weights^T + bias, then applies activation.
+
+    Args:
+        layer_input: Input matrix (num_patches, input_dim)
+        weights_T: Transposed weight matrix (input_dim, output_dim)
+        bias: Bias vector (1, output_dim)
+        activation_type: 0=sigmoid, 1=tanh, 2=relu, other=linear
+
+    Returns:
+        Output after activation (num_patches, output_dim)
+    """
+    num_patches = layer_input.shape[0]
+    output_dim = weights_T.shape[1]
+
+    # Allocate output
+    output = np.empty((num_patches, output_dim), dtype=np.float32)
+
+    # Matrix multiplication: output = input @ weights_T + bias
+    for i in range(num_patches):
+        for j in range(output_dim):
+            acc = bias[0, j]  # Start with bias
+            for k in range(layer_input.shape[1]):
+                acc += layer_input[i, k] * weights_T[k, j]
+
+            # Apply activation function
+            if activation_type == 0:
+                # Sigmoid with clamping
+                if acc < -88.0:
+                    acc = -88.0
+                elif acc > 88.0:
+                    acc = 88.0
+                output[i, j] = 1.0 / (1.0 + np.exp(-acc))
+            elif activation_type == 1:
+                # Tanh
+                output[i, j] = np.tanh(acc)
+            elif activation_type == 2:
+                # ReLU
+                output[i, j] = max(0.0, acc)
+            else:
+                # Linear
+                output[i, j] = acc
+
+    return output
+
+
+@njit(fastmath=True, cache=True, parallel=False)
+def _response_core_numba(input_patch, width, height,
+                         w0, b0, a0, w1, b1, a1,
+                         response_height, response_width):
+    """
+    Numba-optimized complete response computation for 2-layer networks.
+
+    Combines im2col, contrast normalization, and neural network forward pass
+    into a single optimized function to minimize memory allocations.
+
+    This is the hottest path - called 16,320 times per frame.
+    """
+    m = input_patch.shape[0]
+    n = input_patch.shape[1]
+    y_blocks = m - height + 1
+    x_blocks = n - width + 1
+    num_windows = y_blocks * x_blocks
+    patch_size = height * width
+
+    # STEP 1 & 2: im2col + contrast normalization combined
+    # Allocate normalized output with bias column
+    normalized = np.ones((num_windows, patch_size + 1), dtype=np.float32)
+
+    for j in range(x_blocks):
+        for i in range(y_blocks):
+            row_idx = i + j * y_blocks
+
+            # Extract patch and compute stats in one pass
+            patch_sum = 0.0
+            col_idx = 1
+
+            # First pass: extract and compute mean
+            for xx in range(width):
+                for yy in range(height):
+                    val = input_patch[i + yy, j + xx]
+                    normalized[row_idx, col_idx] = val
+                    patch_sum += val
+                    col_idx += 1
+
+            mean = patch_sum / patch_size
+
+            # Second pass: compute norm
+            sum_sq = 0.0
+            for k in range(1, patch_size + 1):
+                diff = normalized[row_idx, k] - mean
+                sum_sq += diff * diff
+
+            norm = np.sqrt(sum_sq)
+            if norm < 1e-10:
+                norm = 1.0
+
+            # Third pass: normalize
+            for k in range(1, patch_size + 1):
+                normalized[row_idx, k] = (normalized[row_idx, k] - mean) / norm
+
+    # STEP 3: Forward pass through layers
+    # Layer 0
+    layer0_out_dim = w0.shape[0]
+    layer0_output = np.empty((num_windows, layer0_out_dim), dtype=np.float32)
+
+    for i in range(num_windows):
+        for j in range(layer0_out_dim):
+            acc = b0[0, j]
+            for k in range(patch_size + 1):
+                acc += normalized[i, k] * w0[j, k]
+
+            # Apply activation
+            if a0 == 0:  # Sigmoid
+                if acc < -88.0:
+                    acc = -88.0
+                elif acc > 88.0:
+                    acc = 88.0
+                layer0_output[i, j] = 1.0 / (1.0 + np.exp(-acc))
+            elif a0 == 1:  # Tanh
+                layer0_output[i, j] = np.tanh(acc)
+            elif a0 == 2:  # ReLU
+                layer0_output[i, j] = max(0.0, acc)
+            else:
+                layer0_output[i, j] = acc
+
+    # Layer 1
+    layer1_out_dim = w1.shape[0]
+    layer1_output = np.empty((num_windows, layer1_out_dim), dtype=np.float32)
+
+    for i in range(num_windows):
+        for j in range(layer1_out_dim):
+            acc = b1[0, j]
+            for k in range(layer0_out_dim):
+                acc += layer0_output[i, k] * w1[j, k]
+
+            # Apply activation
+            if a1 == 0:  # Sigmoid
+                if acc < -88.0:
+                    acc = -88.0
+                elif acc > 88.0:
+                    acc = 88.0
+                layer1_output[i, j] = 1.0 / (1.0 + np.exp(-acc))
+            elif a1 == 1:  # Tanh
+                layer1_output[i, j] = np.tanh(acc)
+            elif a1 == 2:  # ReLU
+                layer1_output[i, j] = max(0.0, acc)
+            else:
+                layer1_output[i, j] = acc
+
+    # STEP 4: Reshape to response map (column-major order)
+    response = np.empty((response_height, response_width), dtype=np.float32)
+    for j in range(response_width):
+        for i in range(response_height):
+            flat_idx = i + j * response_height
+            response[i, j] = layer1_output[flat_idx, 0]
+
+    return response
+
+
 def contrast_norm(input_patch):
     """
     Apply row-wise contrast normalization.
@@ -632,6 +846,8 @@ def im2col_bias(input_patch, width, height):
     - Column-major ordering of patches (x outer loop, y inner loop)
     - Column-major ordering within patches (xx*height + yy)
 
+    Uses Numba JIT if available for significant speedup.
+
     Args:
         input_patch: Image patch (m, n) as float32
         width: Sliding window width
@@ -648,6 +864,12 @@ def im2col_bias(input_patch, width, height):
     # Allocate output with bias column
     output = np.ones((num_windows, height * width + 1), dtype=np.float32)
 
+    if NUMBA_AVAILABLE:
+        # Use Numba-optimized version
+        input_contiguous = np.ascontiguousarray(input_patch, dtype=np.float32)
+        return _im2col_bias_numba(input_contiguous, width, height, output)
+
+    # Fallback: NumPy version
     # Match C++ im2colBias loop structure EXACTLY:
     # for (j = 0; j < xB; j++)                     // Outer loop: X
     #   for (i = 0; i < yB; i++)                   // Inner loop: Y

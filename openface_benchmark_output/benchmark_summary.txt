@@ -1,0 +1,14 @@
+OpenFace Benchmark Results
+==========================
+
+Video: Patient Data/Normal Cohort/Shorty.mov
+Total processing time: 17.84 seconds
+Frames processed: 180
+Average FPS: 10.1
+Average time per frame: 99.1 ms
+
+Real-time capability:
+  Video FPS: 30
+  Processing FPS: 10.1
+  Real-time factor: 0.34x
+  ❌ Cannot process in real-time (needs 3.0x speed improvement)
