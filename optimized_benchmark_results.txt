@@ -1,0 +1,163 @@
+scikit-learn version 1.6.1 is not supported. Minimum required version: 0.17. Maximum required version: 1.5.1. Disabling scikit-learn conversion API.
+XGBoost version 2.1.4 has not been tested with coremltools. You may run into unexpected errors. XGBoost 1.4.2 is the most recent version that has been tested.
+================================================================================
+PYTHON AU PIPELINE PROFILER
+================================================================================
+
+Initializing pipeline components...
+Cython rotation update module loaded - targeting 99.9% accuracy
+Numba CalcParams accelerator loaded - targeting 2-5x speedup
+Loading CEN patch experts (410 MB, ~5-10 seconds)...
+  [1/4] Loading scale 0.25...
+      ✓ 68 patch experts loaded
+  [2/4] Loading scale 0.35...
+      ✓ 68 patch experts loaded
+  [3/4] Loading scale 0.5...
+      ✓ 68 patch experts loaded
+  [4/4] Loading scale 1.0...
+      ✓ 68 patch experts loaded
+Loaded CEN sigma components for window sizes: [7, 9, 11, 15]
+    Scale 0.25: 29 empty landmarks, 29 using mirrored experts
+    Scale 0.35: 29 empty landmarks, 29 using mirrored experts
+    Scale 0.5: 29 empty landmarks, 29 using mirrored experts
+    Scale 1.0: 29 empty landmarks, 29 using mirrored experts
+Note: No sigma components for window sizes [5], using identity transform
+✓ PyMTCNN detector initialized (CoreML/ONNX auto-selection)
+Initialization completed in 4.93s
+
+Profiling 30 frames...
+------------------------------------------------------------
+Loading CEN patch experts (410 MB, ~5-10 seconds)...
+  [1/4] Loading scale 0.25...
+      ✓ 68 patch experts loaded
+  [2/4] Loading scale 0.35...
+      ✓ 68 patch experts loaded
+  [3/4] Loading scale 0.5...
+      ✓ 68 patch experts loaded
+  [4/4] Loading scale 1.0...
+      ✓ 68 patch experts loaded
+Loaded CEN sigma components for window sizes: [7, 9, 11, 15]
+    Scale 0.25: 29 empty landmarks, 29 using mirrored experts
+    Scale 0.35: 29 empty landmarks, 29 using mirrored experts
+    Scale 0.5: 29 empty landmarks, 29 using mirrored experts
+    Scale 1.0: 29 empty landmarks, 29 using mirrored experts
+Note: No sigma components for window sizes [5], using identity transform
+Loaded PDM from In-the-wild_aligned_PDM_68.txt
+  Mean shape: (204, 1)
+  Principal components: (204, 34)
+  Eigenvalues: (34,)
+Loading PDM from: pyfaceau/weights/In-the-wild_aligned_PDM_68.txt
+Loaded PDM from In-the-wild_aligned_PDM_68.txt
+  Mean shape: (204, 1)
+  Principal components: (204, 34)
+  Eigenvalues: (34,)
+Face aligner initialized
+  Sim scale: 0.7
+  Output size: (112, 112)
+  Reference shape: (68, 2)
+  Rigid points: 24
+Loaded 111 triangles from pyfaceau/weights/tris_68_full.txt
+Frame   5:  937.3ms (Det:  80.1ms, LM: 467.2ms, AU: 390.0ms)
+Frame  10:  895.4ms (Det:  71.8ms, LM: 418.5ms, AU: 405.1ms)
+Frame  15:  668.6ms (Det:  46.3ms, LM: 258.8ms, AU: 363.5ms)
+Frame  20:  742.3ms (Det:  33.2ms, LM: 288.2ms, AU: 420.8ms)
+Frame  25:  988.4ms (Det:  63.9ms, LM: 337.6ms, AU: 586.9ms)
+Frame  30:  656.2ms (Det:  66.1ms, LM: 297.3ms, AU: 292.8ms)
+
+============================================================
+TIMING ANALYSIS
+============================================================
+
+MTCNN Face Detection:
+  Mean:    53.4ms
+  Std:     11.7ms
+  Min:     28.8ms
+  Max:     80.1ms
+
+CLNF Landmark Fitting:
+  Mean:   444.7ms
+  Std:    545.0ms
+  Min:    213.3ms
+  Max:   3351.2ms
+
+AU Prediction:
+  Mean:   466.8ms
+  Std:    413.5ms
+  Min:    223.0ms
+  Max:   2644.0ms
+
+Total Frame Time:
+  Mean:   964.9ms
+  Std:    953.4ms
+  Min:    647.9ms
+  Max:   6061.4ms
+
+CLNF Convergence:
+  Avg iterations: 5.0
+  Convergence rate: 0.0%
+
+============================================================
+COMPONENT BREAKDOWN
+============================================================
+  Au Prediction       :  466.8ms ( 48.4%)
+  Clnf Fitting        :  444.7ms ( 46.1%)
+  Mtcnn Detection     :   53.4ms (  5.5%)
+
+============================================================
+PERFORMANCE SUMMARY
+============================================================
+  Average FPS: 1.0
+  Average frame time: 964.9ms
+  vs OpenFace C++ (10.1 FPS): 0.10x
+  vs Real-time (30 FPS): 0.03x
+
+============================================================
+TOP 15 TIME-CONSUMING FUNCTIONS
+============================================================
+         3295899 function calls (3209816 primitive calls) in 29.104 seconds
+
+   Ordered by: cumulative time
+   List reduced from 2697 to 15 due to restriction <15>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       60    0.028    0.000   26.523    0.442 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/clnf.py:163(fit)
+      240    0.016    0.000   26.393    0.110 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:130(optimize)
+      240    0.056    0.000   20.250    0.084 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:417(_precompute_response_maps)
+    16320    0.805    0.000   20.194    0.001 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:780(_compute_response_map)
+    16320   17.787    0.001   18.890    0.001 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/cen_patch_expert.py:132(response)
+       30    0.069    0.002   14.004    0.467 /Users/johnwilsoniv/Documents/SplitFace Open3/pyfaceau/pyfaceau/pipeline.py:507(_process_frame)
+     6960    0.066    0.000    7.913    0.001 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/cen_patch_expert.py:264(response)
+      900    0.454    0.001    4.289    0.005 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:462(_compute_mean_shift)
+    61200    0.174    0.000    3.835    0.000 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:687(_kde_mean_shift)
+        8    3.363    0.420    3.364    0.421 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:638(_precompute_kde_grid)
+       31    0.024    0.001    1.641    0.053 /Users/johnwilsoniv/Documents/SplitFace Open3/pymtcnn/pymtcnn/detector.py:155(detect)
+       31    0.255    0.008    1.618    0.052 /Users/johnwilsoniv/Documents/SplitFace Open3/pymtcnn/pymtcnn/backends/coreml_backend.py:199(detect)
+      450    0.920    0.002    1.171    0.003 /Users/johnwilsoniv/Documents/SplitFace Open3/pyclnf/core/optimizer.py:1159(_solve_update)
+      378    0.002    0.000    0.860    0.002 /Users/johnwilsoniv/Library/Python/3.10/lib/python/site-packages/coremltools/models/model.py:723(predict)
+      378    0.823    0.002    0.833    0.002 /Users/johnwilsoniv/Library/Python/3.10/lib/python/site-packages/coremltools/models/model.py:819(_get_predictions)
+
+
+
+
+============================================================
+PRIMARY BOTTLENECK
+============================================================
+
+🔥 Au Prediction: 466.8ms (48.4%)
+
+Optimization strategies:
+  1. Optimize HOG extraction
+  2. Batch AU predictions
+  3. Cache features
+  Expected speedup: 1.5-2x
+
+✅ Results saved to profiling_results.json
+
+================================================================================
+PROFILING COMPLETE
+================================================================================
+
+Next steps:
+1. Implement optimizations for the primary bottleneck
+2. Re-run profiling to measure improvement
+3. Move to next bottleneck
