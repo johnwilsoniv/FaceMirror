@@ -46,3 +46,7 @@ logs/
 *.log
 test_output/
 **/analysis_results/
+
+# Video files
+*.MOV
+*.mov
