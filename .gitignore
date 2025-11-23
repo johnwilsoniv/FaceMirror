@@ -50,3 +50,5 @@ test_output/
 # Video files
 *.MOV
 *.mov
+pymtcnn/
+pyclnf/
