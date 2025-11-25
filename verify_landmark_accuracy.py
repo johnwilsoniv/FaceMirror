@@ -107,12 +107,10 @@ def main():
     from pyclnf.clnf import CLNF
 
     clnf = CLNF(
-        'pyclnf/models',
+        'pyclnf/pyclnf/models',
         regularization=20,
         max_iterations=10,
-        convergence_threshold=0.01,
-        use_eye_refinement=True,
-        min_iterations=5
+        convergence_threshold=0.1
     )
 
     # Process frames

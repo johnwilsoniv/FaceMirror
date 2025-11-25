@@ -1,0 +1,17 @@
+{
+  "iterations": [
+    {
+      "iteration": 0,
+      "cpp_phase": "rigid",
+      "py_phase": "rigid",
+      "cpp_window_size": 11,
+      "py_window_size": 11,
+      "cpp_mean_shift_norm": 176.92,
+      "py_mean_shift_norm": 199.8178554654244,
+      "cpp_update_mag": 17.5869,
+      "py_update_mag": 5.59968489354099,
+      "landmark_error_mean": 20.686475727118104,
+      "landmark_error_max": 36.540496324418406,
+      "param_diff_norm": 5.889696380438099,
+      "scale_diff": -0.3894630946238675,
+      "rotation_diff": 

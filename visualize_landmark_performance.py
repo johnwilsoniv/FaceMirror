@@ -48,9 +48,8 @@ def get_python_landmarks(image: np.ndarray) -> np.ndarray:
     from pyclnf.clnf import CLNF
 
     clnf = CLNF(
-        'pyclnf/models',
-        regularization=40,
-        use_eye_refinement=True
+        'pyclnf/pyclnf/models',
+        regularization=40
     )
 
     result = clnf.detect_and_fit(image)
