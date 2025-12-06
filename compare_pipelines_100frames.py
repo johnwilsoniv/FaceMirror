@@ -95,7 +95,7 @@ def run_python_pipeline(video_path: str, max_frames: int = 100) -> tuple:
         patch_expert_file="pyfaceau/weights/svr_patches_0.25_general.txt",
         mtcnn_backend='auto',  # Uses PyMTCNN (CoreML on Apple Silicon)
         use_calc_params=True,
-        track_faces=True,
+        track_faces=False,
         verbose=False  # Suppress per-frame output
     )
 
@@ -178,7 +178,7 @@ def main():
     print()
 
     # Video path
-    video_path = "Patient Data/Normal Cohort/IMG_0942.MOV"
+    video_path = "S Data/Normal Cohort/IMG_0942.MOV"
     max_frames = 100
 
     if not Path(video_path).exists():
