@@ -284,7 +284,7 @@ Critical fixes applied to match C++ OpenFace 2.2 behavior:
 | **#2 Precision** | `optimizer.py:732` | Use `float64` for sim_matrix | ✅ Applied |
 | **#3 Temporal Tracking** | `clnf.py:799` | Lower correlation threshold 0.5→0.2 | ✅ Applied |
 | **#4 Sigma Values** | N/A | Already loaded from model per-window-size | ✅ Verified |
-| **#5 Regularization** | `optimizer.py:175-179` | reg=25.0, sigma=1.5, weight=0.0 | ✅ Applied |
+| **#5 Regularization** | `clnf.py:57` | reg=22.5, sigma=2.25, weight=0.0 (C++ CECLM) | ✅ Applied |
 | **#6 PDM Epsilon** | `pdm.py:776` | Removed `+ 1e-10` from regularization | ✅ Applied |
 | **PDM Model** | `pyclnf/models/exported_pdm/` | 30-mode model exported from C++ | ✅ Applied |
 
