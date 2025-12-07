@@ -1714,3 +1714,56 @@ Disabling sigma transform entirely:
 - But C++ also applies sigma, so this doesn't fix the root cause
 
 The issue is that Python and C++ sigma transforms produce DIFFERENT results from the SAME input.
+
+---
+
+### 2024-12-06: Correction - CEN Uses Identity Sigma, Issue is Elsewhere
+
+#### Correction: CEN Patch Expert Returns Identity Matrix
+
+Upon re-verification:
+- `CENPatchExpert.compute_sigma()` returns **identity matrix** (no sigma transform)
+- The old debug files (`/tmp/py_response_lm36.npy`) were from a different run
+- Fresh response maps confirm sigma transform has NO effect for CEN
+
+```python
+# Verification
+Sigma = expert_36.compute_sigma(sigma_comps, window_size=11)
+# Is identity: True
+# Max off-diagonal: 0.000000
+```
+
+#### The Real Issue: Response Map Magnitude Difference
+
+Comparing fresh vs old response maps for LM36:
+
+| File | Max Value | Sum |
+|------|-----------|-----|
+| OLD (used in comparison) | 0.82 | 6.47 |
+| FRESH (just generated) | 0.009 | 0.93 |
+
+The OLD file shows 100x higher values with clear peak structure, while FRESH shows nearly uniform low values.
+
+**Root Cause:** The OLD file was generated WITH image warping to reference coordinates (using `sim_img_to_ref` transform), while my fresh test extracted patches directly from raw image coordinates.
+
+#### Image Warping is Critical
+
+The optimizer's `_compute_response_map()` has two paths:
+1. **WITH warping** (`sim_img_to_ref is not None`): Warps image to reference coordinates before patch extraction
+2. **WITHOUT warping**: Extracts patches directly from image
+
+C++ OpenFace ALWAYS uses warping when `patch_scaling` is provided. Python should do the same.
+
+The warping ensures:
+- Patches see features at the scale they were trained on
+- Response maps have strong peaks (max=0.82 instead of 0.009)
+- Mean-shift vectors are computed from meaningful gradients
+
+#### Investigation Status
+
+The 5.6% difference in response maps observed earlier is likely due to:
+1. Image warping transform precision (float32 vs float64)
+2. cv2.warpAffine interpolation differences
+3. Transform matrix construction differences
+
+Next step: Compare `sim_img_to_ref` transform construction between Python and C++.
