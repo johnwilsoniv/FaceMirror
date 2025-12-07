@@ -8,13 +8,14 @@
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Landmark Mean Error (vs C++)** | **0.951 px** | ✅ SUB-PIXEL |
+| **Landmark Mean Error (vs C++)** | **1.34 px** → **2.24 px** | ⚠️ NEEDS IMPROVEMENT |
 | Overall AU Correlation (Python Pipeline) | **~69%** | IMPROVED |
 | Upper Face AU Correlation | **99%** | EXCELLENT |
 | Lower Face AU Correlation | **55-70%** | NEEDS WORK |
 | **HOG Feature Correlation (same image)** | **100%** | **VERIFIED CORRECT** |
 | **Aligned Face Pixel Correlation (face region)** | **99%** | **VERIFIED CORRECT** |
 | **Target** | **92%** | |
+| **pyMTCNN Accuracy (vs C++ OpenFace)** | **< 0.001 px** | ✅ EXACT MATCH |
 
 ## All 4 Fixes Applied (2024-12-05)
 
@@ -1419,3 +1420,297 @@ The Python implementation appears to be **correct** but produces asymmetric resu
 1. Comparing intermediate optimization values (params_local) between Python and C++
 2. Checking if C++ OpenFace produces the same left/right asymmetry pattern
 3. Comparing regularization matrix application during Jacobian computation
+
+---
+
+### 2024-12-06: pyMTCNN Exact Match Achieved + pyCLNF Cleanup
+
+#### pyMTCNN: Production Ready with Exact C++ Match
+
+**Achievement:** pyMTCNN now achieves **< 0.001 px error** vs C++ OpenFace MTCNN implementation.
+
+**Key Changes:**
+1. Refactored backends (CoreML: 693→130 lines, ONNX: 514→169 lines)
+2. Fixed model paths and output key discovery
+3. Bbox format verified: [x, y, width, height] not [x1, y1, x2, y2]
+
+**Test Results (test_face_clean.png):**
+```
+Bbox error: 0.0002 px
+Landmark error: 0.0003 px
+```
+
+Both bounding boxes and 5-point landmarks match C++ implementation exactly.
+
+#### pyCLNF: MTCNN Bbox Correction Applied
+
+**Critical Discovery:** C++ OpenFace applies a bbox correction AFTER MTCNN detection:
+```cpp
+// From FaceDetectorMTCNN.cpp lines 1496-1499
+x = w * -0.0075 + x;
+y = h * 0.2459 + y;  // ~157px y-offset for typical face
+w = 1.0323 * w;
+h = 0.7751 * h;      // ~144px height reduction
+```
+
+**Implementation:** Added `_apply_mtcnn_bbox_preprocessing()` to `pdm.py`:
+```python
+def _apply_mtcnn_bbox_preprocessing(self, bbox):
+    x, y, w, h = bbox
+    corrected_x = w * -0.0075 + x
+    corrected_y = h * 0.2459 + y
+    corrected_w = 1.0323 * w
+    corrected_h = 0.7751 * h
+    return (corrected_x, corrected_y, corrected_w, corrected_h)
+```
+
+**Result:** Landmark error improved from **61.94 px → 1.34 px** (46x improvement!)
+
+#### pyCLNF: Multi-Hypothesis Rotation Testing Implemented
+
+Added `fit_multi_hypothesis()` method matching C++ `DetectLandmarksInImageMultiHypBasic`:
+
+**11 rotation hypotheses tested:**
+```python
+rotation_hypotheses = [
+    (0, 0, 0),           # frontal
+    (0, -0.5236, 0),     # yaw -30°
+    (0, 0.5236, 0),      # yaw +30°
+    (0, -0.96, 0),       # yaw -55°
+    (0, 0.96, 0),        # yaw +55°
+    (0, 0, 0.5236),      # roll +30°
+    (0, 0, -0.5236),     # roll -30°
+    (0, -1.57, 0),       # yaw -90° (profile left)
+    (0, 1.57, 0),        # yaw +90° (profile right)
+    (0, -1.22, 0.698),   # combined
+    (0, 1.22, -0.698),   # combined
+]
+```
+
+**Test Results:**
+| Mode | Mean Error | Max Error |
+|------|------------|-----------|
+| Multi-hypothesis | 2.35 px | 7.63 px |
+| Single (frontal) | 2.24 px | 14.16 px |
+
+Multi-hypothesis reduces max error but slightly increases mean error. Both converge to similar final rotations.
+
+#### Code Cleanup Completed
+
+**Debug logging removed from:**
+- `clnf.py` - Removed init landmarks debug file writes
+- `optimizer.py` - Removed param update debug file writes (-92 lines)
+- `eye_patch_expert.py` - Removed all 11 debug blocks (-256 lines)
+
+**Net result:** -369 lines of debug code removed
+
+#### Current State
+
+**pyCLNF achieves 1.34-2.24 px mean error** vs C++, with errors concentrated on:
+- Inner mouth landmarks (56, 65)
+- Jawline landmarks (3, 4, 5)
+
+**Next Investigation Needed:**
+1. Compare initialization params (scale, rotation, translation) at frame start
+2. Compare iteration-by-iteration CLNF fitting to find divergence point
+3. Investigate MTCNN 5-point landmark initialization differences
+
+---
+
+### 2024-12-06: Systematic Per-Iteration Investigation Plan
+
+#### Goal
+Achieve exact match to C++ (< 0.001 px) for pyCLNF, like we did for pyMTCNN.
+
+#### Investigation Steps
+
+**Step 1: Initialization Comparison**
+- Compare `params_global` after init: [scale, rot_x, rot_y, rot_z, tx, ty]
+- Compare `params_local` (shape parameters)
+- Verify MTCNN bbox correction is applied identically
+
+**Step 2: Per-Iteration Comparison**
+- Add C++ debug output for each iteration
+- Compare mean-shift vectors
+- Compare Jacobian computation
+- Compare parameter updates
+
+**Step 3: MTCNN 5-Point Landmark Integration**
+- C++ can use 5-point landmarks for initial pose estimation
+- Verify Python implements same approach
+- Compare rotation estimation from landmarks
+
+#### Key Files to Compare
+
+| Component | Python File | C++ File |
+|-----------|-------------|----------|
+| Initialization | `pdm.py:init_params()` | `PDM.cpp:CalcParams()` |
+| Mean-shift | `optimizer.py:_compute_mean_shift()` | `LandmarkDetectorModel.cpp:GetResponsePixels()` |
+| Param update | `optimizer.py:_solve_update()` | `LandmarkDetectorModel.cpp:NU_RLMS()` |
+| Jacobian | `pdm.py:compute_jacobian()` | `PDM.cpp:ComputeJacobian()` |
+
+---
+
+### 2024-12-06: Iteration-by-Iteration Comparison Results
+
+#### Test Image: test_face_clean.png
+
+#### Finding 1: Initialization MATCHES Exactly ✅
+
+Python and C++ produce **identical** initial parameters:
+
+```
+Python init:  scale=3.481482, rot=(0, 0, 0), tx=543.718, ty=940.178
+C++ init:     scale=3.48148,  rot=(0, 0, 0), tx=543.718, ty=940.178
+```
+
+**Conclusion:** Initialization is NOT the source of divergence.
+
+#### Finding 2: Jawline Landmarks Have Large Y-Axis Errors
+
+| Region | Mean Error | Max Error | Pattern |
+|--------|------------|-----------|---------|
+| Jawline (0-16) | 4.54 px | 14.16 px | Python ABOVE C++ |
+| Left eyebrow | 1.12 px | 1.87 px | - |
+| Right eyebrow | 0.90 px | 1.11 px | - |
+| Nose | 1.01 px | 1.83 px | - |
+| Left eye | 0.52 px | 0.99 px | - |
+| Right eye | 0.92 px | 1.60 px | - |
+| Outer mouth | 2.67 px | 4.00 px | - |
+
+**Worst landmarks (all left jawline):**
+- LM4: 14.16 px error (Python Y=1090 vs C++ Y=1104)
+- LM3: 12.80 px error
+- LM5: 11.71 px error
+- LM2: 9.56 px error
+
+**Pattern:** Python jawline landmarks are **shifted UPWARD** (lower Y values) compared to C++.
+
+#### Finding 3: Shape Parameters (params_local) Diverge Significantly
+
+```
+C++ Final params_local (from iter0 debug - not final):
+  mode0: 12.80, mode1: -5.73, mode2: -9.22, mode3: -4.36, mode4: -30.78
+
+Python Final params_local:
+  mode0: 25.85, mode1: -5.56, mode2: -11.01, mode3: +4.56, mode4: -31.04
+
+DIFFERENCES:
+  mode0: +13.05 (HUGE - controls face height!)
+  mode3: +8.92 (significant - changes jawline shape)
+```
+
+**Root Cause:** Shape parameters diverge during optimization, causing the jawline to appear shorter/higher in Python.
+
+#### Finding 4: C++ Uses 4 Window Sizes, Python Uses 3
+
+```
+C++ window sizes: [11, 9, 7, 5] - includes finest scale
+Python window sizes: [11, 9, 7] - missing WS5 (no sigma_components)
+```
+
+**Note:** Window size 5 was intentionally excluded from Python because:
+1. No sigma_components file exists for WS5
+2. Testing showed WS5 WITHOUT sigma degrades accuracy
+
+However, C++ does use WS5 and achieves better jawline convergence.
+
+#### Finding 5: C++ Iteration Count Differences
+
+```
+C++ iterations per phase (estimated):
+  RIGID: ~1-2 iterations (fast convergence)
+  NONRIGID: ~1-2 iterations (fast convergence)
+
+Python iterations per phase:
+  RIGID: 10 iterations (max)
+  NONRIGID: 10 iterations (converging slowly)
+```
+
+**Observation:** Python runs more iterations but converges to different local params.
+
+#### Hypothesis: Mean-Shift or Jacobian Computation Difference
+
+The divergence happens during optimization, not initialization. Possible causes:
+
+1. **Response map differences** - Slight differences in patch expert responses
+2. **Mean-shift computation** - KDE kernel or offset transformation
+3. **Regularization application** - Lambda_inv matrix computation
+4. **Jacobian computation** - How derivatives are computed
+
+#### Next Steps
+
+1. [x] Compare mean-shift vectors for identical response maps - DONE
+2. [ ] Compare Jacobian matrices element-by-element
+3. [ ] Add C++ debug output for params_local at each iteration
+4. [ ] Investigate sigma_components for window size 5
+
+---
+
+### 2024-12-06: Root Cause Found - Sigma Transform Difference
+
+#### Key Finding: Response Maps Differ at ~5% Level
+
+Comparing LM36 response maps (after sigma transform):
+
+| Metric | Python | C++ | Diff |
+|--------|--------|-----|------|
+| min | 0.00744 | 0.00744 | 0% |
+| max | 0.8217 | 0.8248 | -0.4% |
+| mean | 0.0535 | 0.0523 | +2.3% |
+| KDE-weighted sum | 3.010 | 2.852 | +5.6% |
+
+#### Critical Position Difference
+
+At position (7,5) - one of the peak response locations:
+
+```
+Python BEFORE sigma: 0.5386
+Python AFTER sigma:  0.8209  (1.52x increase)
+C++ AFTER sigma:     0.4978
+
+DIFFERENCE: 0.323 (65% higher in Python!)
+```
+
+**Root Cause:** The sigma transform is applying differently:
+- Python: Increases value from 0.54 → 0.82 (1.52x)
+- C++: Keeps value at 0.50 (or even reduces it)
+
+This difference in ONE position causes the mean-shift to be pulled in a different direction, which accumulates over multiple iterations.
+
+#### Mean-Shift Impact
+
+For LM36 (iter0, ws11):
+```
+                        C++             Python          Diff
+msx (mean-shift x):    -0.2420         -0.2859         -0.044
+msy (mean-shift y):     1.8796          1.9498         +0.070
+
+In image coords (×13.9 scale):
+                        C++             Python          Diff
+ms_img_x:              -3.37           -3.98           -0.61 px
+ms_img_y:              26.18           27.15           +0.97 px
+```
+
+This ~1px difference per iteration accumulates to 10-14px error in jawline landmarks over 40+ total iterations.
+
+#### Investigation Needed
+
+The sigma transform in `optimizer.py:_compute_response_map()` calls:
+```python
+Sigma = patch_expert.compute_sigma(sigma_comps, window_size=response_window_size)
+response_map = (Sigma @ response_vec).reshape(response_shape)
+```
+
+Need to compare:
+1. `sigma_comps` loading from model files
+2. `compute_sigma()` matrix computation
+3. Matrix multiplication application
+
+#### Temporary Workaround Tested
+
+Disabling sigma transform entirely:
+- Makes Python response == C++ response (BEFORE sigma)
+- But C++ also applies sigma, so this doesn't fix the root cause
+
+The issue is that Python and C++ sigma transforms produce DIFFERENT results from the SAME input.
