@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=pyfaceau_batch
-#SBATCH --account=r00432
+#SBATCH --account=r01984
 #SBATCH --partition=general              # Use 'gpu' partition for GPU
-#SBATCH --array=0-11                     # Process 12 videos (indices 0-11)
+#SBATCH --array=0-12                     # Process 13 videos (indices 0-12)
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=16               # 16 cores per video
+#SBATCH --cpus-per-task=1                # Sequential (CLNF is bottleneck)
 #SBATCH --mem=32G
-#SBATCH --time=01:00:00                  # 1 hour per video
+#SBATCH --time=02:00:00                  # 2 hours per video (full length)
 #SBATCH --output=video_%A_%a.out
 #SBATCH --error=video_%A_%a.err
 #SBATCH --mail-type=END,FAIL
@@ -26,7 +26,9 @@ echo "Start time: $(date)"
 echo "=========================================="
 
 # Video list (same order as array indices)
+# NOTE: IMG_0422 added - important test video for accuracy verification
 VIDEOS=(
+    "S Data/Normal Cohort/IMG_0422.MOV"
     "S Data/Normal Cohort/IMG_0428.MOV"
     "S Data/Normal Cohort/IMG_0433.MOV"
     "S Data/Normal Cohort/IMG_0434.MOV"
