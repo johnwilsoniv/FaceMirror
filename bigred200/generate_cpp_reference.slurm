@@ -80,11 +80,19 @@ echo "Video name: $VIDEO_NAME"
 echo "Output dir: $TASK_OUTPUT"
 
 # ============================================
-# Load modules
+# Load modules and set library paths
 # ============================================
 module purge
-module load gcc/11.2.0
-module load opencv/4.5.5
+module load boost/1.86.0
+module load ffmpeg/7.7.1
+
+# Set library paths for custom builds and module libs
+# Boost 1.86 for boost_filesystem, opencv for OpenCV libs
+# ffmpeg for video codec support (HEVC/H.265), libjpeg for image decoding
+export LD_LIBRARY_PATH="/N/soft/sles15sp6/boost/gnu/1.86.0/lib:$HOME/software/opencv_install/lib64:/N/soft/sles15sp6/ffmpeg/7.7.1/lib:/N/soft/sles15sp6/libjpeg/3.1.2/lib64:$LD_LIBRARY_PATH"
+
+# CECLM model path (uses CEN patches for best accuracy - uploaded from local)
+CECLM_MODEL="$HOME/software/OpenFace/lib/local/LandmarkDetector/model/main_ceclm_general.txt"
 
 # ============================================
 # Check prerequisites
@@ -108,11 +116,12 @@ mkdir -p "$TASK_OUTPUT"
 # ============================================
 echo ""
 echo "Running OpenFace..."
-echo "Command: $OPENFACE_BIN -f \"$VIDEO_PATH\" -out_dir \"$TASK_OUTPUT\" -2Dfp -aus -pose -of \"$VIDEO_NAME\""
+echo "Command: $OPENFACE_BIN -f \"$VIDEO_PATH\" -out_dir \"$TASK_OUTPUT\" -mloc \"$CECLM_MODEL\" -2Dfp -aus -pose -of \"$VIDEO_NAME\""
 
 "$OPENFACE_BIN" \
     -f "$VIDEO_PATH" \
     -out_dir "$TASK_OUTPUT" \
+    -mloc "$CECLM_MODEL" \
     -2Dfp \
     -aus \
     -pose \

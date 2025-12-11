@@ -63,6 +63,9 @@ def load_cpp_reference(csv_path: str) -> pd.DataFrame:
     """Load C++ OpenFace CSV with landmarks and AUs."""
     df = pd.read_csv(csv_path)
 
+    # Strip whitespace from column names (OpenFace adds space padding)
+    df.columns = df.columns.str.strip()
+
     # Verify required columns
     x_cols = [f'x_{i}' for i in range(68)]
     y_cols = [f'y_{i}' for i in range(68)]
