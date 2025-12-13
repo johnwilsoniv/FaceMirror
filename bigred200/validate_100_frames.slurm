@@ -32,11 +32,12 @@ export PYTHONPATH="$PWD/pyclnf:$PWD/pymtcnn:$PWD/pyfaceau:$PWD/pyfhog:$PYTHONPAT
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
+export PYTHONUNBUFFERED=1
 
 # Run validation - use SLURM_ARRAY_TASK_ID for array jobs, default 0 for single job
 VIDEO_INDEX=${SLURM_ARRAY_TASK_ID:-0}
 echo "Processing video index: $VIDEO_INDEX"
-python bigred200/validate_100_frames.py --video-index $VIDEO_INDEX --n-frames 100
+python -u bigred200/validate_100_frames.py --video-index $VIDEO_INDEX --n-frames 100
 
 echo ""
 echo "============================================"

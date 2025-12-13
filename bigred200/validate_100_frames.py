@@ -115,26 +115,13 @@ def main():
             print(f"  [Frame {frame_idx}] Failed to read")
             continue
 
-        # Detect landmarks
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        if frame_idx == 0:
-            # First frame: detect + fit
-            landmarks, info = clnf.detect_and_fit(frame)  # Pass BGR for MTCNN
-        else:
-            # Subsequent: track from previous
-            x_min, y_min = prev_landmarks.min(axis=0)
-            x_max, y_max = prev_landmarks.max(axis=0)
-            w, h = x_max - x_min, y_max - y_min
-            margin = 0.1
-            bbox = (x_min - w*margin, y_min - h*margin, w*(1+2*margin), h*(1+2*margin))
-            landmarks, info = clnf.fit(gray, bbox)
+        # detect_and_fit handles both first-frame detection AND tracking
+        # Our tracking fixes are in detect_and_fit, so use it for all frames
+        landmarks, info = clnf.detect_and_fit(frame)
 
         if landmarks is None:
             print(f"  [Frame {frame_idx}] Detection failed")
             continue
-
-        prev_landmarks = landmarks.copy()
 
         # Compare to C++
         cpp_lm = cpp_landmarks[frame_idx]
@@ -166,12 +153,12 @@ def main():
     print(f"Max error:          {np.max(errors):.3f} px")
     print(f"Std error:          {np.std(errors):.3f} px")
 
-    # Pass/fail
-    if np.mean(errors) < 2.0:
-        print("\n✓ VALIDATION PASSED (mean error < 2.0px)")
+    # Pass/fail - expect ~0.1 px with tracking fixes
+    if np.mean(errors) < 0.5:
+        print("\n✓ VALIDATION PASSED (mean error < 0.5px)")
         return 0
     else:
-        print("\n✗ VALIDATION FAILED (mean error >= 2.0px)")
+        print("\n✗ VALIDATION FAILED (mean error >= 0.5px)")
         return 1
 
 if __name__ == "__main__":
