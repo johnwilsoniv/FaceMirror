@@ -650,10 +650,24 @@ class HPCAUPipeline:
             self._cleanup_shared_memory()
 
     def _finalize_predictions(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply post-processing to AU predictions."""
+        """
+        Apply post-processing to AU predictions.
+
+        Matches pyfaceau pipeline.py finalize_predictions with all fixes:
+        1. AU17_r skip (unusual weight distribution)
+        2. Cutoff overrides for AU20_r and AU26_r
+        3. Filter zeros when computing cutoff percentile
+        """
         au_cols = [col for col in df.columns if col.startswith('AU') and col.endswith('_r')]
 
-        # Cutoff adjustment
+        # AU-specific cutoff overrides (from pyfaceau config)
+        # Python raw predictions are systematically higher than C++ for these AUs
+        cutoff_overrides = {
+            'AU20_r': 0.40,  # Original: 0.65 -> improves correlation to 0.97
+            'AU26_r': 0.12,  # Original: 0.30 -> improves correlation to 0.93
+        }
+
+        # Cutoff adjustment for dynamic models
         for au_col in au_cols:
             if au_col not in self.au_models:
                 continue
@@ -661,11 +675,31 @@ class HPCAUPipeline:
             model = self.au_models[au_col]
             is_dynamic = (model['model_type'] == 'dynamic')
 
-            if is_dynamic and model.get('cutoff', -1) != -1:
-                cutoff = model['cutoff']
+            if is_dynamic:
+                # Fix 1: Skip AU17 cutoff (unusual weight distribution)
+                if au_col == 'AU17_r':
+                    continue
+
+                model_cutoff = model.get('cutoff', -1)
+                if model_cutoff <= 0 or model_cutoff >= 1.0:
+                    continue
+
+                # Fix 2: Apply cutoff overrides for specific AUs
+                if au_col in cutoff_overrides:
+                    model_cutoff = cutoff_overrides[au_col]
+
+                # Fix 3: Match C++ - sort only VALID (non-zero) predictions
+                # C++ FaceAnalyser.cpp uses au_good which excludes zeros
                 au_values = df[au_col].values
-                sorted_vals = np.sort(au_values)
-                cutoff_idx = int(len(sorted_vals) * cutoff)
+                valid_mask = au_values > 0.001  # Filter out zeros/near-zeros
+                valid_vals = au_values[valid_mask]
+
+                # Need enough valid values to compute meaningful percentile
+                if len(valid_vals) < 10:
+                    continue
+
+                sorted_vals = np.sort(valid_vals)
+                cutoff_idx = int(len(sorted_vals) * model_cutoff)
                 offset = sorted_vals[cutoff_idx]
                 df[au_col] = np.clip(au_values - offset, 0.0, 5.0)
 
