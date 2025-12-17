@@ -52,3 +52,7 @@ test_output/
 *.mov
 pymtcnn/
 pyclnf/
+
+# Local data and models
+S Data/
+models/
