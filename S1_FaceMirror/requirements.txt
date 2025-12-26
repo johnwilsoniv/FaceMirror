@@ -1,0 +1,22 @@
+# S1 FaceMirror - GPU-Accelerated AU Pipeline
+# PyPI packages for face analysis
+
+# Core AU pipeline packages
+pyclnf>=0.2.2
+pyfaceau>=1.3.4
+pymtcnn>=1.1.1
+pyfhog>=0.1.4
+
+# Computer vision
+opencv-python>=4.8.0
+
+# Numerical computation
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# GPU acceleration (PyTorch for MPS/CUDA)
+torch>=2.0.0
+
+# GUI dependencies
+PyQt5>=5.15.0
