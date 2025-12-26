@@ -8,6 +8,18 @@ class FaceMirror:
     def __init__(self, landmark_detector):
         """Initialize with a reference to the landmark detector"""
         self.landmark_detector = landmark_detector
+        # Cache for coordinate grid (reused across frames of same size)
+        self._cached_coords = None
+        self._cached_size = None
+
+    def _get_coords(self, height, width):
+        """Get or create cached coordinate grid."""
+        if self._cached_size != (height, width):
+            # Create coordinate grids once per video resolution
+            y_coords, x_coords = np.mgrid[0:height, 0:width]
+            self._cached_coords = np.stack([x_coords, y_coords], axis=-1).astype(np.float32)
+            self._cached_size = (height, width)
+        return self._cached_coords
 
     def create_mirrored_faces(self, frame, landmarks):
         """Create mirrored faces by reflecting exactly along the anatomical midline
@@ -26,82 +38,77 @@ class FaceMirror:
 
         # Calculate midline direction vector
         direction = chin - glabella
-        direction = direction / np.sqrt(np.sum(direction ** 2))  # normalize
+        norm = np.sqrt(direction[0]**2 + direction[1]**2)
+        direction = direction / norm
 
-        # Create meshgrid of coordinates
-        y_coords, x_coords = np.mgrid[0:height, 0:width]
-        coords = np.stack([x_coords, y_coords], axis=-1).astype(np.float32)
-
-        # Reshape coordinates for vectorized operations
-        coords_reshaped = coords.reshape(-1, 2)
+        # Get cached coordinate grid
+        coords = self._get_coords(height, width)
 
         # Calculate perpendicular vector (pointing to anatomical right)
-        # Note: OpenCV's coordinate system has y increasing downward
-        perpendicular = np.array([-direction[1], direction[0]])
+        perpendicular = np.array([-direction[1], direction[0]], dtype=np.float32)
 
-        # Calculate signed distances from midline
-        # Positive distances are on anatomical right, negative on anatomical left
-        diff = coords_reshaped - glabella
-        distances = np.dot(diff, perpendicular)
+        # Calculate signed distances from midline (vectorized, in-place where possible)
+        # diff = coords - glabella, then dot with perpendicular
+        diff_x = coords[..., 0] - glabella[0]
+        diff_y = coords[..., 1] - glabella[1]
+        distances = diff_x * perpendicular[0] + diff_y * perpendicular[1]
 
-        # Calculate reflection points
-        reflection = coords_reshaped - 2 * np.outer(distances, perpendicular)
-        reflection = reflection.reshape(height, width, 2)
+        # Calculate reflection map for cv2.remap (MUCH faster than fancy indexing)
+        # reflection = coords - 2 * distances * perpendicular
+        map_x = coords[..., 0] - 2 * distances * perpendicular[0]
+        map_y = coords[..., 1] - 2 * distances * perpendicular[1]
 
-        # Clip reflection coordinates to image bounds
-        reflection[..., 0] = np.clip(reflection[..., 0], 0, width - 1)
-        reflection[..., 1] = np.clip(reflection[..., 1], 0, height - 1)
-        reflection = reflection.astype(np.int32)
+        # Clip to image bounds (in-place)
+        np.clip(map_x, 0, width - 1, out=map_x)
+        np.clip(map_y, 0, height - 1, out=map_y)
 
-        # Create output images
+        # Use cv2.remap for fast bilinear interpolation (10-50x faster than fancy indexing)
+        reflected_frame = cv2.remap(frame, map_x, map_y, cv2.INTER_LINEAR)
+
+        # Create side masks
+        right_mask = distances >= 0  # Points on anatomical right
+        left_mask = ~right_mask  # Points on anatomical left
+
+        # Use cv2.copyTo with masks (faster than np.where for images)
         anatomical_right_face = frame.copy()
         anatomical_left_face = frame.copy()
 
-        # Create side masks based on signed distance
-        distances = distances.reshape(height, width)
-        anatomical_right_mask = distances >= 0  # Points on anatomical right
-        anatomical_left_mask = distances < 0  # Points on anatomical left
+        # Convert masks to uint8 for OpenCV
+        left_mask_u8 = left_mask.astype(np.uint8) * 255
+        right_mask_u8 = right_mask.astype(np.uint8) * 255
 
-        # Apply reflections using vectorized operations
-        reflected_frame = frame[reflection[..., 1], reflection[..., 0]]
-
-        # Expand mask to 3D for color channels
-        right_mask_3d = np.stack([anatomical_right_mask] * 3, axis=-1)
-        left_mask_3d = np.stack([anatomical_left_mask] * 3, axis=-1)
-
-        # Apply reflections in one vectorized operation
-        anatomical_right_face = np.where(left_mask_3d, reflected_frame, frame)
-        anatomical_left_face = np.where(right_mask_3d, reflected_frame, frame)
+        # Apply reflections using copyTo (respects mask)
+        cv2.copyTo(reflected_frame, left_mask_u8, anatomical_right_face)
+        cv2.copyTo(reflected_frame, right_mask_u8, anatomical_left_face)
 
         # Apply gradient blending along the midline (6 pixels for faster processing)
         blend_width = 6
 
         # Calculate points along the midline
-        y_range = np.arange(height)
         if abs(direction[1]) > 1e-6:  # Avoid division by zero
+            y_range = np.arange(height)
             t = (y_range - glabella[1]) / direction[1]
-            x_midline = (glabella[0] + t * direction[0]).astype(int)
-            x_midline = np.clip(x_midline, blend_width // 2, width - blend_width // 2 - 1)
+            x_midline = (glabella[0] + t * direction[0]).astype(np.int32)
+            np.clip(x_midline, blend_width // 2, width - blend_width // 2 - 1, out=x_midline)
 
-            # Create blending weights
-            blend_weights = np.linspace(0, 1, blend_width)
+            # Vectorized blending - process all blend positions at once
+            blend_weights = np.linspace(0, 1, blend_width, dtype=np.float32)
+            offsets = np.arange(blend_width) - blend_width // 2
 
-            # Vectorized blending
-            for i in range(blend_width):
-                weight = blend_weights[i]
-                x_offset = i - blend_width // 2
-                x_coords = np.clip(x_midline + x_offset, 0, width - 1)
+            for i, (offset, weight) in enumerate(zip(offsets, blend_weights)):
+                x_coords = np.clip(x_midline + offset, 0, width - 1)
+                blend_w = weight if offset >= 0 else (1 - weight)
+                inv_blend = 1.0 - blend_w
 
-                # Apply blending using array indexing
-                blend_weight = weight if x_offset >= 0 else (1 - weight)
+                # Vectorized blend for all y positions
                 anatomical_right_face[y_range, x_coords] = (
-                        anatomical_right_face[y_range, x_coords] * (1 - blend_weight) +
-                        frame[y_range, x_coords] * blend_weight
-                )
+                    anatomical_right_face[y_range, x_coords] * inv_blend +
+                    frame[y_range, x_coords] * blend_w
+                ).astype(np.uint8)
                 anatomical_left_face[y_range, x_coords] = (
-                        anatomical_left_face[y_range, x_coords] * (1 - blend_weight) +
-                        frame[y_range, x_coords] * blend_weight
-                )
+                    anatomical_left_face[y_range, x_coords] * inv_blend +
+                    frame[y_range, x_coords] * blend_w
+                ).astype(np.uint8)
 
         return anatomical_right_face, anatomical_left_face
 
