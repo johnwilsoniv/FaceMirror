@@ -46,15 +46,15 @@ ACTION_TO_AUS = {
     'ET': ['AU07_r', 'AU45_r'],  # Close Eyes Tightly
     'SS': ['AU12_r'],            # Soft Smile
     'BS': ['AU12_r', 'AU25_r', 'AU07_r'], # Big Smile
-    'SO': ['AU25_r'],            # Say 'O' (AU26 not available in OpenFace 3.0)
+    'SO': ['AU25_r', 'AU26_r'],  # Say 'O' (restored AU26 - available in PyFaceAU/OF2.2)
     'SE': ['AU20_r', 'AU25_r'],  # Say 'E'
     'BL': [],                    # Baseline (Uses median frame logic)
     'FR': ['AU04_r'],            # Frown
     'BK': ['AU45_r'],            # Blink
     'WN': ['AU09_r'],            # Wrinkle Nose
-    'PL': [],                    # Pucker Lips (AU17 not available - use median frame)
-    'BC': [],                    # Blow Cheeks (AU23 not available - use median frame)
-    'LT': ['AU15_r'],            # Lower Teeth (AU16→AU15 for OpenFace 3.0)
+    'PL': ['AU17_r'],            # Pucker Lips (restored AU17 - available in PyFaceAU/OF2.2)
+    'BC': ['AU23_r'],            # Blow Cheeks (restored AU23 - available in PyFaceAU/OF2.2)
+    'LT': ['AU15_r'],            # Lower Teeth (AU16 not available - using AU15)
     'Unknown': []                # Default for unknown actions
 }
 
