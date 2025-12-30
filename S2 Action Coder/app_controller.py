@@ -70,6 +70,12 @@ class ApplicationController(QObject):
         self.output_directory = None  # Track output directory for completion summary
         self.initial_batch_size = 0  # Track starting number of files (before removal)
         self.files_processed_count = 0  # Track how many files we've actually processed
+        # Whisper debounce timer - prevents crashes when clicking through files quickly
+        self._whisper_debounce_timer = QTimer()
+        self._whisper_debounce_timer.setSingleShot(True)
+        self._whisper_debounce_timer.setInterval(500)  # 500ms delay
+        self._whisper_debounce_timer.timeout.connect(self._on_whisper_debounce_timeout)
+        self._pending_whisper_video_path = None
         if not self._run_startup_sequence():
             if self.window: self.window.close()
             sys.exit(0)
@@ -278,7 +284,7 @@ class ApplicationController(QObject):
         if self.ui_manager: self.ui_manager.clear_pending_action_button()
         self.next_timeline_event_index = 0;
         self.selected_timeline_range_data = None; self.current_selected_index = -1;
-        self.ui_manager.update_action_display("Status: Initializing..."); self.ui_manager.update_file_display( file_set.get('video',''), file_set.get('csv1',''), file_set.get('csv2','')); self.ui_manager.set_batch_navigation( True, self.batch_processor.get_current_index(), self.batch_processor.get_total_files() ); self.ui_manager.set_play_button_state(False); self.ui_manager.enable_play_pause_button(False)
+        self.ui_manager.update_action_display("Status: Initializing..."); self.ui_manager.update_file_display( file_set.get('video',''), file_set.get('csv1',''), file_set.get('csv2','')); self.ui_manager.set_batch_navigation( True, self.batch_processor.get_current_index(), self.batch_processor.get_total_files(), self.batch_processor.get_completed_count() ); self.ui_manager.set_play_button_state(False); self.ui_manager.enable_play_pause_button(False)
         if self.ui_manager:
             self.ui_manager.show_discard_confirmation_button(False)
             self.ui_manager.show_discard_near_miss_button(False)
@@ -304,9 +310,25 @@ class ApplicationController(QObject):
         if self.window.timeline_widget: self.window.timeline_widget.set_video_properties(props.get('total_frames', 0), props.get('width', 0), props.get('fps', 0))
         if not video_load_success:
              self.ui_manager.show_message_box("warning", "Video Load Warning", "Video file failed to load or has invalid properties. Playback disabled. Audio analysis will be attempted.")
-             self.ui_manager.enable_play_pause_button(False); print(f"Controller: Video load failed, starting Whisper processing."); self.processing_manager.start_whisper_processing(video_path); return True
+             self.ui_manager.enable_play_pause_button(False); print(f"Controller: Video load failed, starting Whisper processing (debounced)."); self._start_whisper_debounced(video_path); return True
         else:
-             self.ui_manager.update_frame_info(0, props.get('total_frames', 0)); print(f"Controller: File set loaded. Starting Whisper processing."); self.processing_manager.start_whisper_processing(video_path); return True
+             self.ui_manager.update_frame_info(0, props.get('total_frames', 0)); print(f"Controller: File set loaded. Starting Whisper processing (debounced)."); self._start_whisper_debounced(video_path); return True
+
+    def _start_whisper_debounced(self, video_path):
+        """Start Whisper processing with debounce to prevent crashes from rapid file navigation."""
+        self._pending_whisper_video_path = video_path
+        self._whisper_debounce_timer.stop()  # Cancel any pending timer
+        self._whisper_debounce_timer.start()  # Restart the timer
+        print(f"Controller: Whisper debounce timer started for: {os.path.basename(video_path)}")
+
+    @pyqtSlot()
+    def _on_whisper_debounce_timeout(self):
+        """Called when debounce timer fires - actually start Whisper processing."""
+        if self._pending_whisper_video_path:
+            print(f"Controller: Debounce timer fired, starting Whisper for: {os.path.basename(self._pending_whisper_video_path)}")
+            self.processing_manager.start_whisper_processing(self._pending_whisper_video_path)
+            self._pending_whisper_video_path = None
+
     def load_first_file(self): # (Unchanged)
         # Start timing batch processing
         self.batch_start_time = time.time()
@@ -443,16 +465,26 @@ class ApplicationController(QObject):
             self.ui_manager.enable_action_buttons(True, context='idle') # Reset buttons
         self.next_timeline_event_index = 0;
         self._force_ui_update(self.playback_manager.current_frame)
-    def _trigger_next_confirmation(self, action_range_info): # (Unchanged)
+    def _trigger_next_confirmation(self, action_range_info):
         if not self.ui_manager or not self.playback_manager: return False;
         trigger_seek_frame = action_range_info.get('start')
         if trigger_seek_frame is None: print("Controller WARN: Cannot trigger confirmation, missing start frame in range info."); return False
         self.playback_manager.pause(triggered_by_prompt=True); self.playback_manager.seek(trigger_seek_frame);
         self.waiting_for_confirmation = True; self.current_confirmation_info = action_range_info;
         self.waiting_for_near_miss_assignment = False; self.current_near_miss_info = None # Ensure NM state is off
+        # Set selection to this range so delete button works
+        try:
+            range_index = self.action_tracker.action_ranges.index(action_range_info)
+            self.current_selected_index = range_index
+            self.selected_timeline_range_data = action_range_info
+            if self.window and self.window.timeline_widget:
+                self.window.timeline_widget.set_selected_range_by_index(range_index)
+            print(f"Controller: Set selection to confirmation range at index {range_index}")
+        except ValueError:
+            print(f"Controller WARN: Could not find confirmation range in tracker for selection")
         print(f"Controller: Triggering confirmation for {action_range_info.get('action')}?");
         QTimer.singleShot(config.PAUSE_SETTLE_DELAY_MS + 50, lambda: self._show_confirmation_ui_internal(action_range_info)); return True
-    def _show_confirmation_ui_internal(self, range_info): # (Unchanged)
+    def _show_confirmation_ui_internal(self, range_info):
          if not self.waiting_for_confirmation: return;
          phrase = range_info.get('trigger_phrase', '?');
          prompt_text = f"Confirm: {phrase} ?"
@@ -461,13 +493,14 @@ class ApplicationController(QObject):
          self.ui_manager.show_discard_confirmation_button(True)
          self.ui_manager.show_discard_near_miss_button(False) # Ensure other is hidden
          self.ui_manager.enable_action_buttons(True, context='confirm') # Enable all action buttons
+         self.ui_manager.enable_delete_button(True) # Enable delete for prompted range
          start_time = range_info.get('original_event_start_time', range_info.get('trigger_start'))
          end_time = range_info.get('original_event_end_time', range_info.get('trigger_end'))
          if start_time is not None and end_time is not None:
               self._play_audio_segment(start_time, end_time)
          else:
              print("Controller WARN: Missing time data for confirmation audio snippet.")
-    def _trigger_near_miss_prompt(self, near_miss_event, near_miss_range): # (Unchanged)
+    def _trigger_near_miss_prompt(self, near_miss_event, near_miss_range):
         if not self.ui_manager or not self.playback_manager: return False;
         start_frame = near_miss_event.get('start_frame');
         if start_frame is None: return False
@@ -475,9 +508,19 @@ class ApplicationController(QObject):
         self.waiting_for_near_miss_assignment = True;
         self.current_near_miss_info = {'event': near_miss_event, 'range': near_miss_range}
         self.waiting_for_confirmation = False; self.current_confirmation_info = None # Ensure confirm state is off
+        # Set selection to this range so delete button works
+        try:
+            range_index = self.action_tracker.action_ranges.index(near_miss_range)
+            self.current_selected_index = range_index
+            self.selected_timeline_range_data = near_miss_range
+            if self.window and self.window.timeline_widget:
+                self.window.timeline_widget.set_selected_range_by_index(range_index)
+            print(f"Controller: Set selection to near-miss range at index {range_index}")
+        except ValueError:
+            print(f"Controller WARN: Could not find near-miss range in tracker for selection")
         print(f"Controller: Triggering near miss prompt for '{near_miss_event.get('transcribed_text','?')}' corresponding to NM range at F{start_frame}");
         QTimer.singleShot(config.PAUSE_SETTLE_DELAY_MS + 50, lambda: self._show_near_miss_ui_internal(near_miss_event)); return True
-    def _show_near_miss_ui_internal(self, event_info): # (Unchanged)
+    def _show_near_miss_ui_internal(self, event_info):
         if not self.waiting_for_near_miss_assignment: return;
         text = event_info.get('transcribed_text', '?');
         prompt_text = f"Possible: '{text}' ?";
@@ -486,6 +529,7 @@ class ApplicationController(QObject):
         self.ui_manager.show_discard_near_miss_button(True)
         self.ui_manager.show_discard_confirmation_button(False)
         self.ui_manager.enable_action_buttons(True, context='near_miss')
+        self.ui_manager.enable_delete_button(True) # Enable delete for prompted range
         start_time = event_info.get('start_time'); end_time = event_info.get('end_time')
         if start_time is not None and end_time is not None:
             self._play_audio_segment(start_time, end_time)
@@ -1038,7 +1082,8 @@ class ApplicationController(QObject):
             if self.ui_manager:
                 current_idx = self.batch_processor.get_current_index()
                 total_files = self.batch_processor.get_total_files()
-                self.ui_manager.set_batch_navigation(True, current_idx, total_files)
+                completed_count = self.batch_processor.get_completed_count()
+                self.ui_manager.set_batch_navigation(True, current_idx, total_files, completed_count)
 
         # Check if there are more files (after removal, current index points to what was the next file)
         total_remaining = self.batch_processor.get_total_files()
@@ -1116,7 +1161,7 @@ class ApplicationController(QObject):
 
         # Disable UI and exit application
         # Use processed_count - 1 for the index (0-based) or just use total_files since we're done
-        self.ui_manager.set_batch_navigation(False, processed_count, total_files)
+        self.ui_manager.set_batch_navigation(False, processed_count, total_files, self.batch_processor.get_completed_count())
         print("Controller: Exiting application after batch completion")
         QTimer.singleShot(100, lambda: self.app.quit())
 
@@ -1132,7 +1177,8 @@ class ApplicationController(QObject):
     def _handle_processing_status_update(self, message): # (Unchanged)
         if self.ui_manager: self.ui_manager.update_action_display(f"Status: {message}")
     @pyqtSlot()
-    def _handle_delete_selected_range_button(self): # (Unchanged)
+    def _handle_delete_selected_range_button(self):
+        print(f"Controller: Delete button clicked! selected_data={self.selected_timeline_range_data}, selected_idx={self.current_selected_index}")
         if not self.selected_timeline_range_data: print("Controller: Delete button clicked, but no range selected."); return
         can_edit = self.window.timeline_widget._editing_enabled if self.window and self.window.timeline_widget else False
         if not can_edit: print("Controller: Delete button clicked, but editing is disabled."); return

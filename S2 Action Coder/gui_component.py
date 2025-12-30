@@ -31,6 +31,7 @@ class MainWindow(QMainWindow):
         self.video_display_widget=None; self.play_pause_btn=None; self.frame_slider=None
         self.frame_label=None; self.video_path_label=None; self.csv_path_label=None; self.second_csv_path_label=None
         self.prev_file_btn=None; self.next_file_btn=None; self.batch_status_label=None
+        self.batch_completed_label=None  # New: shows completed count
         self.save_btn=None; self.progress_bar=None; self.shared_action_display_label=None
         # --- REMOVED INTERACTION STACK & PANELS ---
         self.timeline_widget = None; self.snippet_player = QMediaPlayer(); self._default_label_palette = None
@@ -55,10 +56,19 @@ class MainWindow(QMainWindow):
          right_panel_widget = QWidget(); right_panel_widget.setMaximumWidth(400); right_panel_layout = QVBoxLayout(right_panel_widget); right_panel_layout.setContentsMargins(config.STANDARD_MARGIN,0,0,0); right_panel_layout.setSpacing(config.STANDARD_SPACING * 2)
          file_info_group = QGroupBox("Current Files"); file_info_group.setStyleSheet(config.GROUP_BOX_STYLE); file_info_layout = QVBoxLayout(file_info_group); file_info_layout.setSpacing(config.STANDARD_SPACING)
          self.video_path_label = QLabel("Video: N/A"); self.video_path_label.setWordWrap(True); self.csv_path_label = QLabel("CSV 1: N/A"); self.csv_path_label.setWordWrap(True); self.second_csv_path_label = QLabel("CSV 2: N/A"); self.second_csv_path_label.setWordWrap(True); file_info_layout.addWidget(self.video_path_label); file_info_layout.addWidget(self.csv_path_label); file_info_layout.addWidget(self.second_csv_path_label); right_panel_layout.addWidget(file_info_group)
-         batch_nav_group = QGroupBox("Batch Navigation"); batch_nav_group.setStyleSheet(config.GROUP_BOX_STYLE); batch_nav_layout_hbox = QHBoxLayout(batch_nav_group); batch_nav_layout_hbox.setSpacing(config.STANDARD_SPACING)
-         self.prev_file_btn = QPushButton("← Previous"); self.prev_file_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE); self.prev_file_btn.clicked.connect(self.load_previous_file); self.prev_file_btn.setEnabled(False); batch_nav_layout_hbox.addWidget(self.prev_file_btn)
+         batch_nav_group = QGroupBox("Batch Navigation"); batch_nav_group.setStyleSheet(config.GROUP_BOX_STYLE)
+         batch_nav_main_layout = QVBoxLayout(batch_nav_group); batch_nav_main_layout.setSpacing(config.STANDARD_SPACING)
+         batch_nav_layout_hbox = QHBoxLayout(); batch_nav_layout_hbox.setSpacing(config.STANDARD_SPACING)
+         self.prev_file_btn = QPushButton("← Previous"); self.prev_file_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE); self.prev_file_btn.setFixedWidth(90); self.prev_file_btn.clicked.connect(self.load_previous_file); self.prev_file_btn.setEnabled(False); batch_nav_layout_hbox.addWidget(self.prev_file_btn)
          self.batch_status_label = QLabel("File 1 of 1"); self.batch_status_label.setAlignment(Qt.AlignCenter); batch_nav_layout_hbox.addWidget(self.batch_status_label, 1)
-         self.next_file_btn = QPushButton("Next →"); self.next_file_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE); self.next_file_btn.clicked.connect(self.load_next_file); self.next_file_btn.setEnabled(False); batch_nav_layout_hbox.addWidget(self.next_file_btn)
+         self.next_file_btn = QPushButton("Next →"); self.next_file_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE); self.next_file_btn.setFixedWidth(90); self.next_file_btn.clicked.connect(self.load_next_file); self.next_file_btn.setEnabled(False); batch_nav_layout_hbox.addWidget(self.next_file_btn)
+         batch_nav_main_layout.addLayout(batch_nav_layout_hbox)
+         completed_row = QHBoxLayout(); completed_row.setContentsMargins(0, 0, 0, 0)
+         completed_row.addStretch(1)
+         self.batch_completed_label = QLabel("0 files completed"); self.batch_completed_label.setStyleSheet("color: #888888; font-size: 11px;")
+         completed_row.addWidget(self.batch_completed_label)
+         completed_row.addStretch(1)
+         batch_nav_main_layout.addLayout(completed_row)
          right_panel_layout.addWidget(batch_nav_group)
          action_display_group = QGroupBox("Current Action / Status"); action_display_group.setStyleSheet(config.GROUP_BOX_STYLE); action_display_layout = QVBoxLayout(action_display_group)
          self.shared_action_display_label = QLabel("Status: Initializing..."); self.shared_action_display_label.setAlignment(Qt.AlignCenter); self.shared_action_display_label.setStyleSheet(f"QLabel{{background-color:{config.UI_COLORS['section_bg']}; color:{config.UI_COLORS['text_normal']}; border-radius:3px; padding:6px; min-height:30px; font-weight:normal;}}")
@@ -209,10 +219,14 @@ class MainWindow(QMainWindow):
     @pyqtSlot(str,str,str)
     def update_file_display(self,vp,c1,c2): # (Unchanged)
         self.current_video_path=vp;self.current_csv1_path=c1;self.current_csv2_path=c2; self.video_path_label.setText(f"Video: {os.path.basename(vp) if vp else 'N/A'}"); self.csv_path_label.setText(f"CSV 1: {os.path.basename(c1) if c1 else 'N/A'}"); self.second_csv_path_label.setText(f"CSV 2: {os.path.basename(c2) if c2 else 'N/A'}")
-    @pyqtSlot(bool,int,int)
-    def set_batch_navigation(self,en,ci,tf): # (Unchanged)
+    @pyqtSlot(bool,int,int,int)
+    def set_batch_navigation(self, en, ci, tf, completed=0):
          if tf<=0: self.batch_status_label.setText("No Files"); self.prev_file_btn.setEnabled(False); self.next_file_btn.setEnabled(False); self.save_btn.setText("Generate Output"); return
          self.batch_status_label.setText(f"File {ci+1} of {tf}"); self.prev_file_btn.setEnabled(en and ci>0); self.next_file_btn.setEnabled(en and ci<tf-1)
+         # Update completed count label
+         if self.batch_completed_label:
+             completed_text = f"{completed} file{'s' if completed != 1 else ''} completed"
+             self.batch_completed_label.setText(completed_text)
          if en: self.save_btn.setText("Save and Complete" if ci>=tf-1 else "Save and Continue")
          else: self.save_btn.setText("Generate Output Files")
     @pyqtSlot(bool)

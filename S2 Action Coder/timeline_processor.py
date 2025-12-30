@@ -348,6 +348,10 @@ class TimelineProcessor:
             matched_words = current_event.get('matched_words')
 
             current_start_frame_for_range = max(event_start_frame, last_range_end_frame + 1)
+
+            # NOTE: Gaps between actions are left empty (no BL insertion)
+            # BL only represents truly neutral baseline at start, not gaps from STOP commands
+
             if current_start_frame_for_range > event_min_end_frame: print(f"  Range SKIPPED (Calc StartF {current_start_frame_for_range} > Event MinEndF {event_min_end_frame}): Code='{code}'"); continue
 
             perform_oe_split = False; so_end_frame = -1; se_start_frame = -1; T_o_end = None; T_e_start = None; split_source = None

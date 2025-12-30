@@ -9,6 +9,8 @@ import platform
 import hashlib
 import json
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+import multiprocessing
 
 # --- Try MLX Whisper (Apple Silicon optimized) ---
 MLX_WHISPER_AVAILABLE = False
@@ -220,6 +222,24 @@ def check_mlx_model_cached(model_name):
         return False
 
 
+def _mlx_transcribe_segment_worker(audio_path, model_name, start_time, end_time, language, result_queue):
+    """Worker function for multiprocessing - transcribes a single segment."""
+    try:
+        import mlx_whisper
+        result = mlx_whisper.transcribe(
+            audio_path,
+            path_or_hf_repo=model_name,
+            language=language,
+            verbose=False,
+            clip_timestamps=[start_time, end_time],
+            condition_on_previous_text=True,
+            temperature=0.0,
+        )
+        result_queue.put(("success", result))
+    except Exception as e:
+        result_queue.put(("error", str(e)))
+
+
 def transcribe_with_mlx(audio_path, model_name, speech_segments, language="en", beam_size=5, progress_callback=None, cancellation_check=None):
     """
     Transcribe audio using MLX Whisper with speech segments from Silero VAD.
@@ -252,7 +272,7 @@ def transcribe_with_mlx(audio_path, model_name, speech_segments, language="en", 
     if not model_is_cached:
         print(f"MLX Whisper: Model not cached, will download on first use (~3GB)")
         if progress_callback:
-            progress_callback(45, "Downloading MLX Whisper model (3GB)...\nThis may take 5-10 minutes on first run.\nSubsequent runs will be instant.")
+            progress_callback(45, "DOWNLOADING AI MODEL (~3GB) - First run only, please wait...")
 
     all_segments = []
 
@@ -307,6 +327,7 @@ def transcribe_with_mlx(audio_path, model_name, speech_segments, language="en", 
                     "end": segment_end,
                     "text": segment_text
                 })
+                print(f"  -> [{segment_start:.2f}s - {segment_end:.2f}s]: \"{segment_text}\"")
 
     print(f"MLX Whisper: Transcription complete. Generated {len(all_segments)} segments")
 
@@ -337,7 +358,8 @@ class WhisperHandler(QThread):
             raise FileNotFoundError(f"Audio path does not exist or not provided: {audio_path}")
 
         # Determine which engine to use
-        self.use_mlx = MLX_WHISPER_AVAILABLE and SILERO_VAD_AVAILABLE
+        # Force faster-whisper for cross-platform consistency and better handling of quiet audio
+        self.use_mlx = False  # Was: MLX_WHISPER_AVAILABLE and SILERO_VAD_AVAILABLE
 
         print("=" * 70)
         print("WHISPER HANDLER INSTANCE CONFIGURATION")
@@ -520,11 +542,18 @@ class WhisperHandler(QThread):
                 print(f"FasterWhisper Thread: Using VAD Filter: True, VAD Parameters: {self.vad_parameters}")
 
                 # Build transcription parameters with optional batch_size
+                # Initial prompt guides Whisper toward expected facial action command vocabulary
+                facial_action_prompt = (
+                    "Transcribe facial action commands: raise eyebrows, close eyes, open eyes, "
+                    "blow cheeks, soft smile, bite down, relax, open mouth, wrinkle nose, "
+                    "press lips, pucker lips, clench teeth, squint, frown, grin."
+                )
                 transcribe_kwargs = {
                     "beam_size": 5,
                     "language": "en",
                     "vad_filter": True,
-                    "vad_parameters": self.vad_parameters
+                    "vad_parameters": self.vad_parameters,
+                    "initial_prompt": facial_action_prompt
                 }
 
                 # Add batch_size if supported (1.3-1.5x speedup on newer faster-whisper versions)
@@ -555,6 +584,7 @@ class WhisperHandler(QThread):
                     segment_dict = { "start": segment.start, "end": segment.end, "text": segment.text }
                     faster_whisper_segments.append(segment_dict)
                     segment_count += 1
+                    print(f"  -> [{segment.start:.2f}s - {segment.end:.2f}s]: \"{segment.text.strip()}\"")
 
                 print(f"FasterWhisper Thread: Transcription complete. Found {segment_count} segments (post-VAD).")
 
@@ -584,7 +614,7 @@ class WhisperHandler(QThread):
 
             # Alignment Step (using WhisperX) - optional for 30-40% speedup when disabled
             if WHISPERX_ALIGN_AVAILABLE and faster_whisper_segments and not self.skip_alignment:
-                self.emit_progress(80, "Loading alignment model...")
+                self.emit_progress(80, "Loading alignment model (may download on first run)...")
                 try:
                     if hasattr(self, 'align_model') and self.align_model:
                         del self.align_model; del self.align_metadata;

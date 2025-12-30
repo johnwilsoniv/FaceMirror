@@ -84,10 +84,12 @@ VOICE_COMMAND_MAPPINGS = {
     "say o e e": "SO_SE",
     "o e e": "SO_SE",
     "oe": "SO_SE",
+    "say ooh": "SO", "ooh": "SO", "say ooh ooh": "SO",  # Whisper sometimes transcribes "O" as "ooh"
+    "ee": "SE", "say ee": "SE", "ee ee": "SE",  # Whisper sometimes transcribes "E" as "ee"
+    "ooh ee": "SO_SE", "say ooh ee": "SO_SE", "ooh ooh ee ee": "SO_SE",
     "lower teeth": "LT", "show bottom teeth": "LT", "pirate teeth": "LT", "show me your bottom teeth": "LT", "show me your bottom teeth only": "LT",
     "and pirate": "LT", "like a pirate": "LT", "pirate": "LT",
-    "open": "STOP",
-    "open your eyes": "STOP",
+    "open your eyes": "STOP",  # Removed standalone "open" - conflicts with "blow your cheeks open"
     "relax": "STOP", "stop": "STOP", "okay": "STOP", "ok": "STOP", "great": "STOP", "good": "STOP", "neutral": "STOP", "done": "STOP", "back to normal": "STOP", "finished": "STOP",
 }
 

@@ -20,11 +20,15 @@ class UIManager(QObject):
     def update_file_display(self, video_path, csv1_path, csv2_path): # (Unchanged)
         if not self.window: return; self.window.current_video_path = video_path; self.window.current_csv1_path = csv1_path; self.window.current_csv2_path = csv2_path
         self.window.video_path_label.setText(f"Video: {os.path.basename(video_path) if video_path else 'N/A'}"); self.window.csv_path_label.setText(f"CSV 1: {os.path.basename(csv1_path) if csv1_path else 'N/A'}"); self.window.second_csv_path_label.setText(f"CSV 2: {os.path.basename(csv2_path) if csv2_path else 'N/A'}")
-    @pyqtSlot(bool, int, int)
-    def set_batch_navigation(self, enabled, current_index, total_files): # (Unchanged)
+    @pyqtSlot(bool, int, int, int)
+    def set_batch_navigation(self, enabled, current_index, total_files, completed_count=0):
         if not self.window: return;
         if total_files <= 0: self.window.batch_status_label.setText("No Files"); self.window.prev_file_btn.setEnabled(False); self.window.next_file_btn.setEnabled(False); self.window.save_btn.setText("Generate Output"); return
         self.window.batch_status_label.setText(f"File {current_index + 1} of {total_files}"); self.window.prev_file_btn.setEnabled(enabled and current_index > 0); self.window.next_file_btn.setEnabled(enabled and current_index < total_files - 1)
+        # Update completed count label
+        if hasattr(self.window, 'batch_completed_label') and self.window.batch_completed_label:
+            completed_text = f"{completed_count} file{'s' if completed_count != 1 else ''} completed"
+            self.window.batch_completed_label.setText(completed_text)
         if enabled: self.window.save_btn.setText("Save and Complete" if current_index >= total_files - 1 else "Save and Continue")
         else: self.window.save_btn.setText("Generate Output Files")
 

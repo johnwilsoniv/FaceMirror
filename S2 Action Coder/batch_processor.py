@@ -14,6 +14,7 @@ class BatchProcessor(QObject):
         super().__init__()
         self.file_sets = []  # List of file sets to process
         self.current_index = -1  # Index of currently loaded file set
+        self.completed_count = 0  # Track number of completed files
 
     def find_matching_files(self, directory):
         """
@@ -183,10 +184,15 @@ class BatchProcessor(QObject):
         """
         self.file_sets = file_sets
         self.current_index = -1  # Reset the index
+        self.completed_count = 0  # Reset completed count for new batch
 
     def get_total_files(self):
         """Get the total number of file sets."""
         return len(self.file_sets)
+
+    def get_completed_count(self):
+        """Get the number of completed file sets."""
+        return self.completed_count
 
     def get_current_index(self):
         """Get the index of the current file set."""
@@ -252,8 +258,9 @@ class BatchProcessor(QObject):
         """
         if 0 <= self.current_index < len(self.file_sets):
             removed_file = self.file_sets.pop(self.current_index)
+            self.completed_count += 1  # Increment completed count
             print(f"BatchProcessor: Removed completed file '{removed_file.get('base_id', 'Unknown')}' from batch")
-            print(f"BatchProcessor: Batch now has {len(self.file_sets)} files remaining")
+            print(f"BatchProcessor: Batch now has {len(self.file_sets)} files remaining ({self.completed_count} completed)")
             # Don't adjust index - the next file is now at the same index position
             # But if we removed the last file, move index back
             if self.current_index >= len(self.file_sets) and len(self.file_sets) > 0:
