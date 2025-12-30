@@ -97,9 +97,9 @@ AU_NAMES = {
 # All AU columns to extract for analysis - ensure all potentially relevant AUs are here
 ALL_AU_COLUMNS = [
     'AU01_r', 'AU02_r', 'AU04_r', 'AU05_r', 'AU06_r', 'AU07_r', 'AU09_r',
-    'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU16_r', 'AU17_r', 'AU20_r', 'AU23_r',
+    'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r', 'AU20_r', 'AU23_r',
     'AU25_r', 'AU26_r', 'AU45_r'
-]
+]  # Note: AU16_r excluded - not available in PyFaceAU/OpenFace 2.2
 
 # Synkinesis and hypertonicity detection removed - paralysis detection only
 
@@ -184,9 +184,9 @@ CONFIDENCE_THRESHOLDS = {
 BASELINE_AU_ACTIVATIONS = {
     'AU01_r': 0.1, 'AU02_r': 0.1, 'AU04_r': 0.1, 'AU05_r': 0.2, 'AU06_r': 0.1,
     'AU07_r': 0.2, 'AU09_r': 0.1, 'AU10_r': 0.15, 'AU12_r': 0.2, 'AU14_r': 0.15,
-    'AU15_r': 0.1, 'AU16_r': 0.1, 'AU17_r': 0.1, 'AU20_r': 0.1, 'AU23_r': 0.1, 'AU25_r': 0.2,
+    'AU15_r': 0.1, 'AU17_r': 0.1, 'AU20_r': 0.1, 'AU23_r': 0.1, 'AU25_r': 0.2,
     'AU26_r': 0.1, 'AU45_r': 0.1
-}
+}  # Note: AU16_r excluded - not available in PyFaceAU/OpenFace 2.2
 
 PATIENT_SUMMARY_COLUMNS = [
     'Patient ID',
