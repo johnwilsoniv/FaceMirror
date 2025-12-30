@@ -167,7 +167,7 @@ ZONE_CONFIG = {
     'mid': {
         'name': 'Mid Face',
         'actions': ['ES', 'ET', 'BK'],
-        'aus': ['AU45_r', 'AU07_r', 'AU06_r'],
+        'aus': ['AU45_r', 'AU07_r'],
         'expert_columns': {
             'left': 'Paralysis - Left Mid Face',
             'right': 'Paralysis - Right Mid Face'
