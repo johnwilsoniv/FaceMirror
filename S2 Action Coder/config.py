@@ -60,7 +60,7 @@ MANUAL_KEY_SHORTCUTS = {
 
 # Voice Command Mappings (No change needed for BL/Uncoded)
 VOICE_COMMAND_MAPPINGS = {
-    "raise your eyebrows": "RE", "eyebrows up": "RE", "raise eyebrows": "RE", "raise your eyes": "RE",
+    "raise your eyebrows": "RE", "eyebrows up": "RE", "raise eyebrows": "RE", "raise your eyes": "RE", "your eyebrows": "RE",
     "frown": "FR", "frown with your eyebrows": "FR", "make an angry face": "FR", "fran": "FR", "front": "FR", "round for me": "FR",
     "blink": "BK", "blink eyes": "BK", "blink a few times": "BK", "blake a few times": "BK",
     "close your eyes softly": "ES", "soft close": "ES", "gently close eyes": "ES", "close your eyes": "ES", "close eyes softly": "ES", "close your eyes shut": "ES", "close your eyes gently": "ES",
