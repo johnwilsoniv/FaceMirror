@@ -364,6 +364,9 @@ class TrainingGUI:
         self.root.title("Facial Paralysis Model Training")
         self.root.geometry("950x850")
 
+        # Handle window close to kill any running training process
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
         # Hardware info will be detected asynchronously
         self.hardware_info = {}
 
@@ -432,6 +435,10 @@ class TrainingGUI:
             self.hardware_info = detect_hardware()
             # Update hardware tab if it exists
             self.root.update_idletasks()
+
+        # Enable start button and update status now that initialization is complete
+        self.start_button.config(state='normal')
+        self.progress_var.set("Ready to train")
 
     def _setup_styles(self):
         """Setup custom ttk styles"""
@@ -567,7 +574,8 @@ class TrainingGUI:
         self.start_button = ttk.Button(
             control_frame,
             text="Start Training",
-            command=self.start_training
+            command=self.start_training,
+            state='disabled'  # Disabled until initialization completes
         )
         self.start_button.pack(side='left', padx=5)
 
@@ -584,7 +592,7 @@ class TrainingGUI:
         progress_frame.pack(fill='x', padx=10, pady=(10, 5))
 
         # Overall progress label with monospaced font
-        self.progress_var = tk.StringVar(value="Ready to train")
+        self.progress_var = tk.StringVar(value="Initializing...")
         progress_label = ttk.Label(progress_frame, textvariable=self.progress_var,
                                    font=self.mono_font)
         progress_label.pack(fill='x', pady=(0, 5))
@@ -1275,6 +1283,27 @@ class TrainingGUI:
                 self.training_finished()
         else:
             messagebox.showinfo("Stop Training", "No training is currently running.")
+
+    def on_closing(self):
+        """Handle window close - terminate any running training process"""
+        if self.training_process is not None:
+            # Check if process is still running
+            if hasattr(self.training_process, 'poll') and self.training_process.poll() is None:
+                # Ask user if they want to stop training
+                if messagebox.askyesno("Close", "Training is still running. Stop training and close?"):
+                    self.training_process.terminate()
+                    try:
+                        self.training_process.wait(timeout=3)
+                    except:
+                        self.training_process.kill()
+                else:
+                    return  # Don't close
+
+        # Cancel any pending after() callbacks
+        if self.log_poll_id is not None:
+            self.root.after_cancel(self.log_poll_id)
+
+        self.root.destroy()
 
 
 def main():

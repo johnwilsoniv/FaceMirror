@@ -154,7 +154,7 @@ def generate_training_summary(zone_name, zone_key, training_results, config):
 
 
 def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, class_names,
-                                 performance_targets=None):
+                                 performance_targets=None, ordinal_enabled=False):
     """
     Generate comprehensive performance summary.
 
@@ -166,6 +166,7 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
         y_proba: Prediction probabilities
         class_names: Dictionary mapping class indices to names
         performance_targets: Dictionary of target metrics (optional)
+        ordinal_enabled: Whether ordinal classification was used (optional)
 
     Returns:
         str: Formatted performance summary
@@ -301,6 +302,40 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
         lines.append(row)
 
     lines.append("")
+
+    # Ordinal Classification Metrics (if enabled)
+    if ordinal_enabled and len(class_names) == 3:
+        lines.append("ORDINAL CLASSIFICATION METRICS")
+        lines.append("-" * 70)
+
+        # Calculate ordinal-specific metrics
+        y_true_arr = np.array(y_true)
+        y_pred_arr = np.array(y_pred)
+
+        # Mean Absolute Error (ordinal distance)
+        mae = np.mean(np.abs(y_true_arr - y_pred_arr))
+        lines.append(f"Mean Absolute Error (MAE): {mae:.4f}")
+
+        # Adjacent Accuracy (predictions within 1 class)
+        adjacent_correct = np.sum(np.abs(y_true_arr - y_pred_arr) <= 1)
+        adjacent_accuracy = adjacent_correct / len(y_true_arr)
+        lines.append(f"Adjacent Accuracy (±1 class): {adjacent_accuracy:.4f} ({adjacent_accuracy*100:.2f}%)")
+
+        # Spearman correlation (ordinal association)
+        try:
+            from scipy.stats import spearmanr
+            spearman_corr, spearman_p = spearmanr(y_true_arr, y_pred_arr)
+            if not np.isnan(spearman_corr):
+                lines.append(f"Spearman Correlation: {spearman_corr:.4f} (p={spearman_p:.4f})")
+        except Exception:
+            pass
+
+        # Off-by-2 errors (worst case: predicting Complete when None or vice versa)
+        off_by_2 = np.sum(np.abs(y_true_arr - y_pred_arr) == 2)
+        off_by_2_pct = off_by_2 / len(y_true_arr) * 100
+        lines.append(f"Off-by-2 Errors (None↔Complete): {off_by_2} ({off_by_2_pct:.1f}%)")
+
+        lines.append("")
 
     # Prediction Confidence Analysis
     lines.append("PREDICTION CONFIDENCE")

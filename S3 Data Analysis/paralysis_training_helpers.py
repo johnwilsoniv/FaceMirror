@@ -33,8 +33,268 @@ from paralysis_config import (
     ADVANCED_TRAINING_CONFIG, MODEL_DIR, ANALYSIS_DIR, PERFORMANCE_CONFIG
 )
 from paralysis_utils import PARALYSIS_MAP
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
+from sklearn.calibration import CalibratedClassifierCV
+from scipy.stats import spearmanr
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# ORDINAL CLASSIFICATION CLASSES AND FUNCTIONS
+# =============================================================================
+
+class OrdinalBinaryClassifier(BaseEstimator, ClassifierMixin):
+    """
+    Ordinal classifier using cumulative binary decomposition.
+
+    For classes 0 < 1 < 2 (None < Partial < Complete), trains:
+    - Model 1: P(Y > 0) = P(Y in {1, 2}) - None vs Affected
+    - Model 2: P(Y > 1) = P(Y = 2) - Non-Complete vs Complete
+
+    Final prediction uses thresholds:
+    - If P(Y > 0) < threshold_1 -> predict 0 (None)
+    - Elif P(Y > 1) < threshold_2 -> predict 1 (Partial)
+    - Else -> predict 2 (Complete)
+
+    This enforces ordinal consistency - can't predict Complete without
+    exceeding both thresholds.
+    """
+
+    def __init__(self, base_estimator=None, n_classes=3, thresholds=None,
+                 class_weights_binary=None, random_state=42):
+        self.base_estimator = base_estimator
+        self.n_classes = n_classes
+        self.thresholds = thresholds or [0.5] * (n_classes - 1)
+        self.class_weights_binary = class_weights_binary
+        self.random_state = random_state
+        self.models_ = []
+        self.classes_ = np.arange(n_classes)
+
+    def fit(self, X, y, sample_weight=None):
+        """Fit binary classifiers for each ordinal threshold."""
+        self.models_ = []
+        y = np.asarray(y)
+
+        for k in range(self.n_classes - 1):
+            # Create binary target: 1 if y > k, else 0
+            y_binary = (y > k).astype(int)
+
+            # Clone base estimator for this threshold
+            if self.base_estimator is not None:
+                model = clone(self.base_estimator)
+            else:
+                # Default to XGBoost binary classifier
+                model = xgb.XGBClassifier(
+                    objective='binary:logistic',
+                    eval_metric='logloss',
+                    random_state=self.random_state,
+                    n_jobs=-1,
+                    use_label_encoder=False
+                )
+
+            # Apply class weights for this binary model if specified
+            if self.class_weights_binary is not None:
+                model_key = f'model_{k+1}'
+                if model_key in self.class_weights_binary:
+                    weights = self.class_weights_binary[model_key]
+                    binary_sample_weights = np.array([weights.get(int(label), 1.0) for label in y_binary])
+                    if sample_weight is not None:
+                        binary_sample_weights = binary_sample_weights * sample_weight
+                    model.fit(X, y_binary, sample_weight=binary_sample_weights)
+                else:
+                    model.fit(X, y_binary, sample_weight=sample_weight)
+            else:
+                model.fit(X, y_binary, sample_weight=sample_weight)
+
+            self.models_.append(model)
+            logger.info(f"  Ordinal Model {k+1}: P(Y > {k}) trained. "
+                       f"Class distribution: {np.bincount(y_binary)}")
+
+        return self
+
+    def predict_cumulative_proba(self, X):
+        """Get cumulative probabilities P(Y > k) for each threshold."""
+        proba_greater = []
+        for model in self.models_:
+            proba = model.predict_proba(X)
+            # P(Y > k) is the probability of class 1 in binary model
+            proba_greater.append(proba[:, 1])
+        return np.column_stack(proba_greater)
+
+    def predict_proba(self, X):
+        """
+        Convert cumulative probabilities to class probabilities.
+
+        P(Y = 0) = 1 - P(Y > 0)
+        P(Y = 1) = P(Y > 0) - P(Y > 1)
+        P(Y = 2) = P(Y > 1)
+        """
+        cum_proba = self.predict_cumulative_proba(X)
+        n_samples = X.shape[0]
+        class_proba = np.zeros((n_samples, self.n_classes))
+
+        # P(Y = 0) = 1 - P(Y > 0)
+        class_proba[:, 0] = 1 - cum_proba[:, 0]
+
+        # P(Y = k) = P(Y > k-1) - P(Y > k) for 0 < k < n_classes-1
+        for k in range(1, self.n_classes - 1):
+            class_proba[:, k] = cum_proba[:, k-1] - cum_proba[:, k]
+
+        # P(Y = n_classes-1) = P(Y > n_classes-2)
+        class_proba[:, self.n_classes - 1] = cum_proba[:, self.n_classes - 2]
+
+        # Clip to ensure valid probabilities (numerical stability)
+        class_proba = np.clip(class_proba, 0, 1)
+
+        # Normalize rows to sum to 1
+        row_sums = class_proba.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1  # Avoid division by zero
+        class_proba = class_proba / row_sums
+
+        return class_proba
+
+    def predict(self, X, thresholds=None):
+        """
+        Predict class labels using ordinal thresholds.
+
+        Uses cumulative probability thresholds to enforce ordinal consistency.
+        """
+        if thresholds is None:
+            thresholds = self.thresholds
+
+        cum_proba = self.predict_cumulative_proba(X)
+        n_samples = X.shape[0]
+        predictions = np.zeros(n_samples, dtype=int)
+
+        for i in range(n_samples):
+            # Start with class 0 (None)
+            pred = 0
+            # Move to higher classes if cumulative probabilities exceed thresholds
+            for k in range(self.n_classes - 1):
+                if cum_proba[i, k] >= thresholds[k]:
+                    pred = k + 1
+                else:
+                    break  # Ordinal constraint: can't skip classes
+            predictions[i] = pred
+
+        return predictions
+
+    def set_thresholds(self, thresholds):
+        """Set prediction thresholds."""
+        self.thresholds = thresholds
+
+
+def optimize_ordinal_thresholds(model, X_val, y_val, threshold_range=(0.2, 0.8),
+                                 step_size=0.05, scoring='f1_macro'):
+    """
+    Find optimal thresholds for ordinal classification.
+
+    Args:
+        model: Fitted OrdinalBinaryClassifier
+        X_val: Validation features
+        y_val: Validation labels
+        threshold_range: (min, max) range for threshold search
+        step_size: Step size for grid search
+        scoring: Metric to optimize ('f1_macro', 'accuracy', 'balanced_accuracy')
+
+    Returns:
+        dict with 'thresholds' and 'best_score'
+    """
+    from sklearn.metrics import f1_score, accuracy_score, balanced_accuracy_score
+
+    y_val = np.asarray(y_val)
+    n_thresholds = model.n_classes - 1
+    threshold_values = np.arange(threshold_range[0], threshold_range[1] + step_size, step_size)
+
+    best_thresholds = [0.5] * n_thresholds
+    best_score = -np.inf
+
+    # Grid search over threshold combinations
+    if n_thresholds == 2:
+        for t1 in threshold_values:
+            for t2 in threshold_values:
+                thresholds = [t1, t2]
+                y_pred = model.predict(X_val, thresholds=thresholds)
+
+                if scoring == 'f1_macro':
+                    score = f1_score(y_val, y_pred, average='macro', zero_division=0)
+                elif scoring == 'accuracy':
+                    score = accuracy_score(y_val, y_pred)
+                elif scoring == 'balanced_accuracy':
+                    score = balanced_accuracy_score(y_val, y_pred)
+                else:
+                    score = f1_score(y_val, y_pred, average='macro', zero_division=0)
+
+                if score > best_score:
+                    best_score = score
+                    best_thresholds = thresholds.copy()
+    else:
+        # For more classes, use simpler approach
+        for t in threshold_values:
+            thresholds = [t] * n_thresholds
+            y_pred = model.predict(X_val, thresholds=thresholds)
+            score = f1_score(y_val, y_pred, average='macro', zero_division=0)
+            if score > best_score:
+                best_score = score
+                best_thresholds = thresholds.copy()
+
+    logger.info(f"  Ordinal threshold optimization: best thresholds = {best_thresholds}, "
+               f"best {scoring} = {best_score:.4f}")
+
+    return {'thresholds': best_thresholds, 'best_score': best_score}
+
+
+def compute_ordinal_metrics(y_true, y_pred, class_names=None):
+    """
+    Compute ordinal-specific evaluation metrics.
+
+    Args:
+        y_true: True labels (0, 1, 2 for None, Partial, Complete)
+        y_pred: Predicted labels
+        class_names: Optional dict mapping class indices to names
+
+    Returns:
+        dict with ordinal metrics
+    """
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    # Mean Absolute Error (treats classes as ordinal integers)
+    mae = np.mean(np.abs(y_true - y_pred))
+
+    # Ordinal accuracy (exact match)
+    accuracy = np.mean(y_true == y_pred)
+
+    # Adjacent accuracy (within 1 class - no "skipping")
+    adjacent_accuracy = np.mean(np.abs(y_true - y_pred) <= 1)
+
+    # Spearman correlation (ordinal correlation)
+    if len(np.unique(y_true)) > 1 and len(np.unique(y_pred)) > 1:
+        spearman_corr, spearman_p = spearmanr(y_true, y_pred)
+    else:
+        spearman_corr, spearman_p = 0.0, 1.0
+
+    # Count of "skip" errors (None->Complete or Complete->None)
+    skip_errors = np.sum(np.abs(y_true - y_pred) > 1)
+    skip_error_rate = skip_errors / len(y_true) if len(y_true) > 0 else 0
+
+    metrics = {
+        'ordinal_mae': mae,
+        'ordinal_accuracy': accuracy,
+        'adjacent_accuracy': adjacent_accuracy,
+        'spearman_correlation': spearman_corr,
+        'spearman_p_value': spearman_p,
+        'skip_errors': int(skip_errors),
+        'skip_error_rate': skip_error_rate
+    }
+
+    logger.info(f"  Ordinal Metrics: MAE={mae:.3f}, Accuracy={accuracy:.3f}, "
+               f"Adjacent={adjacent_accuracy:.3f}, Spearman={spearman_corr:.3f}, "
+               f"Skip Errors={skip_errors}")
+
+    return metrics
+
 
 def setup_logging_for_zone(log_file, level_str, log_format_str):
     log_level = getattr(logging, level_str.upper(), logging.INFO)

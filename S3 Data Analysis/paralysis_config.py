@@ -132,6 +132,22 @@ ZONE_CONFIG_DEFAULTS = {
             'entropy_quantile': 0.9,  # Flag top 10% highest entropy samples
             'margin_quantile': 0.1,  # Flag bottom 10% lowest margin samples
             'true_label_prob_threshold': 0.4  # Flag if true label prob is below this
+        },
+        'ordinal_classification': {  # Ordinal approach for None < Partial < Complete
+            'enabled': True,  # Enable ordinal classification by default
+            'method': 'cumulative_binary',  # Binary decomposition approach
+            'thresholds': {
+                'threshold_1': 0.5,  # P(Y > 0) threshold: None vs (Partial+Complete)
+                'threshold_2': 0.5   # P(Y > 1) threshold: (None+Partial) vs Complete
+            },
+            'optimize_thresholds': True,  # Search for optimal thresholds via validation
+            'threshold_search_range': [0.2, 0.8],
+            'threshold_step_size': 0.05,
+            'use_ensemble': True,  # Use VotingClassifier for each binary model
+            'class_weights_binary': {  # Weights for binary classifiers
+                'model_1': {0: 1.0, 1: 2.0},  # None vs Affected
+                'model_2': {0: 1.5, 1: 1.0}   # Non-Complete vs Complete
+            }
         }
     }
 }
@@ -169,7 +185,7 @@ ZONE_CONFIG = {
     'mid': {
         'name': 'Mid Face',
         'actions': ['ES', 'ET', 'BK'],
-        'aus': ['AU45_r', 'AU07_r', 'AU06_r'],
+        'aus': ['AU45_r', 'AU07_r', 'AU06_r'],  # AU06 needed for best performance
         'expert_columns': {
             'left': 'Paralysis - Left Mid Face',
             'right': 'Paralysis - Right Mid Face'
@@ -217,7 +233,7 @@ ZONE_CONFIG = {
                 'enabled': True,
                 'method': 'optuna',
                 'optuna': {
-                    'n_trials': 100,
+                    'n_trials': 200,
                     'cv_folds': 5,
                     'direction': 'maximize',
                     'scoring': 'f1_macro',
@@ -236,7 +252,21 @@ ZONE_CONFIG = {
                     },
                     'optuna_early_stopping_rounds': 25,
                     'patience': 15
-                }
+                },
+                # OPTIMAL PARAMS from 92.59% accuracy run (2025-12-30 21:37:13)
+                # Use these with 'use_known_optimal': True to skip Optuna
+                'known_optimal_params': {
+                    'learning_rate': 0.04926,
+                    'max_depth': 3,
+                    'n_estimators': 372,
+                    'min_child_weight': 2,
+                    'gamma': 0.1324,
+                    'subsample': 0.742,
+                    'colsample_bytree': 0.705,
+                    'reg_alpha': 0.1589,
+                    'reg_lambda': 0.2426
+                },
+                'use_known_optimal': False  # Set True to skip Optuna and use known params
             }
         },
         'feature_selection': {
@@ -309,17 +339,18 @@ for zone_key_iter, zone_data_iter in ZONE_CONFIG.items():
 if 'lower' in ZONE_CONFIG:
     ZONE_CONFIG['lower']['feature_selection']['top_n_features'] = 60
     ZONE_CONFIG['lower']['training']['class_weights'] = {0: 1.0, 1: 3.5, 2: 2.5}
-    ZONE_CONFIG['lower']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 120
+    ZONE_CONFIG['lower']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 200
 
 if 'mid' in ZONE_CONFIG:
+    # OPTIMIZED: Use aggressive weights for extreme imbalance (75%/15%/10%)
     ZONE_CONFIG['mid']['feature_selection']['top_n_features'] = 40
-    ZONE_CONFIG['mid']['training']['class_weights'] = {0: 1.0, 1: 4.0, 2: 3.0}
-    ZONE_CONFIG['mid']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 80
+    ZONE_CONFIG['mid']['training']['class_weights'] = {0: 1.0, 1: 10.0, 2: 7.0}
+    ZONE_CONFIG['mid']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 200
 
 if 'upper' in ZONE_CONFIG:
     ZONE_CONFIG['upper']['feature_selection']['top_n_features'] = 25
     ZONE_CONFIG['upper']['training']['class_weights'] = {0: 1.0, 1: 3.0, 2: 2.0}
-    ZONE_CONFIG['upper']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 70
+    ZONE_CONFIG['upper']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 200
     ZONE_CONFIG['upper']['training']['calibration']['method'] = 'sigmoid'
 
 REVIEW_CONFIG = {

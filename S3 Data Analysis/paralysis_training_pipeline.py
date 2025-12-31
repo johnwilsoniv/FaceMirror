@@ -456,11 +456,16 @@ def run_zone_training_pipeline(zone_key_pipe, zone_config_all_pipe, input_files_
         )
 
         # Generate performance summary
+        # Check if ordinal classification was used for this zone
+        ordinal_config = zone_specific_config_pipe.get('training', {}).get('ordinal_classification', {})
+        ordinal_enabled_pipe = ordinal_config.get('enabled', False) and len(class_names_global_pipe) == 3
+
         performance_summary_text = generate_performance_summary(
             zone_name_display_pipe, zone_key_pipe,
             y_test_pipe, y_pred_test_final_pipe, y_proba_test_final_pipe,
             class_names_global_pipe,
-            performance_targets=get_performance_targets(zone_key_pipe) if get_performance_targets else None
+            performance_targets=get_performance_targets(zone_key_pipe) if get_performance_targets else None,
+            ordinal_enabled=ordinal_enabled_pipe
         )
 
         # Save summaries to files

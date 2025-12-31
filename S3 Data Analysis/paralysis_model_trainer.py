@@ -34,7 +34,8 @@ from paralysis_training_helpers import (
     apply_data_augmentation, apply_smote_and_cleaning,
     create_optuna_objective, optimize_class_thresholds, apply_optimized_thresholds,
     get_class_specific_info, calculate_class_weights_for_model,
-    get_common_feature_importance_df
+    get_common_feature_importance_df,
+    OrdinalBinaryClassifier, optimize_ordinal_thresholds, compute_ordinal_metrics
 )
 
 logger = logging.getLogger(__name__)
@@ -257,141 +258,214 @@ def train_model_workflow(zone_key_mw, X_train_df_mw, y_train_arr_mw, X_test_df_m
         # X_train_main_model_mw and y_train_main_model_mw remain as the full (smoted, augmented) set
         # X_calib_set_mw, y_calib_set_mw remain None
 
-    logger.info(
-        f"[{zone_name_disp_mw}] Training final Voting Ensemble model on {X_train_main_model_mw.shape[0]} samples...")
-    # (Instantiate base models and VotingClassifier - same as before, but using X_train_main_model_mw, y_train_main_model_mw)
-    adv_ensemble_opts_mw = ADVANCED_TRAINING_CONFIG.get('ensemble_options', {})
-    rf_params_cfg_mw = adv_ensemble_opts_mw.get('random_forest_params', {}).copy()
-    et_params_cfg_mw = adv_ensemble_opts_mw.get('extra_trees_params', {}).copy()
-    voting_weights_cfg_mw = adv_ensemble_opts_mw.get('weights', {'xgb': 0.6, 'rf': 0.2, 'et': 0.2})
-    voting_type_cfg_mw = adv_ensemble_opts_mw.get('voting_type', 'soft')
+    # ==========================================================================
+    # CHECK FOR ORDINAL CLASSIFICATION MODE
+    # ==========================================================================
+    ordinal_config_mw = training_params_mw.get('ordinal_classification', {})
+    use_ordinal_mw = ordinal_config_mw.get('enabled', False)
 
-    xgb_final_params_voter = best_xgb_params_mw.copy()
-    if 'early_stopping_rounds' in xgb_final_params_voter: del xgb_final_params_voter['early_stopping_rounds']
-    if num_classes_mw <= 2 and xgb_final_params_voter.get('objective') == 'multi:softprob':
-        xgb_final_params_voter['objective'] = 'binary:logistic';
-        xgb_final_params_voter['eval_metric'] = 'logloss'
-        if 'num_class' in xgb_final_params_voter: del xgb_final_params_voter['num_class']
-    elif num_classes_mw > 2 and xgb_final_params_voter.get('objective') == 'binary:logistic':
-        xgb_final_params_voter['objective'] = 'multi:softprob';
-        xgb_final_params_voter['eval_metric'] = 'mlogloss'
-        xgb_final_params_voter['num_class'] = num_classes_mw
+    if use_ordinal_mw and num_classes_mw == 3:
+        logger.info(f"[{zone_name_disp_mw}] Using ORDINAL CLASSIFICATION (cumulative binary decomposition)")
 
-    xgb_base_final_main = xgb.XGBClassifier(**xgb_final_params_voter)
-    class_weights_map_main_model = calculate_class_weights_for_model(y_train_main_model_mw,
-                                                                     training_params_mw.get('class_weights', {}))
-    sample_weights_xgb_main_model = np.array(
-        [class_weights_map_main_model.get(int(lbl), 1.0) for lbl in y_train_main_model_mw])
+        # Get ordinal-specific settings
+        ordinal_thresholds_mw = [
+            ordinal_config_mw.get('thresholds', {}).get('threshold_1', 0.5),
+            ordinal_config_mw.get('thresholds', {}).get('threshold_2', 0.5)
+        ]
+        class_weights_binary_mw = ordinal_config_mw.get('class_weights_binary', None)
+        optimize_thresholds_mw = ordinal_config_mw.get('optimize_thresholds', True)
+        threshold_range_mw = ordinal_config_mw.get('threshold_search_range', [0.2, 0.8])
+        threshold_step_mw = ordinal_config_mw.get('threshold_step_size', 0.05)
 
-    logger.info(f"[{zone_name_disp_mw}] Fitting main XGBoost base model separately with sample_weight...")
-    xgb_base_final_main.fit(X_train_main_model_mw, y_train_main_model_mw, sample_weight=sample_weights_xgb_main_model)
+        # Create base estimator for ordinal model (use XGBoost with best params)
+        xgb_ordinal_params = best_xgb_params_mw.copy()
+        # Override for binary classification
+        xgb_ordinal_params['objective'] = 'binary:logistic'
+        xgb_ordinal_params['eval_metric'] = 'logloss'
+        if 'num_class' in xgb_ordinal_params:
+            del xgb_ordinal_params['num_class']
+        if 'early_stopping_rounds' in xgb_ordinal_params:
+            del xgb_ordinal_params['early_stopping_rounds']
 
-    rf_params_final_voter = rf_params_cfg_mw.copy();
-    rf_params_final_voter['random_state'] = random_state_mw
-    rf_params_final_voter['class_weight'] = class_weights_map_main_model if class_weights_map_main_model else 'balanced'
-    rf_base_final_main = RandomForestClassifier(**rf_params_final_voter)
+        base_estimator_ordinal = xgb.XGBClassifier(**xgb_ordinal_params)
 
-    et_params_final_voter = et_params_cfg_mw.copy();
-    et_params_final_voter['random_state'] = random_state_mw
-    et_params_final_voter['class_weight'] = class_weights_map_main_model if class_weights_map_main_model else 'balanced'
-    et_base_final_main = ExtraTreesClassifier(**et_params_final_voter)
+        # Create and fit ordinal classifier
+        ordinal_model_mw = OrdinalBinaryClassifier(
+            base_estimator=base_estimator_ordinal,
+            n_classes=num_classes_mw,
+            thresholds=ordinal_thresholds_mw,
+            class_weights_binary=class_weights_binary_mw,
+            random_state=random_state_mw
+        )
 
-    estimators_list_main_model = [('xgb', xgb_base_final_main), ('rf', rf_base_final_main), ('et', et_base_final_main)]
+        logger.info(f"[{zone_name_disp_mw}] Fitting ordinal classifier on {X_train_main_model_mw.shape[0]} samples...")
+        ordinal_model_mw.fit(X_train_main_model_mw, y_train_main_model_mw)
 
-    voting_model_uncalibrated_mw = VotingClassifier(
-        estimators=estimators_list_main_model, voting=voting_type_cfg_mw,
-        weights=[voting_weights_cfg_mw.get('xgb', 0.6), voting_weights_cfg_mw.get('rf', 0.2),
-                 voting_weights_cfg_mw.get('et', 0.2)],
-        n_jobs=n_jobs_workflow
-    )
-    logger.info(f"[{zone_name_disp_mw}] Fitting main VotingClassifier (RF and ET bases)...")
-    voting_model_uncalibrated_mw.fit(X_train_main_model_mw, y_train_main_model_mw)  # XGB is pre-fit
-
-    final_model_mw = voting_model_uncalibrated_mw  # Default to uncalibrated
-
-    # Option 1: Calibrate using the dedicated calibration set if available (cv='prefit')
-    if X_calib_set_mw is not None and y_calib_set_mw is not None and len(X_calib_set_mw) > 0:
-        logger.info(
-            f"[{zone_name_disp_mw}] Attempting 'prefit' calibration using dedicated set ({X_calib_set_mw.shape[0]} samples). Method: '{calib_method_mw}'...")
-        try:
-            # Calibrate the already fitted voting_model_uncalibrated_mw
-            calibrated_model_prefit_mw = CalibratedClassifierCV(
-                estimator=deepcopy(voting_model_uncalibrated_mw),
-                # Pass a copy to avoid modifying original if fit fails
-                method=calib_method_mw,
-                cv='prefit',
-                n_jobs=n_jobs_workflow  # n_jobs for potential internal operations if method involves it
+        # Optimize thresholds if enabled and we have calibration data
+        if optimize_thresholds_mw and X_calib_set_mw is not None and len(X_calib_set_mw) > 0:
+            logger.info(f"[{zone_name_disp_mw}] Optimizing ordinal thresholds on calibration set...")
+            threshold_result = optimize_ordinal_thresholds(
+                ordinal_model_mw, X_calib_set_mw, y_calib_set_mw,
+                threshold_range=tuple(threshold_range_mw),
+                step_size=threshold_step_mw,
+                scoring='f1_macro'
             )
-            calibrated_model_prefit_mw.fit(X_calib_set_mw, y_calib_set_mw)  # Fit calibrators on X_calib_set_mw
-            final_model_mw = calibrated_model_prefit_mw
-            logger.info(f"[{zone_name_disp_mw}] Model calibrated with 'prefit' on dedicated calibration set.")
-        except Exception as e_calib_prefit_mw:
-            logger.warning(
-                f"[{zone_name_disp_mw}] 'Prefit' calibration failed: {e_calib_prefit_mw}. Using uncalibrated model.",
-                exc_info=True)
-            # final_model_mw remains voting_model_uncalibrated_mw
+            ordinal_model_mw.set_thresholds(threshold_result['thresholds'])
+            optimal_thresholds_mw = None  # Don't use standard threshold optimization
+        elif optimize_thresholds_mw:
+            # Use part of training data for threshold optimization
+            logger.info(f"[{zone_name_disp_mw}] Optimizing ordinal thresholds on training data (no separate calib set)...")
+            threshold_result = optimize_ordinal_thresholds(
+                ordinal_model_mw, X_train_main_model_mw, y_train_main_model_mw,
+                threshold_range=tuple(threshold_range_mw),
+                step_size=threshold_step_mw,
+                scoring='f1_macro'
+            )
+            ordinal_model_mw.set_thresholds(threshold_result['thresholds'])
+            optimal_thresholds_mw = None
 
-    # Option 2: Fallback to CV-based calibration if prefit was not possible or failed
-    # This uses the full X_smoted_augmented_mw, y_smoted_augmented_mw for calibration CV
-    elif isinstance(calib_cfg_mw.get('cv'), int) and calib_cfg_mw.get('cv') > 1:
-        calib_cv_folds_mw = calib_cfg_mw.get('cv')
-        logger.info(
-            f"[{zone_name_disp_mw}] Attempting CV-based calibration. Method: '{calib_method_mw}', CV Folds: {calib_cv_folds_mw}...")
-        try:
-            unique_y_cv_cal_mw, counts_y_cv_cal_mw = np.unique(X_smoted_augmented_mw,
-                                                               return_counts=True)  # Use full data for CV calib
-            if len(unique_y_cv_cal_mw) >= (2 if num_classes_mw > 1 else 1) and \
-                    all(c >= calib_cv_folds_mw for c in counts_y_cv_cal_mw):
+        final_model_mw = ordinal_model_mw
+        logger.info(f"[{zone_name_disp_mw}] Ordinal model trained. Final thresholds: {ordinal_model_mw.thresholds}")
 
-                xgb_template_calib_cv = xgb.XGBClassifier(**xgb_final_params_voter)
-                rf_template_calib_cv = RandomForestClassifier(**rf_params_final_voter)
-                et_template_calib_cv = ExtraTreesClassifier(**et_params_final_voter)
-
-                estimators_template_calib_cv = [('xgb', xgb_template_calib_cv), ('rf', rf_template_calib_cv),
-                                                ('et', et_template_calib_cv)]
-                voting_model_template_for_calib_cv = VotingClassifier(
-                    estimators=estimators_template_calib_cv, voting=voting_type_cfg_mw,
-                    weights=[voting_weights_cfg_mw.get('xgb', 0.6), voting_weights_cfg_mw.get('rf', 0.2),
-                             voting_weights_cfg_mw.get('et', 0.2)],
-                    n_jobs=n_jobs_workflow
-                )
-                calib_cv_obj_mw = StratifiedKFold(n_splits=calib_cv_folds_mw, shuffle=True,
-                                                  random_state=random_state_mw)
-
-                calibrated_model_cv_mw = CalibratedClassifierCV(
-                    estimator=voting_model_template_for_calib_cv,
-                    method=calib_method_mw, cv=calib_cv_obj_mw, n_jobs=n_jobs_workflow
-                )
-
-                fit_params_for_calib_cv_internal = {}
-                # This is where sample_weight for XGBoost needs to be specified for CalibratedClassifierCV's internal fits
-                # Sample weights should be based on y_smoted_augmented_mw
-                class_weights_map_for_calib_cv = calculate_class_weights_for_model(y_smoted_augmented_mw,
-                                                                                   training_params_mw.get(
-                                                                                       'class_weights', {}))
-                sample_weights_xgb_for_calib_cv = np.array(
-                    [class_weights_map_for_calib_cv.get(int(lbl), 1.0) for lbl in y_smoted_augmented_mw])
-
-                if not np.all(sample_weights_xgb_for_calib_cv == 1.0):
-                    # This attempts to pass sample_weight to the xgb component of the VotingClassifier template
-                    # This specific routing ('estimator__xgb__sample_weight') might still be an issue if CalibratedClassifierCV doesn't propagate it deeply enough.
-                    fit_params_for_calib_cv_internal['estimator__xgb__sample_weight'] = sample_weights_xgb_for_calib_cv
-                    logger.info(
-                        f"[{zone_name_disp_mw}] Passing sample_weight for XGB to CalibratedClassifierCV for internal CV fits.")
-
-                calibrated_model_cv_mw.fit(X_smoted_augmented_mw, y_smoted_augmented_mw,
-                                           **fit_params_for_calib_cv_internal)
-                final_model_mw = calibrated_model_cv_mw
-                logger.info(f"[{zone_name_disp_mw}] VotingClassifier calibrated with internal cv={calib_cv_folds_mw}.")
-            else:
-                logger.warning(
-                    f"[{zone_name_disp_mw}] Internal CV calibration skipped: not enough samples for {calib_cv_folds_mw} folds. Using uncalibrated model.")
-        except Exception as e_calib_cv_mw:
-            logger.warning(
-                f"[{zone_name_disp_mw}] Internal CV calibration failed: {e_calib_cv_mw}. Using uncalibrated model.",
-                exc_info=True)
     else:
-        logger.info(f"[{zone_name_disp_mw}] No suitable calibration data or configuration. Using uncalibrated model.")
+        # ==========================================================================
+        # STANDARD MULTI-CLASS ENSEMBLE TRAINING
+        # ==========================================================================
+        logger.info(
+            f"[{zone_name_disp_mw}] Training final Voting Ensemble model on {X_train_main_model_mw.shape[0]} samples...")
+        # (Instantiate base models and VotingClassifier - same as before, but using X_train_main_model_mw, y_train_main_model_mw)
+        adv_ensemble_opts_mw = ADVANCED_TRAINING_CONFIG.get('ensemble_options', {})
+        rf_params_cfg_mw = adv_ensemble_opts_mw.get('random_forest_params', {}).copy()
+        et_params_cfg_mw = adv_ensemble_opts_mw.get('extra_trees_params', {}).copy()
+        voting_weights_cfg_mw = adv_ensemble_opts_mw.get('weights', {'xgb': 0.6, 'rf': 0.2, 'et': 0.2})
+        voting_type_cfg_mw = adv_ensemble_opts_mw.get('voting_type', 'soft')
+
+        xgb_final_params_voter = best_xgb_params_mw.copy()
+        if 'early_stopping_rounds' in xgb_final_params_voter: del xgb_final_params_voter['early_stopping_rounds']
+        if num_classes_mw <= 2 and xgb_final_params_voter.get('objective') == 'multi:softprob':
+            xgb_final_params_voter['objective'] = 'binary:logistic';
+            xgb_final_params_voter['eval_metric'] = 'logloss'
+            if 'num_class' in xgb_final_params_voter: del xgb_final_params_voter['num_class']
+        elif num_classes_mw > 2 and xgb_final_params_voter.get('objective') == 'binary:logistic':
+            xgb_final_params_voter['objective'] = 'multi:softprob';
+            xgb_final_params_voter['eval_metric'] = 'mlogloss'
+            xgb_final_params_voter['num_class'] = num_classes_mw
+
+        xgb_base_final_main = xgb.XGBClassifier(**xgb_final_params_voter)
+        class_weights_map_main_model = calculate_class_weights_for_model(y_train_main_model_mw,
+                                                                         training_params_mw.get('class_weights', {}))
+        sample_weights_xgb_main_model = np.array(
+            [class_weights_map_main_model.get(int(lbl), 1.0) for lbl in y_train_main_model_mw])
+
+        logger.info(f"[{zone_name_disp_mw}] Fitting main XGBoost base model separately with sample_weight...")
+        xgb_base_final_main.fit(X_train_main_model_mw, y_train_main_model_mw, sample_weight=sample_weights_xgb_main_model)
+
+        rf_params_final_voter = rf_params_cfg_mw.copy();
+        rf_params_final_voter['random_state'] = random_state_mw
+        rf_params_final_voter['class_weight'] = class_weights_map_main_model if class_weights_map_main_model else 'balanced'
+        rf_base_final_main = RandomForestClassifier(**rf_params_final_voter)
+
+        et_params_final_voter = et_params_cfg_mw.copy();
+        et_params_final_voter['random_state'] = random_state_mw
+        et_params_final_voter['class_weight'] = class_weights_map_main_model if class_weights_map_main_model else 'balanced'
+        et_base_final_main = ExtraTreesClassifier(**et_params_final_voter)
+
+        estimators_list_main_model = [('xgb', xgb_base_final_main), ('rf', rf_base_final_main), ('et', et_base_final_main)]
+
+        voting_model_uncalibrated_mw = VotingClassifier(
+            estimators=estimators_list_main_model, voting=voting_type_cfg_mw,
+            weights=[voting_weights_cfg_mw.get('xgb', 0.6), voting_weights_cfg_mw.get('rf', 0.2),
+                     voting_weights_cfg_mw.get('et', 0.2)],
+            n_jobs=n_jobs_workflow
+        )
+        logger.info(f"[{zone_name_disp_mw}] Fitting main VotingClassifier (RF and ET bases)...")
+        voting_model_uncalibrated_mw.fit(X_train_main_model_mw, y_train_main_model_mw)  # XGB is pre-fit
+
+        final_model_mw = voting_model_uncalibrated_mw  # Default to uncalibrated
+
+        # Option 1: Calibrate using the dedicated calibration set if available (cv='prefit')
+        if X_calib_set_mw is not None and y_calib_set_mw is not None and len(X_calib_set_mw) > 0:
+            logger.info(
+                f"[{zone_name_disp_mw}] Attempting 'prefit' calibration using dedicated set ({X_calib_set_mw.shape[0]} samples). Method: '{calib_method_mw}'...")
+            try:
+                # Calibrate the already fitted voting_model_uncalibrated_mw
+                calibrated_model_prefit_mw = CalibratedClassifierCV(
+                    estimator=deepcopy(voting_model_uncalibrated_mw),
+                    # Pass a copy to avoid modifying original if fit fails
+                    method=calib_method_mw,
+                    cv='prefit',
+                    n_jobs=n_jobs_workflow  # n_jobs for potential internal operations if method involves it
+                )
+                calibrated_model_prefit_mw.fit(X_calib_set_mw, y_calib_set_mw)  # Fit calibrators on X_calib_set_mw
+                final_model_mw = calibrated_model_prefit_mw
+                logger.info(f"[{zone_name_disp_mw}] Model calibrated with 'prefit' on dedicated calibration set.")
+            except Exception as e_calib_prefit_mw:
+                logger.warning(
+                    f"[{zone_name_disp_mw}] 'Prefit' calibration failed: {e_calib_prefit_mw}. Using uncalibrated model.",
+                    exc_info=True)
+                # final_model_mw remains voting_model_uncalibrated_mw
+
+        # Option 2: Fallback to CV-based calibration if prefit was not possible or failed
+        # This uses the full X_smoted_augmented_mw, y_smoted_augmented_mw for calibration CV
+        elif isinstance(calib_cfg_mw.get('cv'), int) and calib_cfg_mw.get('cv') > 1:
+            calib_cv_folds_mw = calib_cfg_mw.get('cv')
+            logger.info(
+                f"[{zone_name_disp_mw}] Attempting CV-based calibration. Method: '{calib_method_mw}', CV Folds: {calib_cv_folds_mw}...")
+            try:
+                unique_y_cv_cal_mw, counts_y_cv_cal_mw = np.unique(X_smoted_augmented_mw,
+                                                                   return_counts=True)  # Use full data for CV calib
+                if len(unique_y_cv_cal_mw) >= (2 if num_classes_mw > 1 else 1) and \
+                        all(c >= calib_cv_folds_mw for c in counts_y_cv_cal_mw):
+
+                    xgb_template_calib_cv = xgb.XGBClassifier(**xgb_final_params_voter)
+                    rf_template_calib_cv = RandomForestClassifier(**rf_params_final_voter)
+                    et_template_calib_cv = ExtraTreesClassifier(**et_params_final_voter)
+
+                    estimators_template_calib_cv = [('xgb', xgb_template_calib_cv), ('rf', rf_template_calib_cv),
+                                                    ('et', et_template_calib_cv)]
+                    voting_model_template_for_calib_cv = VotingClassifier(
+                        estimators=estimators_template_calib_cv, voting=voting_type_cfg_mw,
+                        weights=[voting_weights_cfg_mw.get('xgb', 0.6), voting_weights_cfg_mw.get('rf', 0.2),
+                                 voting_weights_cfg_mw.get('et', 0.2)],
+                        n_jobs=n_jobs_workflow
+                    )
+                    calib_cv_obj_mw = StratifiedKFold(n_splits=calib_cv_folds_mw, shuffle=True,
+                                                      random_state=random_state_mw)
+
+                    calibrated_model_cv_mw = CalibratedClassifierCV(
+                        estimator=voting_model_template_for_calib_cv,
+                        method=calib_method_mw, cv=calib_cv_obj_mw, n_jobs=n_jobs_workflow
+                    )
+
+                    fit_params_for_calib_cv_internal = {}
+                    # This is where sample_weight for XGBoost needs to be specified for CalibratedClassifierCV's internal fits
+                    # Sample weights should be based on y_smoted_augmented_mw
+                    class_weights_map_for_calib_cv = calculate_class_weights_for_model(y_smoted_augmented_mw,
+                                                                                       training_params_mw.get(
+                                                                                           'class_weights', {}))
+                    sample_weights_xgb_for_calib_cv = np.array(
+                        [class_weights_map_for_calib_cv.get(int(lbl), 1.0) for lbl in y_smoted_augmented_mw])
+
+                    if not np.all(sample_weights_xgb_for_calib_cv == 1.0):
+                        # This attempts to pass sample_weight to the xgb component of the VotingClassifier template
+                        # This specific routing ('estimator__xgb__sample_weight') might still be an issue if CalibratedClassifierCV doesn't propagate it deeply enough.
+                        fit_params_for_calib_cv_internal['estimator__xgb__sample_weight'] = sample_weights_xgb_for_calib_cv
+                        logger.info(
+                            f"[{zone_name_disp_mw}] Passing sample_weight for XGB to CalibratedClassifierCV for internal CV fits.")
+
+                    calibrated_model_cv_mw.fit(X_smoted_augmented_mw, y_smoted_augmented_mw,
+                                               **fit_params_for_calib_cv_internal)
+                    final_model_mw = calibrated_model_cv_mw
+                    logger.info(f"[{zone_name_disp_mw}] VotingClassifier calibrated with internal cv={calib_cv_folds_mw}.")
+                else:
+                    logger.warning(
+                        f"[{zone_name_disp_mw}] Internal CV calibration skipped: not enough samples for {calib_cv_folds_mw} folds. Using uncalibrated model.")
+            except Exception as e_calib_cv_mw:
+                logger.warning(
+                    f"[{zone_name_disp_mw}] Internal CV calibration failed: {e_calib_cv_mw}. Using uncalibrated model.",
+                    exc_info=True)
+        else:
+            logger.info(f"[{zone_name_disp_mw}] No suitable calibration data or configuration. Using uncalibrated model.")
 
     optimal_thresholds_map_mw = None
     threshold_opt_cfg_mw = training_params_mw.get('threshold_optimization', {})
