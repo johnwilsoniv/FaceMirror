@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext, font as tkfont
 import os
 import sys
+import multiprocessing
 import threading
 import logging
 from pathlib import Path
@@ -191,6 +192,130 @@ def run_zone_training_pipeline_with_progress(zone_key, zone_config_all, input_fi
         monitor_thread.join(timeout=1.0)
 
 
+def run_training_in_process(zones_to_train, scenario_name, results_file, expert_file, message_queue):
+    """
+    Standalone function to run training in a separate process.
+    This avoids GIL contention and keeps the GUI responsive.
+
+    Args:
+        zones_to_train: List of zone keys to train
+        scenario_name: Name of the training scenario
+        results_file: Path to results CSV
+        expert_file: Path to expert key CSV
+        message_queue: multiprocessing.Queue for sending messages back to GUI
+    """
+    import os
+    import sys
+    import logging
+    import io
+
+    # Redirect stdout/stderr to capture all output
+    class QueueWriter:
+        def __init__(self, queue, msg_type='log'):
+            self.queue = queue
+            self.msg_type = msg_type
+            self.buffer = ''
+
+        def write(self, text):
+            if text:
+                self.buffer += text
+                while '\n' in self.buffer:
+                    line, self.buffer = self.buffer.split('\n', 1)
+                    if line.strip():
+                        try:
+                            self.queue.put((self.msg_type, line))
+                        except:
+                            pass
+
+        def flush(self):
+            if self.buffer.strip():
+                try:
+                    self.queue.put((self.msg_type, self.buffer))
+                except:
+                    pass
+                self.buffer = ''
+
+    # Redirect stdout and stderr
+    sys.stdout = QueueWriter(message_queue, 'log')
+    sys.stderr = QueueWriter(message_queue, 'log')
+
+    # Re-import modules in the new process
+    try:
+        from paralysis_config import ZONE_CONFIG, INPUT_FILES
+        from paralysis_training_pipeline import run_zone_training_pipeline
+        from paralysis_utils import PARALYSIS_MAP
+    except ImportError as e:
+        message_queue.put(('error', f'Failed to import modules: {e}'))
+        return
+
+    # Set up logging to also use our queue
+    class QueueHandler(logging.Handler):
+        def emit(self, record):
+            try:
+                msg = self.format(record)
+                message_queue.put(('log', msg))
+            except Exception:
+                pass
+
+    # Add queue handler to root logger (in addition to stdout redirect)
+    queue_handler = QueueHandler()
+    queue_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
+    logging.getLogger().addHandler(queue_handler)
+    logging.getLogger().setLevel(logging.INFO)
+
+    # Get scenario config
+    scenarios = {
+        'Development': {'optuna_trials': {'upper': 50, 'mid': 50, 'lower': 80}},
+        'Production': {'optuna_trials': {'upper': 200, 'mid': 200, 'lower': 200}},
+        'Incomplete-Focus': {'optuna_trials': {'upper': 200, 'mid': 200, 'lower': 200}},
+        'Quick-Retrain': {'optuna_trials': None},
+    }
+    scenario = scenarios.get(scenario_name, scenarios['Production'])
+
+    # Update INPUT_FILES
+    INPUT_FILES['results_csv'] = os.path.expanduser(results_file)
+    INPUT_FILES['expert_key_csv'] = os.path.expanduser(expert_file)
+
+    message_queue.put(('status', f'Starting training with scenario: {scenario_name}'))
+    message_queue.put(('status', f'Zones: {", ".join(zones_to_train)}'))
+
+    # Train each zone
+    for zone_idx, zone_key in enumerate(zones_to_train):
+        zone_config = ZONE_CONFIG.get(zone_key, {})
+        zone_name = zone_config.get('name', zone_key.capitalize())
+
+        message_queue.put(('zone_start', {'zone_idx': zone_idx, 'zone_key': zone_key, 'zone_name': zone_name, 'total': len(zones_to_train)}))
+
+        try:
+            # Apply scenario configuration
+            if scenario['optuna_trials'] is not None and zone_key in scenario['optuna_trials']:
+                if 'training' not in zone_config:
+                    zone_config['training'] = {}
+                if 'hyperparameter_tuning' not in zone_config['training']:
+                    zone_config['training']['hyperparameter_tuning'] = {}
+                if 'optuna' not in zone_config['training']['hyperparameter_tuning']:
+                    zone_config['training']['hyperparameter_tuning']['optuna'] = {}
+                zone_config['training']['hyperparameter_tuning']['enabled'] = True
+                zone_config['training']['hyperparameter_tuning']['optuna']['n_trials'] = scenario['optuna_trials'][zone_key]
+            elif scenario['optuna_trials'] is None:
+                if 'training' in zone_config and 'hyperparameter_tuning' in zone_config['training']:
+                    zone_config['training']['hyperparameter_tuning']['enabled'] = False
+
+            # Run training
+            summary_result = run_zone_training_pipeline(zone_key, ZONE_CONFIG, INPUT_FILES, PARALYSIS_MAP)
+
+            if summary_result:
+                message_queue.put(('zone_complete', {'zone_idx': zone_idx, 'zone_key': zone_key, 'zone_name': zone_name, 'summary': summary_result}))
+            else:
+                message_queue.put(('zone_complete', {'zone_idx': zone_idx, 'zone_key': zone_key, 'zone_name': zone_name, 'summary': None}))
+
+        except Exception as e:
+            import traceback
+            message_queue.put(('zone_error', {'zone_idx': zone_idx, 'zone_key': zone_key, 'zone_name': zone_name, 'error': str(e), 'traceback': traceback.format_exc()}))
+
+    message_queue.put(('complete', 'All training completed'))
+
+
 # Training scenario presets
 TRAINING_SCENARIOS = {
     'Development': {
@@ -204,7 +329,7 @@ TRAINING_SCENARIOS = {
     },
     'Production': {
         'description': 'Full training for production deployment (maximum quality)',
-        'optuna_trials': {'upper': 100, 'mid': 100, 'lower': 120},
+        'optuna_trials': {'upper': 200, 'mid': 200, 'lower': 200},
         'feature_selection': True,
         'shap_analysis': True,
         'smote_enabled': True,
@@ -213,7 +338,7 @@ TRAINING_SCENARIOS = {
     },
     'Incomplete-Focus': {
         'description': 'Optimized for detecting incomplete paralysis (class 1)',
-        'optuna_trials': {'upper': 100, 'mid': 100, 'lower': 120},
+        'optuna_trials': {'upper': 200, 'mid': 200, 'lower': 200},
         'feature_selection': True,
         'shap_analysis': True,
         'smote_enabled': True,
@@ -239,8 +364,8 @@ class TrainingGUI:
         self.root.title("Facial Paralysis Model Training")
         self.root.geometry("950x850")
 
-        # Detect hardware
-        self.hardware_info = detect_hardware() if MODULES_LOADED else {}
+        # Hardware info will be detected asynchronously
+        self.hardware_info = {}
 
         # Setup fonts (monospaced for metrics, standard for UI)
         try:
@@ -266,6 +391,8 @@ class TrainingGUI:
         self.results_file_var = tk.StringVar()
         self.expert_file_var = tk.StringVar()
         self.training_thread = None
+        self.training_process = None
+        self.mp_queue = None
 
         # Progress tracking
         self.total_zones = 0
@@ -283,14 +410,28 @@ class TrainingGUI:
         # Summary tracking for Summary tab
         self.zone_summaries = []
 
+        # Setup custom styles (do this early)
+        self._setup_styles()
+
+        # Build GUI first for responsiveness
+        self.create_widgets()
+
+        # Process pending events to make GUI responsive immediately
+        self.root.update_idletasks()
+
+        # Defer slow operations to keep GUI responsive at startup
+        self.root.after(50, self._deferred_init)
+
+    def _deferred_init(self):
+        """Perform slow initialization after GUI is visible and responsive"""
         # Auto-detect files
         self.auto_detect_files()
 
-        # Setup custom styles
-        self._setup_styles()
-
-        # Build GUI
-        self.create_widgets()
+        # Detect hardware in background
+        if MODULES_LOADED:
+            self.hardware_info = detect_hardware()
+            # Update hardware tab if it exists
+            self.root.update_idletasks()
 
     def _setup_styles(self):
         """Setup custom ttk styles"""
@@ -584,6 +725,173 @@ class TrainingGUI:
         if self.log_poll_id is not None:
             self.log_poll_id = self.root.after(100, self.poll_log_queue)  # Poll every 100ms
 
+    def poll_subprocess_output(self):
+        """Poll subprocess stdout and display in GUI (non-blocking)"""
+        try:
+            import select
+            import re
+
+            if self.training_process and self.training_process.stdout:
+                # Use select to check if data is available (non-blocking)
+                # Timeout of 0 means don't wait - return immediately
+                readable, _, _ = select.select([self.training_process.stdout], [], [], 0)
+
+                lines_processed = 0
+                max_lines_per_poll = 20  # Limit lines per poll to keep GUI responsive
+
+                while readable and lines_processed < max_lines_per_poll:
+                    line = self.training_process.stdout.readline()
+                    if not line:
+                        break  # EOF or no more data
+
+                    line = line.rstrip('\n\r')
+                    if line:
+                        self.log_text.insert(tk.END, line + '\n')
+                        self.log_text.see(tk.END)
+                        lines_processed += 1
+
+                        # Update progress based on log content
+                        if 'Optuna Trial' in line or 'Trial ' in line:
+                            match = re.search(r'Trial (\d+)/(\d+)', line)
+                            if match:
+                                current, total = int(match.group(1)), int(match.group(2))
+                                progress = (current / total) * 100
+                                self.progress_bar['value'] = progress
+                                self.progress_pct_var.set(f"{progress:.1f}%")
+                                self.info_detail_var.set(f"Optuna Trial {current}/{total}")
+                                self.progress_var.set(f"Optimizing hyperparameters (Trial {current}/{total})")
+                        elif 'Training pipeline finished' in line:
+                            self.info_phase_var.set("Phase: Complete")
+                        elif 'Starting Training Pipeline' in line:
+                            self.info_phase_var.set("Phase: Training")
+                            self.progress_var.set("Training in progress...")
+                        elif 'feature selection' in line.lower():
+                            self.info_phase_var.set("Phase: Feature Selection")
+                            self.progress_var.set("Selecting features...")
+                        elif 'SMOTE' in line or 'resampling' in line.lower():
+                            self.info_phase_var.set("Phase: Data Balancing")
+                            self.progress_var.set("Balancing training data...")
+
+                    # Check if more data available
+                    readable, _, _ = select.select([self.training_process.stdout], [], [], 0)
+
+        except Exception as e:
+            pass  # Ignore read errors (e.g., process terminated)
+
+        # Check if process is still running
+        if self.training_process and self.training_process.poll() is None:
+            # Process still running, schedule next poll
+            self.log_poll_id = self.root.after(50, self.poll_subprocess_output)
+        else:
+            # Process finished - drain any remaining output
+            try:
+                if self.training_process and self.training_process.stdout:
+                    remaining = self.training_process.stdout.read()
+                    if remaining:
+                        for line in remaining.splitlines():
+                            if line.strip():
+                                self.log_text.insert(tk.END, line + '\n')
+                        self.log_text.see(tk.END)
+            except:
+                pass
+
+            exit_code = self.training_process.returncode if self.training_process else -1
+            self.log_message(f"\n{'='*60}")
+            self.log_message(f"Training process finished (exit code: {exit_code})")
+            self.log_message(f"{'='*60}")
+
+            if exit_code == 0:
+                self.progress_bar['value'] = 100
+                self.progress_pct_var.set("100%")
+                self.info_phase_var.set("Phase: Complete")
+                self.progress_var.set("Training completed successfully!")
+                messagebox.showinfo("Training Complete", "Training finished successfully!")
+            else:
+                messagebox.showwarning("Training", f"Training finished with exit code {exit_code}")
+
+            self.training_finished()
+
+    def poll_process_queue(self):
+        """Poll the multiprocessing queue for messages from training process"""
+        try:
+            # Process all available messages (non-blocking)
+            messages_processed = 0
+            while messages_processed < 100:  # Limit per poll to keep GUI responsive
+                try:
+                    msg_type, msg_data = self.mp_queue.get_nowait()
+                    messages_processed += 1
+                except Exception:
+                    break  # Queue empty or error
+
+                if msg_type == 'log':
+                    self.log_text.insert(tk.END, msg_data + '\n')
+                    self.log_text.see(tk.END)
+
+                elif msg_type == 'status':
+                    self.log_message(msg_data)
+
+                elif msg_type == 'zone_start':
+                    zone_idx = msg_data['zone_idx']
+                    zone_name = msg_data['zone_name']
+                    total = msg_data['total']
+                    self.current_zone_index = zone_idx
+                    self.log_message(f"\n{'='*60}")
+                    self.log_message(f"Training Zone {zone_idx + 1}/{total}: {zone_name}")
+                    self.log_message(f"{'='*60}")
+                    self.info_zone_var.set(f"Zone: {zone_name} ({zone_idx + 1}/{total})")
+                    self.info_phase_var.set("Phase: Training")
+
+                elif msg_type == 'zone_complete':
+                    zone_name = msg_data['zone_name']
+                    summary = msg_data.get('summary')
+                    self.log_message(f"✓ Zone {zone_name} training completed successfully")
+                    if summary:
+                        self.add_zone_summary(
+                            summary['zone_name'],
+                            summary['training_summary'],
+                            summary['performance_summary']
+                        )
+                    # Update progress
+                    zone_idx = msg_data['zone_idx']
+                    progress = ((zone_idx + 1) / self.total_zones) * 100
+                    self.progress_bar['value'] = progress
+                    self.progress_pct_var.set(f"{progress:.1f}%")
+
+                elif msg_type == 'zone_error':
+                    zone_name = msg_data['zone_name']
+                    error = msg_data['error']
+                    self.log_message(f"✗ Zone {zone_name} training failed: {error}")
+                    if 'traceback' in msg_data:
+                        self.log_message(msg_data['traceback'])
+
+                elif msg_type == 'error':
+                    self.log_message(f"✗ Error: {msg_data}")
+                    messagebox.showerror("Training Error", str(msg_data))
+
+                elif msg_type == 'complete':
+                    self.log_message(f"\n{'='*60}")
+                    self.log_message("ALL TRAINING COMPLETED")
+                    self.log_message(f"{'='*60}")
+                    self.progress_bar['value'] = 100
+                    self.progress_pct_var.set("100%")
+                    self.info_phase_var.set("Phase: Complete")
+                    self.info_detail_var.set("Status: Training finished successfully")
+                    messagebox.showinfo("Training Complete", "All zones have been trained successfully!")
+                    self.training_finished()
+                    return  # Stop polling
+
+        except Exception as e:
+            self.log_message(f"Queue polling error: {e}")
+
+        # Check if process is still running
+        if hasattr(self, 'training_process') and self.training_process.is_alive():
+            self.log_poll_id = self.root.after(50, self.poll_process_queue)  # Poll every 50ms for responsiveness
+        else:
+            # Process ended - check if it was successful
+            if hasattr(self, 'training_process') and self.training_process.exitcode != 0:
+                self.log_message(f"Training process exited with code: {self.training_process.exitcode}")
+            self.training_finished()
+
     def update_progress(self, zone_index, phase, phase_progress, message):
         """
         Update progress bar and status message (thread-safe).
@@ -721,19 +1029,53 @@ class TrainingGUI:
         self.log_text.delete('1.0', tk.END)
         self.clear_summary()
 
-        # Setup logging to GUI
-        self.gui_log_handler = GUILogHandler(self.log_queue)
-        self.gui_log_handler.setFormatter(logging.Formatter('%(levelname)s - %(name)s - %(message)s'))
-        logging.getLogger().addHandler(self.gui_log_handler)
-        logging.getLogger().setLevel(logging.INFO)
+        # Use subprocess for reliable process isolation
+        import subprocess
+        import json
 
-        # Start polling log queue
-        self.log_poll_id = self.root.after(100, self.poll_log_queue)
+        # Build command to run training
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        training_script = os.path.join(script_dir, 'paralysis_training_pipeline.py')
 
-        # Start training in background thread
-        self.training_thread = threading.Thread(target=self.run_training, args=(zones_to_train,))
-        self.training_thread.daemon = True
-        self.training_thread.start()
+        # Prepare environment
+        env = os.environ.copy()
+        env['PYTHONPATH'] = script_dir
+
+        # Build arguments
+        cmd = [
+            sys.executable,
+            training_script
+        ] + zones_to_train
+
+        self.log_message(f"Starting training subprocess...")
+        self.log_message(f"Zones: {', '.join(zones_to_train)}")
+        self.log_message(f"Scenario: {self.scenario_var.get()}\n")
+
+        # Apply scenario config BEFORE starting subprocess (modifies global ZONE_CONFIG)
+        scenario = TRAINING_SCENARIOS[self.scenario_var.get()]
+        for zone_key in zones_to_train:
+            self.apply_scenario_config(zone_key, scenario)
+
+        # Update INPUT_FILES
+        INPUT_FILES['results_csv'] = os.path.expanduser(self.results_file_var.get())
+        INPUT_FILES['expert_key_csv'] = os.path.expanduser(self.expert_file_var.get())
+
+        # Start subprocess with stdout/stderr piped
+        self.training_process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            universal_newlines=True,
+            env=env,
+            cwd=script_dir
+        )
+
+        self.log_message(f"Training process started (PID: {self.training_process.pid})")
+        self.log_message(f"Using subprocess for optimal performance\n")
+
+        # Start polling subprocess output
+        self.log_poll_id = self.root.after(50, self.poll_subprocess_output)
 
     def run_training(self, zones_to_train):
         """Run training process in background thread"""
@@ -834,12 +1176,23 @@ class TrainingGUI:
 
     def training_finished(self):
         """Called when training finishes"""
-        # Stop polling log queue
+        # Stop polling
         if self.log_poll_id is not None:
             self.root.after_cancel(self.log_poll_id)
             self.log_poll_id = None
 
-        # Process any remaining messages in queue
+        # Process any remaining messages from multiprocessing queue
+        if self.mp_queue is not None:
+            try:
+                while True:
+                    msg_type, msg_data = self.mp_queue.get_nowait()
+                    if msg_type == 'log':
+                        self.log_text.insert(tk.END, msg_data + '\n')
+                        self.log_text.see(tk.END)
+            except:
+                pass
+
+        # Process any remaining messages in thread log queue
         while not self.log_queue.empty():
             try:
                 message = self.log_queue.get_nowait()
@@ -847,6 +1200,23 @@ class TrainingGUI:
                 self.log_text.see(tk.END)
             except queue.Empty:
                 break
+
+        # Clean up training process (works for both subprocess.Popen and multiprocessing.Process)
+        if self.training_process is not None:
+            try:
+                if hasattr(self.training_process, 'poll'):
+                    # subprocess.Popen
+                    if self.training_process.poll() is None:
+                        self.training_process.terminate()
+                        self.training_process.wait(timeout=2)
+                elif hasattr(self.training_process, 'is_alive'):
+                    # multiprocessing.Process
+                    if self.training_process.is_alive():
+                        self.training_process.terminate()
+                        self.training_process.join(timeout=2)
+            except:
+                pass
+            self.training_process = None
 
         # Detach log handler
         if self.gui_log_handler is not None:
@@ -859,12 +1229,30 @@ class TrainingGUI:
         self.progress_bar.stop()
 
     def stop_training(self):
-        """Stop training process (graceful stop not implemented, just notification)"""
-        messagebox.showwarning("Stop Training", "Training cannot be stopped gracefully. Please close the application to terminate.")
+        """Stop training process"""
+        if self.training_process is not None and self.training_process.poll() is None:
+            if messagebox.askyesno("Stop Training", "Are you sure you want to stop training? This will terminate the process."):
+                self.log_message("\n⚠ Stopping training process...")
+                self.training_process.terminate()
+                try:
+                    self.training_process.wait(timeout=5)
+                except:
+                    self.training_process.kill()
+                self.log_message("Training stopped by user.")
+                self.training_finished()
+        else:
+            messagebox.showinfo("Stop Training", "No training is currently running.")
 
 
 def main():
     """Main entry point"""
+    # Set multiprocessing start method to 'spawn' for macOS compatibility
+    # This ensures clean process isolation and avoids fork-related issues
+    try:
+        multiprocessing.set_start_method('spawn', force=False)
+    except RuntimeError:
+        pass  # Already set
+
     root = tk.Tk()
 
     # Create and run app
@@ -873,4 +1261,6 @@ def main():
 
 
 if __name__ == "__main__":
+    # Required for multiprocessing on macOS/Windows
+    multiprocessing.freeze_support()
     main()
