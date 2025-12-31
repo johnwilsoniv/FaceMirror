@@ -22,8 +22,9 @@ LOGGING_CONFIG = {
     'format': '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
 }
 INPUT_FILES = {
-    'results_csv': 'combined_results.csv',
-    'expert_key_csv': 'FPRS FP Key.csv'
+    # Use paper data which has AU16_r and is known to produce published results
+    'results_csv': os.path.join(os.path.dirname(__file__), 'paper_combined_results.csv'),
+    'expert_key_csv': os.path.join(os.path.dirname(__file__), 'FPRS FP Key.csv')
 }
 
 # These defaults will be applied to each zone and can be overridden.
@@ -139,7 +140,8 @@ ZONE_CONFIG = {
     'lower': {
         'name': 'Lower Face',
         'actions': ['BS', 'SS', 'SO', 'SE'],  # Example actions
-        'aus': ['AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r', 'AU20_r', 'AU23_r', 'AU25_r', 'AU26_r'],
+        # AU16_r (Lower Lip Depressor) added back for paper-equivalent training
+        'aus': ['AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU16_r', 'AU17_r', 'AU20_r', 'AU23_r', 'AU25_r', 'AU26_r'],
         # Example AUs
         'expert_columns': {  # From original config
             'left': 'Paralysis - Left Lower Face',
@@ -167,7 +169,7 @@ ZONE_CONFIG = {
     'mid': {
         'name': 'Mid Face',
         'actions': ['ES', 'ET', 'BK'],
-        'aus': ['AU45_r', 'AU07_r'],
+        'aus': ['AU45_r', 'AU07_r', 'AU06_r'],
         'expert_columns': {
             'left': 'Paralysis - Left Mid Face',
             'right': 'Paralysis - Right Mid Face'
@@ -187,6 +189,61 @@ ZONE_CONFIG = {
             'partial_errors_report': os.path.join(ANALYSIS_DIR, 'midface_partial_errors_report.txt'),
             'review_candidates_csv': os.path.join(ANALYSIS_DIR, 'midface_review_candidates.csv')
         },
+        # OPTIMIZED V2: Mid face - more aggressive settings for extreme imbalance
+        # 75% None, 15% Partial, 10% Complete
+        'training': {
+            'class_weights': {
+                0: 1.0,   # None (majority)
+                1: 10.0,  # Partial (very heavily weighted for better recall)
+                2: 7.0    # Complete (heavily weighted)
+            },
+            'smote': {
+                'enabled': True,
+                'variant': 'regular',  # Use regular SMOTE (not borderline) for small minority
+                'k_neighbors': 3,  # Fewer neighbors for very small classes
+                'sampling_strategy': 'adaptive',
+                'adaptive_strategy_params': {
+                    'target_ratio_partial_to_majority': 0.7,  # More aggressive oversampling
+                    'target_ratio_complete_to_majority': 0.6,  # More aggressive oversampling
+                    'min_samples_after_smote': 50,
+                    'borderline_kind': 'borderline-1'
+                },
+                'apply_per_fold_in_tuning': True,
+                'min_samples_per_class': 30,  # Lower threshold for small classes
+                'use_smoteenn_after': False,  # DISABLE SMOTEENN - preserve minority samples
+                'use_tomek_after': False
+            },
+            'hyperparameter_tuning': {
+                'enabled': True,
+                'method': 'optuna',
+                'optuna': {
+                    'n_trials': 100,
+                    'cv_folds': 5,
+                    'direction': 'maximize',
+                    'scoring': 'f1_macro',
+                    'sampler': 'TPESampler',
+                    'pruner': 'HyperbandPruner',
+                    'param_distributions': {
+                        'learning_rate': ['float', 0.01, 0.15, {'log': True}],  # Narrower range
+                        'max_depth': ['int', 3, 6],  # Shallower trees to prevent overfitting
+                        'n_estimators': ['int', 100, 500],
+                        'min_child_weight': ['int', 1, 5],
+                        'gamma': ['float', 0.0, 0.3],
+                        'subsample': ['float', 0.7, 1.0],
+                        'colsample_bytree': ['float', 0.7, 1.0],
+                        'reg_alpha': ['float', 0.01, 1.0, {'log': True}],
+                        'reg_lambda': ['float', 0.01, 2.0, {'log': True}],
+                    },
+                    'optuna_early_stopping_rounds': 25,
+                    'patience': 15
+                }
+            }
+        },
+        'feature_selection': {
+            'enabled': True,
+            'top_n_features': 40,  # Fewer features to avoid overfitting
+            'method': 'rf_importance_in_workflow'
+        }
     },
     'upper': {
         'name': 'Upper Face',

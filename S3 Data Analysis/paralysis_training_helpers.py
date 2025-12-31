@@ -215,9 +215,9 @@ def apply_smote_and_cleaning(X_train, y_train, smote_config, random_state, zone_
                 elif variant == 'adasyn':
                     smote_instance = ADASYN(n_neighbors=actual_k_neighbors, random_state=random_state,
                                             sampling_strategy=current_smote_strategy, n_jobs=n_jobs_parallel)
-                else:  # regular SMOTE
+                else:  # regular SMOTE (note: SMOTE doesn't have n_jobs parameter)
                     smote_instance = SMOTE(k_neighbors=actual_k_neighbors, random_state=random_state,
-                                           sampling_strategy=current_smote_strategy, n_jobs=n_jobs_parallel)
+                                           sampling_strategy=current_smote_strategy)
                 X_resampled_np, y_resampled = smote_instance.fit_resample(X_train_np, y_train_np)
                 logger.info(f"[{zone_name_log}] After primary SMOTE ({variant}): X shape {X_resampled_np.shape}")
                 if use_tomek:
