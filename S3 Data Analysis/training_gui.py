@@ -751,18 +751,48 @@ class TrainingGUI:
                         lines_processed += 1
 
                         # Update progress based on log content
+                        # Detect zone changes (e.g., "Starting Training Pipeline for Zone: Upper Face")
+                        zone_match = re.search(r'Starting Training Pipeline for Zone:\s*(\w+)', line, re.IGNORECASE)
+                        if zone_match:
+                            zone_name = zone_match.group(1).capitalize()
+                            self.current_zone_name = zone_name
+                            # Calculate zone index
+                            zone_map = {'upper': 0, 'mid': 1, 'lower': 2}
+                            zone_key = zone_name.lower()
+                            if zone_key in zone_map and hasattr(self, 'zones_to_train'):
+                                # Find position in zones_to_train list
+                                for idx, z in enumerate(self.zones_to_train):
+                                    if z.lower() == zone_key:
+                                        self.current_zone_index = idx
+                                        break
+                            zone_progress = f"Zone {self.current_zone_index + 1}/{self.total_zones}: {zone_name} Face"
+                            self.info_zone_var.set(zone_progress)
+                            self.progress_var.set(f"Training {zone_name} Face...")
+
                         if 'Optuna Trial' in line or 'Trial ' in line:
                             match = re.search(r'Trial (\d+)/(\d+)', line)
                             if match:
                                 current, total = int(match.group(1)), int(match.group(2))
-                                progress = (current / total) * 100
-                                self.progress_bar['value'] = progress
-                                self.progress_pct_var.set(f"{progress:.1f}%")
+                                # Calculate overall progress including zone progress
+                                zone_progress_pct = (current / total) * 100
+                                if self.total_zones > 0:
+                                    overall = ((self.current_zone_index * 100) + zone_progress_pct) / self.total_zones
+                                else:
+                                    overall = zone_progress_pct
+                                self.progress_bar['value'] = overall
+                                self.progress_pct_var.set(f"{overall:.1f}%")
                                 self.info_detail_var.set(f"Optuna Trial {current}/{total}")
-                                self.progress_var.set(f"Optimizing hyperparameters (Trial {current}/{total})")
-                        elif 'Training pipeline finished' in line:
+                                zone_info = f" ({self.current_zone_name})" if hasattr(self, 'current_zone_name') and self.current_zone_name else ""
+                                self.progress_var.set(f"Optimizing{zone_info}: Trial {current}/{total}")
+                        elif 'Training pipeline finished' in line or 'pipeline finished' in line.lower():
+                            # Zone completed
+                            if self.total_zones > 0:
+                                completed = self.current_zone_index + 1
+                                overall = (completed / self.total_zones) * 100
+                                self.progress_bar['value'] = overall
+                                self.progress_pct_var.set(f"{overall:.1f}%")
                             self.info_phase_var.set("Phase: Complete")
-                        elif 'Starting Training Pipeline' in line:
+                        elif 'Starting Training Pipeline' in line and 'for' not in line:
                             self.info_phase_var.set("Phase: Training")
                             self.progress_var.set("Training in progress...")
                         elif 'feature selection' in line.lower():
@@ -771,6 +801,9 @@ class TrainingGUI:
                         elif 'SMOTE' in line or 'resampling' in line.lower():
                             self.info_phase_var.set("Phase: Data Balancing")
                             self.progress_var.set("Balancing training data...")
+                        elif 'Fitting final' in line or 'Training final' in line:
+                            self.info_phase_var.set("Phase: Final Model")
+                            self.progress_var.set("Training final model...")
 
                     # Check if more data available
                     readable, _, _ = select.select([self.training_process.stdout], [], [], 0)
