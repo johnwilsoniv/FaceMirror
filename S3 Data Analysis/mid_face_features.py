@@ -91,13 +91,14 @@ def extract_features(df, side, zone_specific_config):
     return features_df_final
 
 
-# extract_features_for_detection (MID FACE - Detection) - Needs similar refactoring
+# extract_features_for_detection (MID FACE - Detection)
 def extract_features_for_detection(row_data, side, zone_key_for_detection):
-    # This function will also call _extract_base_au_features
-    # and then add its specific summary/interaction features for a single row.
-    # (Implementation similar to lower_face_features.py's detection function, but with mid-face specific summaries)
+    """
+    Extract features for mid face detection on a single row.
+    Mirrors the training extract_features function for consistency.
+    """
     try:
-        from paralysis_config import ZONE_CONFIG as global_zone_config  # Ensure it's accessible
+        from paralysis_config import ZONE_CONFIG as global_zone_config
         det_config = global_zone_config[zone_key_for_detection]
         det_feature_cfg = det_config.get('feature_extraction', {})
         det_actions = det_config.get('actions', [])
@@ -115,51 +116,100 @@ def extract_features_for_detection(row_data, side, zone_key_for_detection):
         logger.error(f"[{det_zone_name}] Feature list not found. Cannot extract detection features.")
         return None
     try:
-        ordered_feature_names = joblib.load(feature_list_path)
+        if feature_list_path.endswith('.list'):
+            with open(feature_list_path, 'r') as f:
+                ordered_feature_names = [line.strip() for line in f if line.strip()]
+        else:
+            ordered_feature_names = joblib.load(feature_list_path)
     except Exception as e:
-        logger.error(f"[{det_zone_name}] Failed load feature list: {e}"); return None
+        logger.error(f"[{det_zone_name}] Failed load feature list: {e}")
+        return None
 
     if isinstance(row_data, dict):
         df_single_row = pd.DataFrame([row_data], index=[0])
     elif isinstance(row_data, pd.Series):
         df_single_row = pd.DataFrame([row_data.to_dict()], index=[0])
     else:
-        logger.error(f"[{det_zone_name}] Invalid row_data type: {type(row_data)}"); return None
+        logger.error(f"[{det_zone_name}] Invalid row_data type: {type(row_data)}")
+        return None
 
     base_features_df_det = _extract_base_au_features(df_single_row, side, det_actions, det_aus, det_feature_cfg,
                                                      det_zone_name)
     feature_data_det = base_features_df_det.to_dict('series')
 
-    # ET/ES Ratio Features for detection
+    # ET/ES Ratio Features for detection (both Side and Opp)
     for au_str_loop_det in det_aus:
-        action_et = 'ET';
+        action_et = 'ET'
         action_es = 'ES'
         et_val_side_det = feature_data_det.get(f"{action_et}_{au_str_loop_det}_val_side")
         es_val_side_det = feature_data_det.get(f"{action_es}_{au_str_loop_det}_val_side")
-        # ... (similar for opp side, and calculation as in training extract_features) ...
-        # Ensure to use .iloc[0] for single row Series
-        if all(isinstance(s, pd.Series) and not s.empty for s in
-               [et_val_side_det, es_val_side_det]):  # Simplified check
-            feature_data_det[f"{au_str_loop_det}_ETES_Ratio_Side"] = calculate_ratio(et_val_side_det, es_val_side_det,
-                                                                                     min_value=min_val_cfg_det)
+        et_val_opp_det = feature_data_det.get(f"{action_et}_{au_str_loop_det}_val_opp")
+        es_val_opp_det = feature_data_det.get(f"{action_es}_{au_str_loop_det}_val_opp")
+
+        # Compute ETES Ratio Side
+        if all(isinstance(s, pd.Series) and not s.empty for s in [et_val_side_det, es_val_side_det]):
+            feature_data_det[f"{au_str_loop_det}_ETES_Ratio_Side"] = calculate_ratio(
+                et_val_side_det, es_val_side_det, min_value=min_val_cfg_det)
         else:
             feature_data_det[f"{au_str_loop_det}_ETES_Ratio_Side"] = pd.Series([1.0])
-        # ... (add other ETES features with .iloc[0] and defaults)
+
+        # Compute ETES Ratio Opp
+        if all(isinstance(s, pd.Series) and not s.empty for s in [et_val_opp_det, es_val_opp_det]):
+            feature_data_det[f"{au_str_loop_det}_ETES_Ratio_Opp"] = calculate_ratio(
+                et_val_opp_det, es_val_opp_det, min_value=min_val_cfg_det)
+        else:
+            feature_data_det[f"{au_str_loop_det}_ETES_Ratio_Opp"] = pd.Series([1.0])
 
     # Interaction/Summary Features for detection
     es_au45_s = feature_data_det.get('ES_AU45_r_val_side', pd.Series([0.0]))
     et_au45_s = feature_data_det.get('ET_AU45_r_val_side', pd.Series([0.0]))
+    es_au07_s = feature_data_det.get('ES_AU07_r_val_side', pd.Series([0.0]))
+    et_au07_s = feature_data_det.get('ET_AU07_r_val_side', pd.Series([0.0]))
+
     feature_data_det['ES_ET_AU45_ratio_side'] = calculate_ratio(es_au45_s, et_au45_s, min_value=min_val_cfg_det)
-    # ... (other mid-face specific summary features, ensuring .iloc[0] is used for Series values) ...
+    feature_data_det['ET_ES_AU45_diff_side'] = (et_au45_s - es_au45_s).abs()
+    feature_data_det['ES_ET_AU07_ratio_side'] = calculate_ratio(es_au07_s, et_au07_s, min_value=min_val_cfg_det)
+    feature_data_det['ET_ES_AU07_diff_side'] = (et_au07_s - es_au07_s).abs()
+
+    # Max/Min/Range summary features for each AU
+    for au_base_str in det_aus:
+        val_side_cols = [f"{act}_{au_base_str}_val_side" for act in det_actions if
+                         f"{act}_{au_base_str}_val_side" in feature_data_det]
+        if val_side_cols:
+            all_vals = []
+            for col in val_side_cols:
+                series = feature_data_det[col]
+                if isinstance(series, pd.Series) and not series.empty:
+                    val = pd.to_numeric(series.iloc[0], errors='coerce')
+                    if not np.isnan(val):
+                        all_vals.append(val)
+            if all_vals:
+                max_val = max(all_vals)
+                min_val = min(all_vals)
+                feature_data_det[f"max_{au_base_str}_val_side"] = pd.Series([max_val])
+                feature_data_det[f"min_{au_base_str}_val_side"] = pd.Series([min_val])
+                feature_data_det[f"range_{au_base_str}_val_side"] = pd.Series([max_val - min_val])
+            else:
+                feature_data_det[f"max_{au_base_str}_val_side"] = pd.Series([0.0])
+                feature_data_det[f"min_{au_base_str}_val_side"] = pd.Series([0.0])
+                feature_data_det[f"range_{au_base_str}_val_side"] = pd.Series([0.0])
+        else:
+            feature_data_det[f"max_{au_base_str}_val_side"] = pd.Series([0.0])
+            feature_data_det[f"min_{au_base_str}_val_side"] = pd.Series([0.0])
+            feature_data_det[f"range_{au_base_str}_val_side"] = pd.Series([0.0])
 
     feature_data_det["side_indicator"] = pd.Series([0 if side.lower() == 'left' else 1])
 
-    feature_dict_final_det = {k: v.iloc[0] for k, v in feature_data_det.items() if
-                              isinstance(v, pd.Series) and not v.empty}
-    # ... (final assembly into feature_vector as in lower_face_features.py) ...
+    # Convert to scalar dict
+    feature_dict_final_det = {}
+    for k, v in feature_data_det.items():
+        if isinstance(v, pd.Series) and not v.empty:
+            feature_dict_final_det[k] = v.iloc[0]
+
+    # Assemble feature vector in expected order
     feature_vector = []
     for name in ordered_feature_names:
-        value = feature_dict_final_det.get(name, 0.0)  # Default to 0.0 if missing
+        value = feature_dict_final_det.get(name, 0.0)
         try:
             val_float = float(value)
             feature_vector.append(0.0 if np.isnan(val_float) else val_float)
