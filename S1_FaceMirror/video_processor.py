@@ -247,11 +247,11 @@ class VideoProcessor:
                         reason = validation_info.get('reason', 'Unknown')
 
                         if used_fallback:
-                            safe_print(f"\n⚠️  WARNING [Frame {frame_index}]: Primary face detector failed, using MTCNN fallback")
+                            safe_print(f"\n[WARNING] Frame {frame_index}: Primary face detector failed, using MTCNN fallback")
                             safe_print(f"    Primary detector failure reason: {reason}")
                             safe_print(f"    Results may be less accurate. Consider reviewing this video manually.\n")
                         else:
-                            safe_print(f"\n⚠️  WARNING [Frame {frame_index}]: Landmark detection validation failed")
+                            safe_print(f"\n[WARNING] Frame {frame_index}: Landmark detection validation failed")
                             safe_print(f"    Reason: {reason}")
                             safe_print(f"    Processing will continue but results may be inaccurate.\n")
 
