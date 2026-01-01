@@ -215,7 +215,7 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
                 met = f1_macro >= target
                 targets_met += int(met)
                 targets_total += 1
-                status = "✓ MET" if met else "✗ BELOW TARGET"
+                status = "MET" if met else "BELOW TARGET"
                 lines.append(f"F1 Macro: {f1_macro:.4f} (target: {target:.4f}) {status}")
 
         if 'overall_f1' in performance_targets:
@@ -224,7 +224,7 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
                 met = f1_weighted >= target
                 targets_met += int(met)
                 targets_total += 1
-                status = "✓ MET" if met else "✗ BELOW TARGET"
+                status = "MET" if met else "BELOW TARGET"
                 lines.append(f"F1 Weighted: {f1_weighted:.4f} (target: {target:.4f}) {status}")
 
         if 'accuracy' in performance_targets:
@@ -233,7 +233,7 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
                 met = accuracy >= target
                 targets_met += int(met)
                 targets_total += 1
-                status = "✓ MET" if met else "✗ BELOW TARGET"
+                status = "MET" if met else "BELOW TARGET"
                 lines.append(f"Accuracy: {accuracy:.4f} (target: {target:.4f}) {status}")
 
         if 'balanced_accuracy' in performance_targets:
@@ -245,7 +245,7 @@ def generate_performance_summary(zone_name, zone_key, y_true, y_pred, y_proba, c
                 met = bal_acc >= target
                 targets_met += int(met)
                 targets_total += 1
-                status = "✓ MET" if met else "✗ BELOW TARGET"
+                status = "MET" if met else "BELOW TARGET"
                 lines.append(f"Balanced Accuracy: {bal_acc:.4f} (target: {target:.4f}) {status}")
 
         if targets_total > 0:

@@ -1,15 +1,43 @@
-# Data Analysis - Facial Paralysis Detection
+# S3 Data Analysis - Facial Paralysis Detection
 
-This application analyzes facial action unit (AU) data to automatically detect and quantify facial paralysis using machine learning. Designed to work with PyFaceAU output data.
+Machine learning-based analysis of facial action unit (AU) data for automated detection and quantification of facial paralysis severity. This module processes AU data from coded video recordings to classify paralysis as None, Partial, or Complete across three facial regions.
+
+## Citation
+
+If you use this software for research purposes, please cite:
+
+> Wilson, J., et al. (2025). A Split-Face Computer Vision Machine Learning Assessment of Facial Paralysis Using Facial Action Units. *[Journal Name]*.
+
+The full paper is available at: `wilson-et-al-2025-a-split-face-computer-vision-machine-learning-assessment-of-facial-paralysis-using-facial-action-units.pdf`
+
+## Model Performance
+
+The trained models achieve the following accuracy on held-out test data:
+
+| Facial Zone | Accuracy | Target |
+|-------------|----------|--------|
+| Upper Face  | 82.55%   | 83%    |
+| Mid Face    | 93.52%   | 93%    |
+| Lower Face  | 84.68%   | 84%    |
+
+Models use ordinal classification to distinguish between None, Partial, and Complete paralysis severity levels.
+
+## Acknowledgments
+
+This system builds upon the Facial Action Coding System (FACS) and leverages Action Unit intensity estimation. The AU extraction pipeline is based on:
+
+> Baltrusaitis, T., Zadeh, A., Lim, Y. C., & Morency, L. P. (2018). OpenFace 2.0: Facial Behavior Analysis Toolkit. IEEE International Conference on Automatic Face and Gesture Recognition.
 
 ## Quick Start
 
 ### Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### Run Analysis
+
 ```bash
 # GUI mode
 python main.py
@@ -21,49 +49,29 @@ python main.py --batch --data-dir /path/to/data
 python main.py --batch --data-dir /path/to/data --skip-visuals
 ```
 
-## What It Does
+### Training Models
 
-Analyzes facial AU data from mirrored left/right video recordings to detect paralysis severity (None/Partial/Complete) across three facial regions:
+```bash
+# Launch training GUI
+python training_gui.py
 
-- **Upper Face**: Eyebrows, forehead (AU01, AU02)
-- **Mid Face**: Eyes, eyelids (AU45, AU07)
-- **Lower Face**: Mouth, lips (AU12, AU25)
+# Command-line training for a specific zone
+python paralysis_training_pipeline.py mid
+```
 
-## PyFaceAU Compatibility
+## Facial Zones and Action Units
 
-This system is configured for **PyFaceAU** (Pure Python OpenFace 2.2 implementation), which provides 17 functional Action Units with r=0.8640 correlation to original OpenFace 2.2.
+The system analyzes paralysis across three facial regions:
 
-### Available AUs in PyFaceAU
-- AU01 (Inner Brow Raiser)
-- AU02 (Outer Brow Raiser)
-- AU04 (Brow Lowerer)
-- AU05 (Upper Lid Raiser)
-- AU06 (Cheek Raiser)
-- AU07 (Lid Tightener)
-- AU09 (Nose Wrinkler)
-- AU10 (Upper Lip Raiser)
-- AU12 (Lip Corner Puller/Smile)
-- AU14 (Dimpler)
-- AU15 (Lip Corner Depressor)
-- AU17 (Chin Raiser)
-- AU20 (Lip Stretcher)
-- AU23 (Lip Tightener)
-- AU25 (Lips Part)
-- AU26 (Jaw Drop)
-- AU45 (Blink)
+| Zone | Action Units | Diagnostic Actions |
+|------|--------------|-------------------|
+| Upper Face | AU01, AU02 | Raise Eyebrows (RE) |
+| Mid Face | AU45, AU07, AU06 | Eye closure (ES, ET), Blink (BK) |
+| Lower Face | AU10, AU12, AU14, AU15, AU17, AU20, AU23, AU25, AU26 | Smile (SS, BS), Say E/O (SE, SO) |
 
-### AU Mappings for Detection
-- **Mid-face detection (eyes)**: AU07 (Lid Tightener), AU45 (Blink)
-- **Close Eyes Tightly/Big Smile**: AU07 (Lid Tightener) for eye component
-- **Wrinkle Nose**: AU09 (Nose Wrinkler)
-- **Pucker Lips**: Median frame fallback (AU17 detection challenging)
-- **Blow Cheeks**: Median frame fallback (AU23 detection challenging)
+### Supported Actions
 
-## Analyzed Actions
-
-The system analyzes the following facial actions for peak frame detection:
-
-**Priority Actions (fully supported):**
+**Primary Actions:**
 - RE (Raise Eyebrows)
 - ES (Close Eyes Softly)
 - ET (Close Eyes Tightly)
@@ -71,105 +79,109 @@ The system analyzes the following facial actions for peak frame detection:
 - BS (Big Smile)
 - BK (Blink)
 
-**Additional Actions:**
+**Secondary Actions:**
 - SE (Say E)
 - SO (Say O)
 - FR (Frown)
 - WN (Wrinkle Nose)
 - LT (Lower Teeth)
 - BL (Baseline)
-
-**Median Frame Fallback:**
 - PL (Pucker Lips)
 - BC (Blow Cheeks)
 
 ## Input Data Format
 
 Expects CSV files from S2 (Action Coder) with the following structure:
+
 - Left/right mirrored pairs: `*_left_mirrored_coded.csv` and `*_right_mirrored_coded.csv`
 - Required columns: `frame`, `action`, AU columns (AU01_r through AU45_r)
 - Patient ID derived from filename pattern
 
 ## Output
 
-Results saved to `../S3O Results/` directory:
+Results saved to `~/Documents/SplitFace/S3O Results/`:
+
 - `combined_results.csv` - Complete analysis with paralysis classifications and AU measurements
-- `patient_frames/` - Extracted peak frames for each action (if visual outputs enabled)
-- `patient_plots/` - AU comparison plots (if visual outputs enabled)
+- `paralysis_statistics.csv` - Aggregate statistics across all patients
+- Per-patient directories with extracted frames and plots (if visual outputs enabled)
 
-### Output Columns
-- Patient ID
-- Paralysis classifications (Left/Right × Upper/Mid/Lower Face)
-- AU measurements for each action (raw and normalized)
-- Peak frame numbers for each action
-- Paralysis detection flag
+### Classification Output
 
-## Machine Learning Models
-
-Pre-trained Random Forest classifiers in `models/`:
-- `upper_face_model.pkl` - Upper face paralysis detection
-- `mid_face_model.pkl` - Mid face paralysis detection
-- `lower_face_model.pkl` - Lower face paralysis detection
-
-Models use AU measurements and asymmetry features to classify paralysis severity.
-
-## Configuration
-
-Key parameters in `facial_au_constants.py`:
-
-### Facial Zones
-```python
-FACIAL_ZONES = {
-    'upper': ['AU01_r', 'AU02_r'],
-    'mid': ['AU45_r', 'AU07_r'],
-    'lower': ['AU12_r', 'AU25_r']
-}
-```
-
-### Action-to-AU Mappings
-Defines which AUs are used to find peak frames for each action. See `ACTION_TO_AUS` in `facial_au_constants.py`.
-
-### Detection Thresholds
-- `PARALYSIS_THRESHOLDS` - Asymmetry ratios and minimal movement thresholds
-- `ASYMMETRY_THRESHOLDS` - Percent difference and ratio cutoffs
-- `CONFIDENCE_THRESHOLDS` - ML model confidence requirements
-
-**Note:** Models must be retrained with PyFaceAU data to use corrected AU07 mappings for mid-face detection.
+For each patient and facial zone, the system outputs:
+- Paralysis classification (None/Partial/Complete) for left and right sides
+- Prediction confidence scores
+- Raw and normalized AU measurements at peak frames
 
 ## Architecture
 
-- `main.py` - Entry point (GUI/batch mode)
-- `facial_au_analyzer.py` - Core analysis engine
-- `facial_au_batch_processor.py` - Batch processing controller
-- `facial_au_gui.py` - GUI interface
-- `facial_au_constants.py` - Configuration and constants
-- `facial_au_frame_extractor.py` - Video frame extraction
-- `facial_au_visualizer.py` - Plot generation
-- `paralysis_detector.py` - ML-based paralysis detection
-- `facial_paralysis_detection.py` - Rule-based paralysis detection
+### Core Modules
+
+| File | Description |
+|------|-------------|
+| `main.py` | Entry point for GUI and batch processing |
+| `facial_au_analyzer.py` | Core analysis engine |
+| `facial_au_batch_processor.py` | Batch processing controller |
+| `paralysis_detector.py` | ML-based paralysis detection |
+| `paralysis_config.py` | Zone configuration and parameters |
+
+### Feature Extraction
+
+| File | Description |
+|------|-------------|
+| `upper_face_features.py` | Upper face feature extraction |
+| `mid_face_features.py` | Mid face feature extraction |
+| `lower_face_features.py` | Lower face feature extraction |
+| `paralysis_utils.py` | Shared feature computation utilities |
+
+### Training Pipeline
+
+| File | Description |
+|------|-------------|
+| `training_gui.py` | Interactive training interface |
+| `paralysis_training_pipeline.py` | Command-line training pipeline |
+| `paralysis_model_trainer.py` | Model training with ordinal classification |
+| `paralysis_training_helpers.py` | Training utilities and metrics |
+
+### Visualization
+
+| File | Description |
+|------|-------------|
+| `facial_au_gui.py` | Analysis GUI interface |
+| `facial_au_visualizer.py` | Plot and chart generation |
+| `facial_au_frame_extractor.py` | Video frame extraction |
+
+## Configuration
+
+Key parameters are defined in `paralysis_config.py`:
+
+- `ZONE_CONFIG` - Per-zone action units, actions, and file paths
+- Feature extraction parameters (normalization, asymmetry calculation)
+- Model hyperparameter search spaces for Optuna optimization
 
 ## Requirements
 
 - Python 3.8+
-- pandas, numpy, scikit-learn
-- opencv-python (for frame extraction)
-- matplotlib, seaborn (for visualizations)
-- tkinter (for GUI)
+- See `requirements.txt` for full dependency list
+
+Core dependencies:
+- pandas, numpy - Data processing
+- scikit-learn, xgboost - Machine learning
+- optuna - Hyperparameter optimization
+- imbalanced-learn - Class balancing (SMOTE)
+- opencv-python - Video frame extraction
+- matplotlib, seaborn - Visualization
 
 ## Workflow
 
 1. **Load Data**: Read left/right CSV pairs for each patient
 2. **Identify Actions**: Detect available actions in the data
 3. **Find Peak Frames**: Locate maximum activation frame for each action
-4. **Extract Baseline**: Get resting state AU values
+4. **Extract Baseline**: Get resting state AU values from BL action
 5. **Calculate Normalized AUs**: Subtract baseline from action AUs
-6. **Detect Paralysis**: Apply ML models to classify severity per facial zone
-7. **Generate Outputs**: Save results CSV and visual outputs
-8. **Aggregate**: Combine all patient results into summary report
+6. **Extract Features**: Compute asymmetry metrics and derived features
+7. **Detect Paralysis**: Apply ML models to classify severity per zone
+8. **Generate Outputs**: Save results and optional visualizations
 
-## Notes
+## License
 
-- Designed for Bell's palsy and facial nerve paralysis research
-- Handles asymmetric facial movements between left/right sides
-- Supports both single-patient (GUI) and batch processing modes
-- Frame extraction optional for faster processing
+See the main repository LICENSE file for terms of use.

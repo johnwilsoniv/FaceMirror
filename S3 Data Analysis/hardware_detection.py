@@ -255,7 +255,7 @@ def format_hardware_info(hw_info):
 
     # GPU info
     if hw_info['cuda_available']:
-        lines.append("GPU: CUDA Available ✓")
+        lines.append("GPU: CUDA Available")
     else:
         lines.append("GPU: Not Available (CPU-only mode)")
         if hw_info['is_apple_silicon']:

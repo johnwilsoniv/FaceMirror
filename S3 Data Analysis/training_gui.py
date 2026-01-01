@@ -565,7 +565,7 @@ class TrainingGUI:
                 zone_name = zone_config.get('name', zone_key.capitalize())
                 ttk.Checkbutton(zone_frame, text=zone_name, variable=var).pack(anchor='w')
         else:
-            ttk.Label(zone_frame, text="⚠ Could not load zone configuration", foreground='red').pack()
+            ttk.Label(zone_frame, text="[WARNING] Could not load zone configuration", foreground='red').pack()
 
         # Training control section
         control_frame = ttk.Frame(parent)
@@ -885,7 +885,7 @@ class TrainingGUI:
                 elif msg_type == 'zone_complete':
                     zone_name = msg_data['zone_name']
                     summary = msg_data.get('summary')
-                    self.log_message(f"✓ Zone {zone_name} training completed successfully")
+                    self.log_message(f"[OK] Zone {zone_name} training completed successfully")
                     if summary:
                         self.add_zone_summary(
                             summary['zone_name'],
@@ -901,12 +901,12 @@ class TrainingGUI:
                 elif msg_type == 'zone_error':
                     zone_name = msg_data['zone_name']
                     error = msg_data['error']
-                    self.log_message(f"✗ Zone {zone_name} training failed: {error}")
+                    self.log_message(f"[FAILED] Zone {zone_name} training failed: {error}")
                     if 'traceback' in msg_data:
                         self.log_message(msg_data['traceback'])
 
                 elif msg_type == 'error':
-                    self.log_message(f"✗ Error: {msg_data}")
+                    self.log_message(f"[ERROR] {msg_data}")
                     messagebox.showerror("Training Error", str(msg_data))
 
                 elif msg_type == 'complete':
@@ -1150,7 +1150,7 @@ class TrainingGUI:
                         if phase_progress == 0:
                             self.log_message(f"  Started: {message}")
                         elif phase_progress == 100:
-                            self.log_message(f"  ✓ Completed: {message}")
+                            self.log_message(f"  [OK] Completed: {message}")
 
                     # Run zone training with progress callback
                     summary_result = run_zone_training_pipeline_with_progress(
@@ -1158,7 +1158,7 @@ class TrainingGUI:
                         progress_callback
                     )
 
-                    self.log_message(f"✓ Zone {zone_name} training completed successfully")
+                    self.log_message(f"[OK] Zone {zone_name} training completed successfully")
 
                     # Add summary to Summary tab (thread-safe)
                     if summary_result:
@@ -1171,7 +1171,7 @@ class TrainingGUI:
                         self.root.after(0, add_summary)
 
                 except Exception as e:
-                    self.log_message(f"✗ Zone {zone_name} training failed: {e}")
+                    self.log_message(f"[FAILED] Zone {zone_name} training failed: {e}")
                     import traceback
                     self.log_message(traceback.format_exc())
 
@@ -1186,7 +1186,7 @@ class TrainingGUI:
                                                            "All zones have been trained successfully!"))
 
         except Exception as e:
-            self.log_message(f"\n✗ Training failed with error: {e}")
+            self.log_message(f"\n[FAILED] Training failed with error: {e}")
             import traceback
             self.log_message(traceback.format_exc())
             self.root.after(0, lambda: messagebox.showerror("Training Error", f"Training failed: {e}"))
@@ -1273,7 +1273,7 @@ class TrainingGUI:
         """Stop training process"""
         if self.training_process is not None and self.training_process.poll() is None:
             if messagebox.askyesno("Stop Training", "Are you sure you want to stop training? This will terminate the process."):
-                self.log_message("\n⚠ Stopping training process...")
+                self.log_message("\n[STOPPING] Training process...")
                 self.training_process.terminate()
                 try:
                     self.training_process.wait(timeout=5)

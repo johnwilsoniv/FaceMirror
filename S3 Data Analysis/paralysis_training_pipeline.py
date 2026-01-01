@@ -567,12 +567,12 @@ if __name__ == "__main__":
                 completed_zones.append(summary_result['zone_name'])
         except KeyboardInterrupt:
             pipeline_script_logger.error(f"Pipeline interrupted by user for zone {zone_key_main_loop}.")
-            print(f"\n✗ Training interrupted by user for Zone: {zone_key_main_loop.upper()}")
+            print(f"\n[FAILED] Training interrupted by user for Zone: {zone_key_main_loop.upper()}")
             break  # Exit loop on interrupt
         except Exception as e_pipeline_main:
             pipeline_script_logger.error(f"Pipeline failed for zone {zone_key_main_loop}: {e_pipeline_main}",
                                          exc_info=True)
-            print(f"\n✗ Processing Failed for Zone: {zone_key_main_loop.upper()} due to: {e_pipeline_main}")
+            print(f"\n[FAILED] Processing Failed for Zone: {zone_key_main_loop.upper()} due to: {e_pipeline_main}")
             # Optionally, `continue` to next zone or `break` to stop all processing
             continue
 
