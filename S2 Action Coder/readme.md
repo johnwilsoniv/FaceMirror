@@ -160,30 +160,15 @@ S2 Action Coder/
 ### Building from Source
 See [INSTALLATION.md](INSTALLATION.md) for build instructions using PyInstaller.
 
-### Performance Profiling
-Diagnostic tools are included (disabled by default):
-- `diagnostic_profiler.py`: Component-level timing analysis
-- `run_cprofile_analysis.py`: Function-level profiling
-- See `PROFILING_GUIDE.md` for usage
-
-## License
-
-[Your License Here]
-
 ## Citation
 
 If you use Action Coder in your research, please cite:
 
-```
-[Your Citation Here]
-```
+> Wilson IV, J., Rosenberg, J., Gray, M. L., & Razavi, C. R. (2025). A split-face computer vision/machine learning assessment of facial paralysis using facial action units. *Facial Plastic Surgery & Aesthetic Medicine*. https://doi.org/10.1177/26893614251394382
 
-## Support
+## License
 
-For issues, questions, or feature requests:
-- **GitHub Issues**: [Your Repository URL]
-- **Documentation**: [Your Docs URL]
-- **Contact**: [Your Contact Info]
+See the main repository LICENSE file for terms of use.
 
 ## Acknowledgments
 

@@ -164,31 +164,31 @@ if __name__ == "__main__":
 
         try:
             import mlx_whisper
-            print("✓ mlx_whisper imported successfully")
+            print("[OK] mlx_whisper imported successfully")
         except ImportError as e:
             mlx_import_failed = str(e)
-            print(f"✗ mlx_whisper import failed: {e}")
+            print(f"[FAILED] mlx_whisper import failed: {e}")
             raise
 
         try:
             from silero_vad import load_silero_vad
-            print("✓ silero_vad imported successfully")
+            print("[OK] silero_vad imported successfully")
         except ImportError as e:
             silero_import_failed = str(e)
-            print(f"✗ silero_vad import failed: {e}")
+            print(f"[FAILED] silero_vad import failed: {e}")
             raise
 
         is_apple_silicon = platform.machine() == "arm64" and platform.system() == "Darwin"
         if is_apple_silicon:
             mlx_available = True
-            print("✓ Running on Apple Silicon")
+            print("[OK] Running on Apple Silicon")
             print("=" * 70)
             print(">>> USING MLX WHISPER + SILERO VAD <<<")
             print("  - 3-6x faster than faster-whisper")
             print("  - No preloading needed (loads on-demand)")
             print("=" * 70)
         else:
-            print(f"✗ Not on Apple Silicon (machine: {platform.machine()}, system: {platform.system()})")
+            print(f"[INFO] Not on Apple Silicon (machine: {platform.machine()}, system: {platform.system()})")
             print("  Will use faster-whisper instead")
 
     except ImportError:
