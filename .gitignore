@@ -37,6 +37,7 @@ pyfhog/
 
 # Data
 Patient Data/
+**/FPRS FP Key.csv
 
 # Temp
 archive/
