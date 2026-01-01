@@ -16,14 +16,15 @@ ANALYSIS_DIR = os.path.join(OUTPUT_BASE, 'analysis_results')
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(ANALYSIS_DIR, exist_ok=True)
 
-CLASS_NAMES = {0: 'None', 1: 'Partial', 2: 'Complete'}  # Used by PARALYSIS_MAP in utils and pipeline
+CLASS_NAMES = {0: 'Normal', 1: 'Partial', 2: 'Complete'}  # Used by PARALYSIS_MAP in utils and pipeline
+# Note: Using 'Normal' instead of 'None' because pandas interprets 'None' as NaN when reading CSV
 LOGGING_CONFIG = {
     'level': 'INFO',
     'format': '%(asctime)s - %(levelname)s - %(name)s - %(message)s'
 }
 INPUT_FILES = {
-    # Use paper data which has AU16_r and is known to produce published results
-    'results_csv': os.path.join(os.path.dirname(__file__), 'paper_combined_results.csv'),
+    # Use PyFaceAU-extracted data for training (matches inference pipeline)
+    'results_csv': os.path.expanduser('~/Documents/SplitFace/S3O Results/combined_results.csv'),
     'expert_key_csv': os.path.join(os.path.dirname(__file__), 'FPRS FP Key.csv')
 }
 
@@ -156,8 +157,8 @@ ZONE_CONFIG = {
     'lower': {
         'name': 'Lower Face',
         'actions': ['BS', 'SS', 'SO', 'SE'],  # Example actions
-        # AU16_r (Lower Lip Depressor) added back for paper-equivalent training
-        'aus': ['AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU16_r', 'AU17_r', 'AU20_r', 'AU23_r', 'AU25_r', 'AU26_r'],
+        # AU16_r excluded - not available in OpenFace 2.2 / PyFaceAU
+        'aus': ['AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r', 'AU20_r', 'AU23_r', 'AU25_r', 'AU26_r'],
         # Example AUs
         'expert_columns': {  # From original config
             'left': 'Paralysis - Left Lower Face',

@@ -1,4 +1,4 @@
-"""
+claude --dangclaud"""
 Training GUI for Paralysis Detection Model Training
 
 Provides an intuitive Tkinter interface for training facial paralysis detection models
@@ -28,7 +28,7 @@ except ImportError as e:
     print(f"Warning: Could not import training modules: {e}")
     ZONE_CONFIG = {}
     INPUT_FILES = {}
-    PARALYSIS_MAP = {0: 'None', 1: 'Partial', 2: 'Complete'}
+    PARALYSIS_MAP = {0: 'Normal', 1: 'Partial', 2: 'Complete'}
 
 
 class GUILogHandler(logging.Handler):

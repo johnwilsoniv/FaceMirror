@@ -38,7 +38,9 @@ class FacialAUAnalyzerGUI:
         # self.root.geometry("...")
 
         # Initialize variables
-        self.data_dir = tk.StringVar()
+        # Auto-detect data directory if it exists
+        default_data_dir = config_paths.get_s2_coded_dir()
+        self.data_dir = tk.StringVar(value=str(default_data_dir) if default_data_dir.exists() else "")
         self.output_dir = str(config_paths.get_output_base_dir())
         self.generate_visuals_var = tk.BooleanVar(value=True)
         self.debug_mode_var = tk.BooleanVar(value=False)
@@ -51,6 +53,10 @@ class FacialAUAnalyzerGUI:
         self.batch_processor = None
         self.analysis_thread = None
         self.processing_start_time = None  # Track processing time
+
+        # Auto-scan for patients if data directory is set
+        if self.data_dir.get() and os.path.isdir(self.data_dir.get()):
+            self.root.after(100, self.scan_for_patients_auto)  # Delay to allow GUI to render
 
     def create_widgets(self):
         """Create all GUI widgets."""

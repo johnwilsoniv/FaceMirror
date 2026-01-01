@@ -103,9 +103,9 @@ ALL_AU_COLUMNS = [
 
 # Synkinesis and hypertonicity detection removed - paralysis detection only
 
-PARALYSIS_SEVERITY_LEVELS = ['None', 'Partial', 'Complete', 'Error']
-SEVERITY_ABBREVIATIONS = { 'None': 'N', 'Partial': 'I', 'Complete': 'C', 'Error': 'E' }
-SEVERITY_ABBREVIATIONS_CONTRADICTION = { 'None': '(N)', 'Partial': '(I)', 'Complete': '(C)', 'Error': '(E)' }
+PARALYSIS_SEVERITY_LEVELS = ['Normal', 'None', 'Partial', 'Complete', 'Error']
+SEVERITY_ABBREVIATIONS = { 'Normal': 'N', 'None': 'N', 'Partial': 'I', 'Complete': 'C', 'Error': 'E' }
+SEVERITY_ABBREVIATIONS_CONTRADICTION = { 'Normal': '(N)', 'None': '(N)', 'Partial': '(I)', 'Complete': '(C)', 'Error': '(E)' }
 
 USE_ML_FOR_UPPER_FACE = True
 USE_ML_FOR_MIDFACE = True

@@ -18,7 +18,7 @@ try:
 except ImportError:
     logging.critical("CRITICAL: Could not import ZONE_CONFIG from paralysis_config. Detector cannot function.")
     # Provide minimal fallback for CLASS_NAMES if needed, but ZONE_CONFIG is essential
-    CLASS_NAMES = {0: 'None', 1: 'Partial', 2: 'Complete'}
+    CLASS_NAMES = {0: 'Normal', 1: 'Partial', 2: 'Complete'}
     ZONE_CONFIG = {} # Detector will fail gracefully if config is missing
 
 # Configure logging
@@ -220,7 +220,7 @@ class ParalysisDetector:
             if self.zone not in zone_paralysis_summary[side]: zone_paralysis_summary[side][self.zone] = 'None' # Initialize if missing
 
             current_severity_str = zone_paralysis_summary[side][self.zone]
-            level_map = {'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1}
+            level_map = {'Normal': 0, 'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1}
             current_level = level_map.get(current_severity_str, 0)
             result_level = level_map.get(result, -1)
 

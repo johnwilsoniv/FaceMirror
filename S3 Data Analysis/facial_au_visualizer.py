@@ -74,7 +74,7 @@ class FacialAUVisualizer:
 
         ax.clear();
         ax.axis('off');
-        severity_map = {'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1}
+        severity_map = {'Normal': 0, 'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1}
 
         paralysis_details = {'Left': {}, 'Right': {}};
         first_action_key = next((k for k, v in results.items() if k != 'patient_summary' and isinstance(v, dict)), None)
@@ -95,12 +95,12 @@ class FacialAUVisualizer:
         p_finding_width = 7;
         p_side_width = 7;
 
-        # Paralysis Table
-        paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'L':<{p_side_width}} {'R':<{p_side_width}}");
+        # Paralysis Table (R on left = patient's right from viewer perspective)
+        paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'R':<{p_side_width}} {'L':<{p_side_width}}");
         paralysis_text_lines.append("-" * (p_finding_width + p_side_width * 2 + 1))
         for row_label, zone_cap_key in [('Upper', 'Upper'), ('Mid', 'Mid'), ('Lower', 'Lower')]:
             line_parts = [f"{row_label:<{p_finding_width}}"];
-            for side in ['Left', 'Right']:
+            for side in ['Right', 'Left']:
                 algo_key = f"{side} {zone_cap_key} Face Paralysis";
                 algo_severity = paralysis_details.get(side, {}).get(zone_cap_key, 'Error')
                 if algo_severity not in self.sev_abbr: algo_severity = 'Error'
@@ -145,8 +145,8 @@ class FacialAUVisualizer:
         left_raw = [float(au_values_left.get(au, 0.0) if pd.notna(au_values_left.get(au)) else 0.0) for au in significant_aus]
         right_raw = [float(au_values_right.get(au, 0.0) if pd.notna(au_values_right.get(au)) else 0.0) for au in significant_aus]
         plt.sca(ax_raw); ax_raw.set_facecolor(self.color_scheme['background'])
-        bars1 = ax_raw.bar(x - width_baseline / 2, left_raw, width_baseline, label='Left Raw', color=self.color_scheme['left_raw'], edgecolor='black', linewidth=0.5)
-        bars2 = ax_raw.bar(x + width_baseline / 2, right_raw, width_baseline, label='Right Raw', color=self.color_scheme['right_raw'], edgecolor='black', linewidth=0.5)
+        bars1 = ax_raw.bar(x - width_baseline / 2, right_raw, width_baseline, label='Right Raw', color=self.color_scheme['right_raw'], edgecolor='black', linewidth=0.5)
+        bars2 = ax_raw.bar(x + width_baseline / 2, left_raw, width_baseline, label='Left Raw', color=self.color_scheme['left_raw'], edgecolor='black', linewidth=0.5)
         self._add_bar_labels(ax_raw, bars1); self._add_bar_labels(ax_raw, bars2)
         ax_raw.set_title(f"Raw Baseline AU Values", fontsize=11, fontweight='bold', color=self.color_scheme['text'])
         ax_raw.set_ylabel("Raw Intensity", fontsize=9, color=self.color_scheme['text']); ax_raw.set_xlabel("Action Units", fontsize=9, color=self.color_scheme['text'])
@@ -186,10 +186,10 @@ class FacialAUVisualizer:
         left_norm = [float(norm_left_dict.get(au, 0.0) if pd.notna(norm_left_dict.get(au)) else 0.0) for au in significant_aus]; right_norm = [float(norm_right_dict.get(au, 0.0) if pd.notna(norm_right_dict.get(au)) else 0.0) for au in significant_aus]
         key_aus = action_to_aus.get(action, []); action_info = results.get(action, {}); paralysis_info = action_info.get('paralysis', {})
         plt.sca(ax_main); ax_main.set_facecolor(self.color_scheme['background'])
-        bars_lr = ax_main.bar(x - 1.5*width_action, left_raw, width_action, label='Left Raw', color=self.color_scheme['left_raw'], edgecolor='black', linewidth=0.5)
-        bars_ln = ax_main.bar(x - 0.5*width_action, left_norm, width_action, label='Left Norm', color=self.color_scheme['left_norm'], edgecolor='black', linewidth=0.5)
-        bars_rr = ax_main.bar(x + 0.5*width_action, right_raw, width_action, label='Right Raw', color=self.color_scheme['right_raw'], edgecolor='black', linewidth=0.5)
-        bars_rn = ax_main.bar(x + 1.5*width_action, right_norm, width_action, label='Right Norm', color=self.color_scheme['right_norm'], edgecolor='black', linewidth=0.5)
+        bars_rr = ax_main.bar(x - 1.5*width_action, right_raw, width_action, label='Right Raw', color=self.color_scheme['right_raw'], edgecolor='black', linewidth=0.5)
+        bars_rn = ax_main.bar(x - 0.5*width_action, right_norm, width_action, label='Right Norm', color=self.color_scheme['right_norm'], edgecolor='black', linewidth=0.5)
+        bars_lr = ax_main.bar(x + 0.5*width_action, left_raw, width_action, label='Left Raw', color=self.color_scheme['left_raw'], edgecolor='black', linewidth=0.5)
+        bars_ln = ax_main.bar(x + 1.5*width_action, left_norm, width_action, label='Left Norm', color=self.color_scheme['left_norm'], edgecolor='black', linewidth=0.5)
         self._add_bar_labels(ax_main, bars_lr); self._add_bar_labels(ax_main, bars_ln); self._add_bar_labels(ax_main, bars_rr); self._add_bar_labels(ax_main, bars_rn)
         ax_main.set_title(f"AU Values", fontsize=11, fontweight='bold', color=self.color_scheme['text'])
         ax_main.set_ylabel("Intensity", fontsize=9, color=self.color_scheme['text']); ax_main.set_xlabel("Action Units", fontsize=9, color=self.color_scheme['text'])
@@ -223,7 +223,7 @@ class FacialAUVisualizer:
         if not info_dict or not aus_plotted: return
         if detection_type == 'paralysis':
             paralysis_zones = info_dict.get('zones', {})
-            detected_in_action = any(sev != 'None' for side_zones in paralysis_zones.values() for sev in side_zones.values())
+            detected_in_action = any(sev not in ['Normal', 'None'] for side_zones in paralysis_zones.values() for sev in side_zones.values())
             if not detected_in_action: return
             for i, au in enumerate(aus_plotted):
                 current_zone = None;
@@ -286,7 +286,7 @@ class FacialAUVisualizer:
                  for side in ['left', 'right']:
                      if side not in paralyzed_zones: paralyzed_zones[side] = {}
                      side_zones = zones_dict.get(side, {});
-                     for zone, severity in side_zones.items(): current_level = severity_map.get(paralyzed_zones[side].get(zone, 'None'), 0); new_level = severity_map.get(severity, 0);
+                     for zone, severity in side_zones.items(): current_level = severity_map.get(paralyzed_zones[side].get(zone, 'Normal'), 0); new_level = severity_map.get(severity, 0);
                      if new_level > current_level: paralyzed_zones[side][zone] = severity
         for i, zone in enumerate(zone_plot_config.keys()):
             ax = fig.add_subplot(gs[i]); ax.set_facecolor(self.color_scheme['background']); config = zone_plot_config[zone]; metric_base = config['metric']
@@ -309,7 +309,7 @@ class FacialAUVisualizer:
             self._add_bar_labels(ax, bars)
             if metric_base == 'Asym_Ratio': ax.axhline(partial_thresh_ratio, color=self.color_scheme['partial_severity_rgba'][0:3], linestyle='--', linewidth=1, label=f'Partial Thr ({partial_thresh_ratio:.2f})'); ax.axhline(complete_thresh_ratio, color=self.color_scheme['complete_severity_rgba'][0:3], linestyle=':', linewidth=1, label=f'Complete Thr ({complete_thresh_ratio:.2f})'); ax.set_ylim(0, 1.1)
             elif metric_base == 'Asym_PercDiff': ax.axhline(partial_thresh_pd, color=self.color_scheme['partial_severity_rgba'][0:3], linestyle='--', linewidth=1, label=f'Partial Thr ({partial_thresh_pd:.0f}%)'); ax.axhline(complete_thresh_pd, color=self.color_scheme['complete_severity_rgba'][0:3], linestyle=':', linewidth=1, label=f'Complete Thr ({complete_thresh_pd:.0f}%)'); numeric_vals = [m for m in metric_values_plot if pd.notna(m)] or [0]; ax.set_ylim(bottom=0, top=max(numeric_vals + [complete_thresh_pd * 1.1, 50]))
-            left_sev = paralyzed_zones.get('left', {}).get(zone, 'None'); right_sev = paralyzed_zones.get('right', {}).get(zone, 'None'); title = f"{zone_titles[zone]} ({metric_base})"; paralysis_title_info = [f"{s.upper()[0]}:{sev}" for s, sev in [('L', left_sev), ('R', right_sev)] if sev not in ['None', 'Error', 'NA']];
+            left_sev = paralyzed_zones.get('left', {}).get(zone, 'Normal'); right_sev = paralyzed_zones.get('right', {}).get(zone, 'Normal'); title = f"{zone_titles[zone]} ({metric_base})"; paralysis_title_info = [f"{s.upper()[0]}:{sev}" for s, sev in [('L', left_sev), ('R', right_sev)] if sev not in ['Normal', 'None', 'Error', 'NA']];
             if paralysis_title_info: title += f" - [Overall: {'; '.join(paralysis_title_info)}]";
             ax.set_title(title, fontsize=14, color=self.color_scheme['text']); ax.set_ylabel(metric_base, color=self.color_scheme['text']); ax.set_xticks(x_coords); ax.set_xticklabels(actions, rotation=45, ha='right', color=self.color_scheme['text']); ax.legend(fontsize=9); ax.grid(axis='y', linestyle='--', alpha=0.7, color=self.color_scheme['grid']); ax.spines['bottom'].set_color(self.color_scheme['text']); ax.spines['left'].set_color(self.color_scheme['text']); ax.tick_params(axis='x', colors=self.color_scheme['text']); ax.tick_params(axis='y', colors=self.color_scheme['text'])
 
@@ -317,9 +317,9 @@ class FacialAUVisualizer:
         ax_synk = fig.add_subplot(gs[3]); ax_synk.set_facecolor(self.color_scheme['background'])
         ax_synk.text(0.5, 0.5, "Paralysis Detection Only", ha='center', va='center', fontsize=14, color=self.color_scheme['text']); ax_synk.axis('off')
         summary_text = f"SUMMARY - {patient_id}\n" + "="*(12 + len(patient_id)) + "\nParalysis:\n"
-        paralysis_found = any(p not in ['None', 'Error', 'NA'] for side_dict in paralyzed_zones.values() for p in side_dict.values())
+        paralysis_found = any(p not in ['Normal', 'None', 'Error', 'NA'] for side_dict in paralyzed_zones.values() for p in side_dict.values())
         summary_text += "  None Detected\n" if not paralysis_found else ""
-        for side in ['left', 'right']: findings = [f"{z.capitalize()}:{s}" for z,s in paralyzed_zones.get(side, {}).items() if s not in ['None', 'Error', 'NA']]; summary_text += f"  {side.capitalize()}: {', '.join(findings) if findings else 'None'}\n"
+        for side in ['left', 'right']: findings = [f"{z.capitalize()}:{s}" for z,s in paralyzed_zones.get(side, {}).items() if s not in ['Normal', 'None', 'Error', 'NA']]; summary_text += f"  {side.capitalize()}: {', '.join(findings) if findings else 'Normal'}\n"
         fig.text(0.5, 0.02, summary_text, ha='center', va='bottom', fontsize=9, bbox=dict(boxstyle='round,pad=0.5', fc=self.color_scheme['background'], alpha=0.9, ec=self.color_scheme['grid']), family='monospace', color=self.color_scheme['text'])
         fig.suptitle(f'Facial Symmetry Analysis - {patient_id}', fontsize=16, fontweight='bold', color=self.color_scheme['text'])
         plt.tight_layout(rect=[0, 0.08, 1, 0.96])
@@ -361,7 +361,7 @@ class FacialAUVisualizer:
             if os.path.exists(os.path.join(patient_output_dir, plot_filename)):
                 ordered_plots_found[action] = plot_filename
 
-        severity_map = {'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1};
+        severity_map = {'Normal': 0, 'None': 0, 'Partial': 1, 'Complete': 2, 'Error': -1};
         paralysis_details = {'Left': {}, 'Right': {}};
         paralysis_found_overall = False
         first_action_key = next(
@@ -373,7 +373,7 @@ class FacialAUVisualizer:
                 side_cap = side_key.capitalize(); paralysis_details[side_cap] = {};
                 for zone_key, severity in side_zones.items():
                     paralysis_details[side_cap][zone_key.capitalize()] = severity;
-                    if severity not in ['None', 'Error', 'NA']: paralysis_found_overall = True
+                    if severity not in ['Normal', 'None', 'Error', 'NA']: paralysis_found_overall = True
         else:
             logger.warning(
                 f"({patient_id}) Dashboard: Could not find action with paralysis info."); paralysis_details = {
@@ -386,12 +386,12 @@ class FacialAUVisualizer:
         p_finding_width = 7;
         p_side_width = 7;
 
-        # Paralysis Text
-        paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'L':<{p_side_width}} {'R':<{p_side_width}}")
+        # Paralysis Text (R on left = patient's right from viewer perspective)
+        paralysis_text_lines.append(f"{'Zone':<{p_finding_width}} {'R':<{p_side_width}} {'L':<{p_side_width}}")
         paralysis_text_lines.append("-" * (p_finding_width + p_side_width * 2 + 1))
         for row_label, zone_key in [('Upper', 'Upper'), ('Mid', 'Mid'), ('Lower', 'Lower')]:
             line_parts = [f"{row_label:<{p_finding_width}}"];
-            for side in ['Left', 'Right']:
+            for side in ['Right', 'Left']:
                 algo_key = f"{side} {zone_key} Face Paralysis";
                 algo_severity = paralysis_details.get(side, {}).get(zone_key, 'Error')
                 if algo_severity not in self.sev_abbr: algo_severity = 'Error';

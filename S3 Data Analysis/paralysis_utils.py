@@ -32,7 +32,7 @@ try:
     PARALYSIS_MAP = PARALYSIS_CLASS_NAMES_CONFIG
 except ImportError:
     # Fallback if paralysis_config is not found or CLASS_NAMES is not defined
-    PARALYSIS_MAP = {0: 'None', 1: 'Partial', 2: 'Complete'}
+    PARALYSIS_MAP = {0: 'Normal', 1: 'Partial', 2: 'Complete'}
     PARALYSIS_INPUT_FILES_CONFIG = {}
     PARALYSIS_ZONE_CONFIG_CONFIG = {}
     REVIEW_CONFIG = {}  # Default empty REVIEW_CONFIG
@@ -41,7 +41,8 @@ except ImportError:
 
 # Synkinesis detection code removed - paralysis detection only
 
-from paralysis_training_helpers import calculate_class_weights_for_model
+# Note: calculate_class_weights_for_model is imported lazily inside functions
+# that use it to avoid circular import with paralysis_training_helpers
 
 def calculate_ratio(val1_series, val2_series, min_value=0.0001):
     """
@@ -196,7 +197,10 @@ def hybrid_feature_selection(features_df, targets, config_fs, n_features_to_sele
 def _extract_base_au_features(df_input, side, actions_list, aus_list, feature_extraction_config,
                               zone_display_name="Zone"):
     feature_data_dict = {}
-    opposite_side_str = 'Right' if side == 'Left' else 'Left'
+    # Normalize side to capitalized form for column name matching
+    # Detection passes lowercase ('left'/'right'), but column names use capitalized ('Left'/'Right')
+    side_cap = side.capitalize() if isinstance(side, str) else 'Left'
+    opposite_side_str = 'Right' if side_cap == 'Left' else 'Left'
 
     use_normalized_val = feature_extraction_config.get('use_normalized', True)
     min_value_param = feature_extraction_config.get('min_value', 0.0001)
@@ -206,7 +210,7 @@ def _extract_base_au_features(df_input, side, actions_list, aus_list, feature_ex
         for au_str in aus_list:
             base_col_name_str = f"{action_str}_{au_str}"
 
-            au_col_current_side = f"{action_str}_{side} {au_str}"
+            au_col_current_side = f"{action_str}_{side_cap} {au_str}"
             au_norm_col_current_side = f"{au_col_current_side} (Normalized)"
             au_col_opposite_side = f"{action_str}_{opposite_side_str} {au_str}"
             au_norm_col_opposite_side = f"{au_col_opposite_side} (Normalized)"
@@ -540,12 +544,12 @@ def perform_error_analysis(data, output_dir, filename_base, finding_name, class_
 def analyze_critical_errors(data, output_dir, filename_base, finding_name, class_names_map):
     none_label_val, complete_label_val = -1, -1
     for k, v in class_names_map.items():
-        if str(v).lower() == 'none': none_label_val = int(k)
+        if str(v).lower() in ['none', 'normal']: none_label_val = int(k)
         if str(v).lower() == 'complete': complete_label_val = int(k)
 
     if none_label_val == -1 or complete_label_val == -1:
         logger.warning(
-            f"Critical error analysis for '{finding_name}' skipped: Class names for 'None' or 'Complete' missing from map {class_names_map}.")
+            f"Critical error analysis for '{finding_name}' skipped: Class names for 'Normal' or 'Complete' missing from map {class_names_map}.")
         return
 
     none_label_str = class_names_map[none_label_val]
@@ -613,12 +617,12 @@ def analyze_partial_errors(data, output_dir, filename_base, finding_name, class_
     partial_label_val, none_label_val, complete_label_val = -1, -1, -1
     for k, v in class_names_map.items():
         if str(v).lower() == 'partial': partial_label_val = int(k)
-        if str(v).lower() == 'none': none_label_val = int(k)
+        if str(v).lower() in ['none', 'normal']: none_label_val = int(k)
         if str(v).lower() == 'complete': complete_label_val = int(k)
 
     if partial_label_val == -1 or none_label_val == -1 or complete_label_val == -1:
         logger.warning(
-            f"Partial error analysis for '{finding_name}' skipped: Class names for 'Partial', 'None', or 'Complete' missing from map {class_names_map}.")
+            f"Partial error analysis for '{finding_name}' skipped: Class names for 'Partial', 'Normal', or 'Complete' missing from map {class_names_map}.")
         return
 
     partial_label_str = class_names_map[partial_label_val]
@@ -720,6 +724,9 @@ def analyze_training_influence(zone, model, scaler, feature_names,
                                training_analysis_df,  # For context, not direct use here
                                candidate_indices,  # Indices from X_train_orig_df to analyze
                                config):
+    # Lazy import to avoid circular dependency with paralysis_training_helpers
+    from paralysis_training_helpers import calculate_class_weights_for_model
+
     zone_name = config.get('name', zone.capitalize().replace('_', ' ') + ' Face')
     training_params = config.get('training', {})
     smote_config = training_params.get('smote', {})

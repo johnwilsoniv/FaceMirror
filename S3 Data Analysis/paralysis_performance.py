@@ -46,7 +46,7 @@ except ImportError as e:
         return str(val)
 
 
-    PARALYSIS_MAP = {0: 'None', 1: 'Partial', 2: 'Complete'}
+    PARALYSIS_MAP = {0: 'Normal', 1: 'Partial', 2: 'Complete'}
 
 
     def visualize_confusion_matrix(*args, **kwargs):

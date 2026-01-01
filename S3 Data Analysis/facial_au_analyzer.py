@@ -121,7 +121,10 @@ class FacialAUAnalyzer:
         return valid_actions # Return only valid actions
 
     def find_peak_frame(self, action_data, action):
-        """Finds the peak frame for a given action, ensuring integer return."""
+        """Finds the peak frame for a given action, ensuring integer return.
+
+        Uses sum of key AUs across both sides (best alignment with paper data).
+        """
         if action_data.empty: return None
 
         def get_median_frame(df):
@@ -144,18 +147,17 @@ class FacialAUAnalyzer:
             use_median_fallback = True
             logger.warning(f"No key AUs defined for action '{action}'. Using median frame.")
         else:
-            # Check if required columns exist *before* trying to use them
+            # Check if required columns exist
             norm_key_au_cols_left = [f"{au}_Left (Normalized)" for au in key_aus if f"{au}_Left (Normalized)" in action_data.columns]
             norm_key_au_cols_right = [f"{au}_Right (Normalized)" for au in key_aus if f"{au}_Right (Normalized)" in action_data.columns]
             raw_key_au_cols_left = [f"{au}_Left" for au in key_aus if f"{au}_Left" in action_data.columns]
             raw_key_au_cols_right = [f"{au}_Right" for au in key_aus if f"{au}_Right" in action_data.columns]
 
-            # Check if *any* columns for the key AUs exist for this action
             if not (norm_key_au_cols_left or norm_key_au_cols_right or raw_key_au_cols_left or raw_key_au_cols_right):
                 use_median_fallback = True
-                logger.warning(f"Key AUs {key_aus} defined for action '{action}', but corresponding columns not found in data. Using median frame.")
+                logger.warning(f"Key AUs {key_aus} defined for action '{action}', but columns not found. Using median frame.")
             else:
-                # Try normalized first if columns exist
+                # Try normalized first (sum both sides)
                 if norm_key_au_cols_left or norm_key_au_cols_right:
                     try:
                         scores_norm = action_data[norm_key_au_cols_left + norm_key_au_cols_right].sum(axis=1)
@@ -165,11 +167,11 @@ class FacialAUAnalyzer:
                                  peak_frame_norm = int(action_data.loc[peak_idx_norm, 'frame'])
                                  max_activation_norm = scores_norm[peak_idx_norm]
                                  logger.debug(f"Peak frame for {action} (Normalized): Frame {peak_frame_norm} (Score: {max_activation_norm:.2f})")
-                                 if max_activation_norm > 0.1: peak_frame = peak_frame_norm # Potential peak found
+                                 if max_activation_norm > 0.1: peak_frame = peak_frame_norm
                             else: logger.warning(f"Normalized peak index {peak_idx_norm} invalid for {action}.")
                     except Exception as e_norm: logger.warning(f"Error calculating normalized peak score for {action}: {e_norm}.")
 
-                # Try raw if normalized failed or wasn't significant, and if raw columns exist
+                # Try raw if normalized failed (sum both sides)
                 if peak_frame is None and (raw_key_au_cols_left or raw_key_au_cols_right):
                      try:
                          scores_raw = action_data[raw_key_au_cols_left + raw_key_au_cols_right].sum(axis=1)
@@ -179,11 +181,10 @@ class FacialAUAnalyzer:
                                  peak_frame_raw = int(action_data.loc[peak_idx_raw, 'frame'])
                                  max_activation_raw = scores_raw[peak_idx_raw]
                                  logger.debug(f"Peak frame for {action} (Raw): Frame {peak_frame_raw} (Score: {max_activation_raw:.2f})")
-                                 peak_frame = peak_frame_raw # Use raw peak
+                                 peak_frame = peak_frame_raw
                              else: logger.warning(f"Raw peak index {peak_idx_raw} invalid for {action}.")
                      except Exception as e_raw: logger.error(f"Error finding peak frame (Raw) for {action}: {e_raw}")
 
-                # If still no peak frame found using AUs, trigger median fallback
                 if peak_frame is None:
                      use_median_fallback = True
                      logger.warning(f"Could not find peak for action '{action}' using key AUs {key_aus}. Using median frame.")
@@ -341,7 +342,7 @@ class FacialAUAnalyzer:
 
                  # Initialize the zone entry for the side if not present
                  if side not in patient_level_paralysis: patient_level_paralysis[side] = {}
-                 if zone not in patient_level_paralysis[side]: patient_level_paralysis[side][zone] = 'None'
+                 if zone not in patient_level_paralysis[side]: patient_level_paralysis[side][zone] = 'Normal'
 
                  detect_side_paralysis(
                      analyzer_instance=self, info=action_info, zone=zone, side=side, aus=aus,
@@ -391,7 +392,7 @@ class FacialAUAnalyzer:
                  severity = final_paralysis.get(side.lower(), {}).get(zone_short, 'NA')
                  severity_str = str(severity) if severity is not None else 'NA'
                  summary[key] = severity_str
-                 if severity_str not in ['None', 'NA', 'Error']: paralysis_detected = True
+                 if severity_str not in ['Normal', 'None', 'NA', 'Error']: paralysis_detected = True
         summary['Paralysis Detected'] = 'Yes' if paralysis_detected else 'No'
 
         for action, frame in self.action_peak_frames.items():

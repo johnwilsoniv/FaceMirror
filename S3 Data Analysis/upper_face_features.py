@@ -74,7 +74,12 @@ def extract_features_for_detection(row_data, side, zone_key_for_detection):
         logger.error(f"[{det_zone_name}] Feature list not found. Cannot extract detection features.")
         return None
     try:
-        ordered_feature_names = joblib.load(feature_list_path)
+        # Handle both .list (text) and .pkl (pickle) files
+        if feature_list_path.endswith('.list'):
+            with open(feature_list_path, 'r') as f:
+                ordered_feature_names = [line.strip() for line in f if line.strip()]
+        else:
+            ordered_feature_names = joblib.load(feature_list_path)
     except Exception as e:
         logger.error(f"[{det_zone_name}] Failed load feature list: {e}"); return None
 
