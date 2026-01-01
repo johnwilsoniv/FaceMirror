@@ -2,7 +2,7 @@
 
 **Version 1.0.0**
 
-Action Coder is a professional video annotation tool for coding facial action units and behaviors from video data. It integrates automatic speech transcription with manual action unit coding, providing an efficient workflow for behavioral research.
+Action Coder is a video annotation tool for coding facial action units and behaviors from video data.
 
 ## Features
 
@@ -57,10 +57,6 @@ Action Coder is a professional video annotation tool for coding facial action un
 5. **Save**: Click "Save" to export coded data
 6. **Batch Mode**: Load multiple file sets for sequential processing
 
-### For Developers (Running from Source)
-
-See [INSTALLATION.md](INSTALLATION.md) for detailed setup instructions.
-
 ## File Structure
 
 ### Input Files
@@ -108,10 +104,6 @@ Coded files are saved to:
 - **Drag range handles**: Adjust start/end frames
 - **Drag in empty area**: Create new TBC range
 - **Right-click range**: Delete (via selection + Delete button)
-
-## Troubleshooting
-
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 
 ## Technical Details
 
