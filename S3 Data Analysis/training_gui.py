@@ -1,4 +1,4 @@
-claude --dangclaud"""
+"""
 Training GUI for Paralysis Detection Model Training
 
 Provides an intuitive Tkinter interface for training facial paralysis detection models
