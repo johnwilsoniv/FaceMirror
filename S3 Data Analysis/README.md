@@ -6,9 +6,7 @@ Machine learning-based analysis of facial action unit (AU) data for automated de
 
 If you use this software for research purposes, please cite:
 
-> Wilson, J., et al. (2025). A Split-Face Computer Vision Machine Learning Assessment of Facial Paralysis Using Facial Action Units. *[Journal Name]*.
-
-The full paper is available at: `wilson-et-al-2025-a-split-face-computer-vision-machine-learning-assessment-of-facial-paralysis-using-facial-action-units.pdf`
+> Wilson IV, J., Rosenberg, J., Gray, M. L., & Razavi, C. R. (2025). A split-face computer vision/machine learning assessment of facial paralysis using facial action units. *Facial Plastic Surgery & Aesthetic Medicine*. https://doi.org/10.1177/26893614251394382
 
 ## Model Performance
 
