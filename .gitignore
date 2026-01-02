@@ -57,3 +57,4 @@ pyclnf/
 # Local data and models
 S Data/
 models/
+.claude/
