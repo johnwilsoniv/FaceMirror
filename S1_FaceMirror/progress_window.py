@@ -68,12 +68,16 @@ class ProcessingProgressWindow:
         self.completion_message = None
         self.completion_error = False
         self.processing_complete = False
+        self.stop_requested = False  # Flag to signal worker thread to stop
 
         # Create main window
         self.root = tk.Toplevel()
         self.root.title("FaceMirror Processing Pipeline")
         self.root.geometry("820x660")  # Increased height to prevent bottom text clipping
         self.root.resizable(False, False)
+
+        # Handle window close button - signal stop and exit
+        self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
 
         # Scientific color palette - clinical precision
         self.colors = {
@@ -634,6 +638,15 @@ class ProcessingProgressWindow:
         """
         # Start the Tkinter event loop - this blocks until window is closed
         self.root.mainloop()
+
+    def _on_window_close(self):
+        """Handle window close button - signal stop and exit gracefully"""
+        self.stop_requested = True
+        self.processing_complete = True
+        try:
+            self.root.quit()
+        except:
+            pass
 
     def close(self):
         """Close the progress window"""

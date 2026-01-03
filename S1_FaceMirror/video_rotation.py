@@ -16,6 +16,48 @@ import re
 import time
 from pathlib import Path
 
+import config_paths
+
+# Cache FFmpeg path at module load
+_FFMPEG_PATH = None
+_FFPROBE_PATH = None
+
+
+def get_ffmpeg():
+    """Get cached FFmpeg path, checking bundled location first."""
+    global _FFMPEG_PATH
+    if _FFMPEG_PATH is None:
+        _FFMPEG_PATH = config_paths.get_ffmpeg_path()
+        if _FFMPEG_PATH is None:
+            raise RuntimeError(
+                "ERROR: FFmpeg not found!\n"
+                "Please install FFmpeg: brew install ffmpeg"
+            )
+    return _FFMPEG_PATH
+
+
+def get_ffprobe():
+    """Get FFprobe path (same directory as FFmpeg)."""
+    global _FFPROBE_PATH
+    if _FFPROBE_PATH is None:
+        ffmpeg = get_ffmpeg()
+        ffmpeg_dir = os.path.dirname(ffmpeg)
+        ffprobe = os.path.join(ffmpeg_dir, 'ffprobe')
+        if os.path.isfile(ffprobe):
+            _FFPROBE_PATH = ffprobe
+        else:
+            # Try system ffprobe
+            _FFPROBE_PATH = shutil.which('ffprobe')
+            if _FFPROBE_PATH is None:
+                # Fallback to common locations
+                for path in ['/opt/homebrew/bin/ffprobe', '/usr/local/bin/ffprobe', '/usr/bin/ffprobe']:
+                    if os.path.isfile(path):
+                        _FFPROBE_PATH = path
+                        break
+        if _FFPROBE_PATH is None:
+            raise RuntimeError("ERROR: FFprobe not found!")
+    return _FFPROBE_PATH
+
 
 def get_video_frame_count(input_path):
     """
@@ -27,14 +69,15 @@ def get_video_frame_count(input_path):
     Returns:
         int: Total number of frames, or 0 if unable to determine
     """
+    ffprobe = get_ffprobe()
     try:
-        cmd = f'ffprobe -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "{input_path}"'
+        cmd = f'"{ffprobe}" -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "{input_path}"'
         output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         return int(output)
     except (subprocess.CalledProcessError, ValueError):
         # Fallback: try using nb_frames
         try:
-            cmd = f'ffprobe -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
+            cmd = f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
             output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
             return int(output)
         except (subprocess.CalledProcessError, ValueError):
@@ -43,15 +86,16 @@ def get_video_frame_count(input_path):
 
 def get_video_rotation(input_path):
     """Get video rotation from metadata using ffprobe with multiple detection methods"""
+    ffprobe = get_ffprobe()
     # Comprehensive rotation detection commands
     commands = [
         # Try to get full metadata in JSON format for more comprehensive parsing
-        f'ffprobe -v quiet -print_format json -show_streams "{input_path}"',
+        f'"{ffprobe}" -v quiet -print_format json -show_streams "{input_path}"',
 
         # Specific commands for different metadata locations
-        f'ffprobe -v error -select_streams v:0 -show_entries stream_tags=rotate -of default=nw=1:nk=1 "{input_path}"',
-        f'ffprobe -v error -select_streams v:0 -show_entries stream=rotate -of default=nw=1:nk=1 "{input_path}"',
-        f'ffprobe -v error -select_streams v:0 -show_entries stream_side_data=rotation -of default=nw=1:nk=1 "{input_path}"'
+        f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream_tags=rotate -of default=nw=1:nk=1 "{input_path}"',
+        f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream=rotate -of default=nw=1:nk=1 "{input_path}"',
+        f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream_side_data=rotation -of default=nw=1:nk=1 "{input_path}"'
     ]
 
     for command in commands:
@@ -115,7 +159,7 @@ def get_video_rotation(input_path):
 
     # Check for portrait video dimensions as a fallback
     try:
-        dim_cmd = f'ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of json "{input_path}"'
+        dim_cmd = f'"{ffprobe}" -v quiet -select_streams v:0 -show_entries stream=width,height -of json "{input_path}"'
         dim_output = subprocess.check_output(dim_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         dim_data = json.loads(dim_output)
         
@@ -192,7 +236,8 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
         safe_print(f"Changed output extension to match input: {output_path}")
 
     # Get original video codec details
-    codec_cmd = f'ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
+    ffprobe = get_ffprobe()
+    codec_cmd = f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
     try:
         codec = subprocess.check_output(codec_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         safe_print(f"Original video codec: {codec}")
@@ -228,7 +273,8 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
 
     # Create FFmpeg command with auto rotation enabled
     # Use -progress pipe:1 to get frame-by-frame progress on stdout
-    cmd = (f'ffmpeg -y -i "{input_path}" -map 0 -map_metadata 0 '
+    ffmpeg = get_ffmpeg()
+    cmd = (f'"{ffmpeg}" -y -i "{input_path}" -map 0 -map_metadata 0 '
            f'-c:a copy -c:v {video_codec} {codec_options} '
            f'-progress pipe:1 "{output_path}"')
 

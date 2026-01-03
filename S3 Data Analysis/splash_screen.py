@@ -113,6 +113,26 @@ class SplashScreen:
                 pass
             self.window = None
 
+    def get_root_and_close(self):
+        """
+        Close splash screen but return the root Tk instance for reuse.
+        This avoids issues with creating multiple Tk instances on macOS.
+        """
+        root = self.window
+        if root:
+            try:
+                self.progress_bar.stop()
+                # Clear all widgets from the window instead of destroying it
+                for widget in root.winfo_children():
+                    widget.destroy()
+                # Reset window properties
+                root.overrideredirect(False)
+                root.attributes('-topmost', False)
+            except:
+                pass
+            self.window = None
+        return root
+
     def __enter__(self):
         """Context manager support"""
         self.show()

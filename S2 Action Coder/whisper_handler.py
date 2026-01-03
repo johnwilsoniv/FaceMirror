@@ -53,7 +53,8 @@ except ImportError as e:
     print("  Install with: pip install faster-whisper")
     FASTER_WHISPER_AVAILABLE = False
 
-# --- Keep whisperx ONLY for alignment ---
+# --- WhisperX for word-level alignment ---
+# Note: alignment.py is patched in PyInstaller build to fix transformers lazy loading
 try:
     import whisperx
     WHISPERX_ALIGN_AVAILABLE = True

@@ -22,21 +22,31 @@ import config_paths
 # Get the directory where the currently running script (main.py) is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
-# Verify this path matches your directory structure
-# Construct the path to the directory containing facial_au_analyzer.py
-# Assumption: facial_au_analyzer.py is in the SAME directory as main.py
-analyzer_dir = script_dir
-# OR if it's in a subdirectory named 'analysis_modules':
-# analyzer_dir = os.path.join(script_dir, 'analysis_modules')
-# OR if main.py is one level ABOVE the directory containing the analyzer:
-# analyzer_dir = os.path.join(script_dir, '3_Data_Analysis') # Adjust '3_Data_Analysis' if needed
+# Handle PyInstaller bundled app - add _MEIPASS to sys.path for local modules
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    # Running as bundled app - local .py modules are in _MEIPASS
+    meipass_dir = sys._MEIPASS
+    if meipass_dir not in sys.path:
+        sys.path.insert(0, meipass_dir)
+        print(f"DEBUG: Added PyInstaller _MEIPASS '{meipass_dir}' to sys.path")
 
-# Prepend this directory to the Python path if it's not already there
-if os.path.isdir(analyzer_dir) and analyzer_dir not in sys.path:
-    sys.path.insert(0, analyzer_dir)
-    print(f"DEBUG: Added '{analyzer_dir}' to sys.path")
-elif not os.path.isdir(analyzer_dir):
-    print(f"DEBUG WARNING: Constructed analyzer_dir '{analyzer_dir}' does not exist. Check path logic.", file=sys.stderr)
+    # Also add parent Frameworks directory for macOS app bundles
+    # This ensures dynamically imported modules (lower_face_features, etc.) can be found
+    frameworks_dir = os.path.dirname(meipass_dir) if meipass_dir.endswith('MacOS') else meipass_dir
+    if 'Frameworks' not in meipass_dir:
+        # Check if Frameworks directory exists alongside
+        potential_frameworks = os.path.join(os.path.dirname(meipass_dir), 'Frameworks')
+        if os.path.isdir(potential_frameworks) and potential_frameworks not in sys.path:
+            sys.path.insert(0, potential_frameworks)
+            print(f"DEBUG: Added Frameworks directory '{potential_frameworks}' to sys.path")
+
+    analyzer_dir = meipass_dir
+else:
+    # Running from source - use script directory
+    analyzer_dir = script_dir
+    if os.path.isdir(analyzer_dir) and analyzer_dir not in sys.path:
+        sys.path.insert(0, analyzer_dir)
+        print(f"DEBUG: Added '{analyzer_dir}' to sys.path")
 
 try:
     from facial_au_gui import FacialAUAnalyzerGUI
@@ -49,9 +59,8 @@ except ImportError as e:
     sys.exit(1) # Exit if essential imports fail
 
 
-# Ensure log directory exists
-log_dir = "logs"
-os.makedirs(log_dir, exist_ok=True)
+# Ensure log directory exists (use config_paths for proper location)
+log_dir = str(config_paths.get_logs_dir())
 
 # Configure logging
 LOG_LEVEL = logging.INFO # Set back to DEBUG for detailed logs during testing
@@ -221,11 +230,20 @@ def main():
     else:
         logger.info("Starting GUI application")
         try:
-            # Close splash screen before showing main GUI
+            # Close splash screen completely (like S1 does)
             splash.close()
 
+            # Create fresh Tk instance for main GUI (ensures native macOS styling)
             root = tk.Tk()
+
             app = FacialAUAnalyzerGUI(root, shared_detectors=preloaded_detectors)
+
+            # Ensure window is visible
+            root.deiconify()
+            root.lift()
+            root.update()
+            root.focus_force()
+
             root.mainloop()
             return 0
         except Exception as e_gui:

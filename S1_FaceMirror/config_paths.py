@@ -5,6 +5,8 @@ Works on both Windows and macOS
 """
 import sys
 import os
+import stat
+import shutil
 from pathlib import Path
 
 # Version information
@@ -157,6 +159,49 @@ def get_cache_dir():
     return cache_dir
 
 
+def get_ffmpeg_path():
+    """
+    Get path to ffmpeg executable.
+    Checks bundled location first, then system PATH, then common install locations.
+
+    Returns:
+        str: Path to ffmpeg executable, or None if not found
+    """
+    # 1. Check for bundled ffmpeg (in PyInstaller bundle)
+    if is_frozen():
+        app_dir = get_app_dir()
+        if sys.platform == 'win32':
+            bundled_ffmpeg = app_dir / 'bin' / 'ffmpeg.exe'
+        else:
+            bundled_ffmpeg = app_dir / 'bin' / 'ffmpeg'
+
+        if bundled_ffmpeg.exists():
+            # Ensure executable permission on macOS/Linux
+            if sys.platform != 'win32':
+                try:
+                    bundled_ffmpeg.chmod(bundled_ffmpeg.stat().st_mode | stat.S_IEXEC)
+                except Exception:
+                    pass
+            return str(bundled_ffmpeg)
+
+    # 2. Check system PATH
+    ffmpeg_path = shutil.which('ffmpeg')
+    if ffmpeg_path:
+        return ffmpeg_path
+
+    # 3. Check common installation locations
+    common_paths = [
+        '/opt/homebrew/bin/ffmpeg',  # Apple Silicon Homebrew
+        '/usr/local/bin/ffmpeg',      # Intel Mac Homebrew
+        '/usr/bin/ffmpeg',            # Linux system
+    ]
+    for path in common_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+
+    return None
+
+
 def print_paths_info():
     """Debug function to print all configured paths"""
     print(f"\n{'='*60}")
@@ -172,6 +217,8 @@ def print_paths_info():
     print(f"  Combined Data:     {get_combined_data_dir()}")
     print(f"  Weights:           {get_weights_dir()}")
     print(f"  HF Cache:          {get_cache_dir()}")
+    ffmpeg = get_ffmpeg_path()
+    print(f"  FFmpeg:            {ffmpeg if ffmpeg else 'NOT FOUND'}")
     print(f"{'='*60}\n")
 
 

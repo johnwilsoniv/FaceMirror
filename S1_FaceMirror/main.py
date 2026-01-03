@@ -561,6 +561,11 @@ def video_processing_worker(input_paths, output_dir, openface_output_dir, debug_
         initial_memory_mb = process.memory_info().rss / 1024**2
 
         for video_num, input_path in enumerate(input_paths, 1):
+            # Check if user requested stop (closed window)
+            if progress_window.stop_requested:
+                safe_print("\nProcessing stopped by user")
+                break
+
             safe_print(f"\n{'='*60}")
             safe_print(f"VIDEO {video_num} of {len(input_paths)}: {Path(input_path).name}")
             safe_print(f"{'='*60}")
@@ -731,11 +736,11 @@ def workflow_mirror_openface():
     progress_window = ProcessingProgressWindow(total_videos=len(input_paths), include_openface=True)
 
     # Start video processing in background thread
-    # NOTE: NOT a daemon thread - we need it to complete even if GUI closes
+    # Daemon thread - will be killed when main thread exits (user closes window)
     worker_thread = threading.Thread(
         target=video_processing_worker,
         args=(input_paths, output_dir, openface_output_dir, debug_mode, device, progress_window),
-        daemon=False,  # Thread must complete before process exits
+        daemon=True,  # Thread dies when main thread exits
         name="VideoProcessingWorker"
     )
     worker_thread.start()
@@ -746,17 +751,20 @@ def workflow_mirror_openface():
     # Run GUI event loop - worker thread will signal completion when done
     progress_window.run()
 
-    # Wait for worker thread to complete
-    worker_thread.join(timeout=60.0)  # Give it 60 seconds for cleanup + profiling
-
-    if worker_thread.is_alive():
-        safe_print("Warning: Worker thread still running after timeout")
+    # Wait for worker thread to complete (or exit immediately if user closed window)
+    if not progress_window.stop_requested:
+        # Normal completion - wait for worker
+        worker_thread.join(timeout=60.0)
+        if worker_thread.is_alive():
+            safe_print("Warning: Worker thread still running after timeout")
+        else:
+            safe_print("Worker thread completed successfully")
     else:
-        safe_print("Worker thread completed successfully")
+        # User closed window - daemon thread will be killed on exit
+        safe_print("User closed window, exiting...")
 
-    # Show results summary dialog WHILE progress window is still visible
-    # This ensures the dialog appears on top and the user sees the final progress state
-    if progress_window.completion_message:
+    # Show results summary dialog only if processing completed normally (not stopped by user)
+    if progress_window.completion_message and not progress_window.stop_requested:
         is_error = progress_window.completion_error
         title = "Processing Error" if is_error else "Processing Complete"
         native_dialogs.show_info(title, progress_window.completion_message)
@@ -782,7 +790,15 @@ def main():
     splash.update_status("Initializing PyTorch...")
     # (PyTorch already imported)
 
-    # Stage 3: Loading OpenFace models
+    # Stage 3: Request Documents folder access early (triggers macOS permission prompt)
+    splash.update_status("Preparing output folders...")
+    try:
+        # This triggers the permission prompt before file selection
+        config_paths.get_output_base_dir()
+    except Exception as e:
+        safe_print(f"Warning: Could not access Documents folder: {e}")
+
+    # Stage 4: Loading OpenFace models
     splash.update_status("Loading PyFaceAU models...")
     # (Models will be loaded when needed)
 

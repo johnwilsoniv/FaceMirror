@@ -14,6 +14,7 @@ import threading
 import subprocess
 import platform
 import config
+import config_paths
 
 
 def safe_print(*args, **kwargs):
@@ -68,13 +69,18 @@ class FFmpegWriter:
         self.fps = fps
         self.process = None
 
+        # Get FFmpeg path (bundled or system)
+        ffmpeg_path = config_paths.get_ffmpeg_path()
+        if ffmpeg_path is None:
+            raise RuntimeError("FFmpeg not found! Please install FFmpeg: brew install ffmpeg")
+
         # Detect best encoder (hardware > software)
-        encoder, encoder_name = self._detect_best_encoder()
+        encoder, encoder_name = self._detect_best_encoder(ffmpeg_path)
         safe_print(f"  Using {encoder_name} encoder for {Path(output_path).name}")
 
         # Build FFmpeg command
         cmd = [
-            'ffmpeg',
+            ffmpeg_path,
             '-y',  # Overwrite output file
             '-f', 'rawvideo',
             '-vcodec', 'rawvideo',
@@ -112,9 +118,12 @@ class FFmpegWriter:
         except FileNotFoundError:
             raise RuntimeError("FFmpeg not found! Please install FFmpeg: brew install ffmpeg")
 
-    def _detect_best_encoder(self):
+    def _detect_best_encoder(self, ffmpeg_path):
         """
         Auto-detect best available encoder.
+
+        Args:
+            ffmpeg_path: Path to FFmpeg executable
 
         Returns:
             tuple: (encoder_string, human_readable_name)
@@ -122,7 +131,7 @@ class FFmpegWriter:
         try:
             # Get list of available encoders
             result = subprocess.run(
-                ['ffmpeg', '-encoders'],
+                [ffmpeg_path, '-encoders'],
                 capture_output=True,
                 text=True,
                 timeout=5

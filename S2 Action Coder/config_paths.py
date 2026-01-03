@@ -124,8 +124,12 @@ def get_ffmpeg_path():
         if bundled_ffmpeg.exists():
             # Ensure it's executable on Unix-like systems
             if sys.platform != 'win32':
-                import stat
-                bundled_ffmpeg.chmod(bundled_ffmpeg.stat().st_mode | stat.S_IEXEC)
+                try:
+                    import stat
+                    bundled_ffmpeg.chmod(bundled_ffmpeg.stat().st_mode | stat.S_IEXEC)
+                except OSError:
+                    # Ignore chmod errors (e.g., read-only filesystem like DMG)
+                    pass
             return str(bundled_ffmpeg)
 
     # Development or system FFmpeg

@@ -6,6 +6,59 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 
 # ============================================================================
+# FILE LOGGING - Redirect console output to log file for bundled app
+# ============================================================================
+def setup_file_logging():
+    """Redirect stdout/stderr to a log file in Documents/SplitFace/S2_Logs/"""
+    from pathlib import Path
+    import datetime
+
+    # Create log directory
+    log_dir = Path.home() / "Documents" / "SplitFace" / "S2_Logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create timestamped log file
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_file = log_dir / f"s2_console_{timestamp}.log"
+
+    # Custom writer that writes to both file and original stream
+    class TeeWriter:
+        def __init__(self, file_handle, original_stream):
+            self.file = file_handle
+            self.original = original_stream
+
+        def write(self, message):
+            if self.original:
+                self.original.write(message)
+                self.original.flush()
+            self.file.write(message)
+            self.file.flush()
+
+        def flush(self):
+            if self.original:
+                self.original.flush()
+            self.file.flush()
+
+    # Open log file and redirect streams
+    log_handle = open(log_file, 'w', buffering=1)  # Line buffered
+    sys.stdout = TeeWriter(log_handle, sys.__stdout__)
+    sys.stderr = TeeWriter(log_handle, sys.__stderr__)
+
+    print(f"=== S2 Action Coder Log Started: {timestamp} ===")
+    print(f"Log file: {log_file}")
+    return log_file
+
+# Setup logging immediately on import (for bundled app, main process only)
+# Check for multiprocessing child process indicators
+_is_child_process = (
+    '--multiprocessing-fork' in sys.argv or
+    '-c' in sys.argv or  # subprocess spawn
+    any('multiprocessing' in arg for arg in sys.argv)
+)
+if getattr(sys, 'frozen', False) and not _is_child_process:
+    _log_file = setup_file_logging()
+
+# ============================================================================
 # PERFORMANCE PROFILING - Toggle this to enable/disable profiling
 # ============================================================================
 # Set to True to enable performance profiling (diagnose GUI choppiness)
@@ -45,9 +98,14 @@ ENABLE_DIAGNOSTIC_PROFILING = False  # ← DISABLED for stability
 def add_exception_logging():
     # (Code identical to previous version)
     import traceback, datetime
-    os.makedirs("logs", exist_ok=True); original_excepthook = sys.excepthook
+    from pathlib import Path
+    # Use Documents/SplitFace/S2_Logs instead of relative "logs" (DMG is read-only)
+    logs_dir = Path.home() / "Documents" / "SplitFace" / "S2_Logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    original_excepthook = sys.excepthook
     def exception_handler(exc_type, exc_value, exc_traceback):
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"); log_file = os.path.join("logs", f"crash_{timestamp}.log")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_file = logs_dir / f"crash_{timestamp}.log"
         exception_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
         with open(log_file, "w") as f: f.write(f"Timestamp: {timestamp}\nException: {exc_type.__name__}: {exc_value}\nTraceback:\n{exception_text}")
         original_excepthook(exc_type, exc_value, exc_traceback)
@@ -76,7 +134,15 @@ def configure_pydub():
         ffprobe_path = shutil.which("ffprobe")
         if not ffprobe_path and sys.platform == 'darwin' and os.path.exists('/opt/homebrew/bin/ffprobe'): ffprobe_path = '/opt/homebrew/bin/ffprobe'
 
-        if ffmpeg_path: print(f"Config pydub: ffmpeg at {ffmpeg_path}"); AudioSegment.converter = ffmpeg_path
+        if ffmpeg_path:
+            print(f"Config pydub: ffmpeg at {ffmpeg_path}")
+            AudioSegment.converter = ffmpeg_path
+            # Also add FFmpeg directory to PATH for WhisperX and other tools that call ffmpeg directly
+            ffmpeg_dir = os.path.dirname(ffmpeg_path)
+            current_path = os.environ.get('PATH', '')
+            if ffmpeg_dir not in current_path:
+                os.environ['PATH'] = ffmpeg_dir + os.pathsep + current_path
+                print(f"Config PATH: Added {ffmpeg_dir} to PATH for WhisperX")
         else: print("WARN: ffmpeg not found for pydub.")
         if ffprobe_path: print(f"Config pydub: ffprobe at {ffprobe_path}"); AudioSegment.ffprobe = ffprobe_path
         else: print("WARN: ffprobe not found for pydub.")
@@ -124,6 +190,16 @@ def patch_batch_processor():
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    # CRITICAL: Fix for PyInstaller multiprocessing on macOS
+    # Must be called before any other code to prevent duplicate app spawning
+    import multiprocessing
+    multiprocessing.freeze_support()
+    # Use 'spawn' method on macOS to avoid fork issues
+    try:
+        multiprocessing.set_start_method('spawn')
+    except RuntimeError:
+        pass  # Already set
+
     # Show splash screen with loading stages (ONLY in main process)
     splash = SplashScreen("Action Coder", "1.0.0")
     splash.show()

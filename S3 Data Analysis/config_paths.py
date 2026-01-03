@@ -80,6 +80,19 @@ def get_output_base_dir():
     return output_base
 
 
+def get_logs_dir():
+    """
+    Get logs directory for the application
+    Creates directory if it doesn't exist
+
+    Returns:
+        Path: ~/Documents/SplitFace/S3O Results/logs/
+    """
+    logs_dir = get_output_base_dir() / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir
+
+
 def get_resource_path(relative_path):
     """
     Get absolute path to resource (works in both dev and bundled)
