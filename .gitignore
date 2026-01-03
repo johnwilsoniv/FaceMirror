@@ -58,3 +58,4 @@ pyclnf/
 S Data/
 models/
 .claude/
+S2 Action Coder/models/

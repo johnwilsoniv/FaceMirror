@@ -115,6 +115,15 @@ except Exception as e:
 datas += [('patches/alignment.py', 'whisperx')]
 datas += [('patches/vads/__init__.py', 'whisperx/vads')]  # Makes Pyannote optional
 
+# Bundle wav2vec2 alignment model (required for WhisperX word-level alignment)
+# This avoids SSL download issues in bundled apps
+wav2vec2_model = Path('models/wav2vec2_fairseq_base_ls960_asr_ls960.pth')
+if wav2vec2_model.exists():
+    datas += [(str(wav2vec2_model), 'models')]
+    print(f"INFO: Bundling wav2vec2 alignment model ({wav2vec2_model.stat().st_size / 1024 / 1024:.1f} MB)")
+else:
+    print(f"WARNING: wav2vec2 model not found at {wav2vec2_model}. WhisperX alignment may fail.")
+
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
     'tkinter',

@@ -59,6 +59,57 @@ if getattr(sys, 'frozen', False) and not _is_child_process:
     _log_file = setup_file_logging()
 
 # ============================================================================
+# BUNDLED MODEL SETUP - Copy bundled wav2vec2 model to cache if needed
+# ============================================================================
+# WhisperX needs wav2vec2 for word-level alignment, but bundled apps can't
+# download it due to SSL certificate issues. We bundle it and copy on first run.
+def setup_bundled_models():
+    """Copy bundled AI models to user cache directory if not already present."""
+    from pathlib import Path
+    import shutil
+
+    # Target cache directory (where torch/WhisperX expects it)
+    cache_dir = Path.home() / ".cache" / "torch" / "hub" / "checkpoints"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    target_model = cache_dir / "wav2vec2_fairseq_base_ls960_asr_ls960.pth"
+
+    # Check if already cached
+    if target_model.exists():
+        print(f"Bundled models: wav2vec2 already in cache ({target_model.stat().st_size / 1024 / 1024:.1f} MB)")
+        return
+
+    # Find bundled model (in app bundle Resources/models/)
+    if getattr(sys, 'frozen', False):
+        # Running as bundled app
+        if sys.platform == 'darwin':
+            # macOS: _MEIPASS points to Resources directory
+            bundle_dir = Path(sys._MEIPASS) / "models"
+        else:
+            bundle_dir = Path(sys._MEIPASS) / "models"
+    else:
+        # Running from source
+        bundle_dir = Path(__file__).parent / "models"
+
+    bundled_model = bundle_dir / "wav2vec2_fairseq_base_ls960_asr_ls960.pth"
+
+    if bundled_model.exists():
+        print(f"Bundled models: Copying wav2vec2 to cache...")
+        print(f"  From: {bundled_model}")
+        print(f"  To: {target_model}")
+        try:
+            shutil.copy2(bundled_model, target_model)
+            print(f"Bundled models: Successfully copied ({target_model.stat().st_size / 1024 / 1024:.1f} MB)")
+        except Exception as e:
+            print(f"Bundled models: WARNING - Failed to copy model: {e}")
+    else:
+        print(f"Bundled models: WARNING - wav2vec2 not found in bundle at {bundled_model}")
+
+# Run model setup early (before any WhisperX imports)
+if not _is_child_process:
+    setup_bundled_models()
+
+# ============================================================================
 # PERFORMANCE PROFILING - Toggle this to enable/disable profiling
 # ============================================================================
 # Set to True to enable performance profiling (diagnose GUI choppiness)
