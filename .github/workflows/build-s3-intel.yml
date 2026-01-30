@@ -27,7 +27,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pip install -r requirements.txt
+          # Install requirements but skip shap/fasttreeshap (excluded in spec, need llvmlite/LLVM)
+          grep -v -E '^(shap|fasttreeshap)' requirements.txt > requirements_ci.txt
+          pip install -r requirements_ci.txt
           # Install PyObjC for macOS app support
           pip install pyobjc-core pyobjc-framework-Cocoa
 
