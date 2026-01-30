@@ -47,43 +47,66 @@ jobs:
           open "dist/S3 Data Analysis.app" &
 
           # Wait for app to start
-          sleep 10
+          sleep 15
 
           # Check if process is running
           if pgrep -f "S3 Data Analysis" > /dev/null; then
             echo "✅ App process is running"
+            ps aux | grep "S3 Data Analysis" | grep -v grep
           else
             echo "❌ App process not found - may have crashed"
             # Check for crash logs
-            ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head -5 || true
+            ls -lt ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head -10 || true
+            cat ~/Library/Logs/DiagnosticReports/*.crash 2>/dev/null | tail -100 || true
             exit 1
           fi
 
           # Wait a bit more for UI to fully render
-          sleep 5
+          sleep 10
 
-          # Take screenshot as proof
+          # List all windows to see what's open
+          echo "=== Window list ==="
+          osascript -e 'tell application "System Events" to get name of every window of every process' 2>/dev/null || true
+
+          # Try to bring app to front
+          osascript -e 'tell application "S3 Data Analysis" to activate' 2>/dev/null || true
+          sleep 3
+
+          # Take screenshot of entire screen
           screencapture -x screenshot_test.png
           echo "✅ Screenshot captured"
+
+          # Also try to capture just the app window
+          screencapture -l$(osascript -e 'tell app "System Events" to get the unix id of process "S3 Data Analysis"' 2>/dev/null || echo "0") screenshot_window.png 2>/dev/null || true
 
           # Verify screenshot was created and has content
           if [ -f screenshot_test.png ] && [ -s screenshot_test.png ]; then
             echo "✅ Screenshot saved successfully"
-            ls -la screenshot_test.png
+            ls -la screenshot_test.png screenshot_window.png 2>/dev/null || true
           else
             echo "⚠️ Screenshot may not have captured correctly"
+          fi
+
+          # Check if app is still running (didn't crash during our tests)
+          if pgrep -f "S3 Data Analysis" > /dev/null; then
+            echo "✅ App still running after 25+ seconds - no crash detected"
+          else
+            echo "❌ App crashed during test"
+            exit 1
           fi
 
           # Kill the app
           pkill -f "S3 Data Analysis" || true
           echo "=== App launch test complete ==="
 
-      - name: Upload test screenshot
+      - name: Upload test screenshots
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: S3-Intel-Launch-Screenshot
-          path: "S3 Data Analysis/screenshot_test.png"
+          name: S3-Intel-Launch-Screenshots
+          path: |
+            S3 Data Analysis/screenshot_test.png
+            S3 Data Analysis/screenshot_window.png
 
       - name: Sign and Notarize
         if: ${{ inputs.sign_and_notarize }}
