@@ -1,0 +1,156 @@
+name: Build S2 Intel
+
+on:
+  workflow_dispatch:
+    inputs:
+      sign_and_notarize:
+        description: 'Sign and notarize the app'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  build:
+    name: Build S2 Intel Mac
+    runs-on: macos-15-intel  # Intel Mac runner
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install FFmpeg
+        run: |
+          brew install ffmpeg
+          mkdir -p "S2 Action Coder/bin_x86_64"
+          cp $(which ffmpeg) "S2 Action Coder/bin_x86_64/"
+          cp $(which ffprobe) "S2 Action Coder/bin_x86_64/"
+          chmod +x "S2 Action Coder/bin_x86_64/ffmpeg" "S2 Action Coder/bin_x86_64/ffprobe"
+
+      - name: Install dependencies
+        working-directory: "S2 Action Coder"
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+          # Install requirements but skip mlx packages (Apple Silicon only)
+          grep -v -E '^(mlx|mlx-whisper)' requirements.txt > requirements_ci.txt
+          pip install -r requirements_ci.txt
+
+          # Install Intel-compatible torch
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+          # Install whisperx for word-level alignment
+          pip install whisperx
+
+          # Install transformers for Wav2Vec2
+          pip install transformers
+
+          # Install PyObjC for macOS app support
+          pip install pyobjc-core pyobjc-framework-Cocoa
+
+      - name: Download wav2vec2 model
+        working-directory: "S2 Action Coder"
+        run: |
+          mkdir -p models
+          # Download wav2vec2 model if not present
+          if [ ! -f models/wav2vec2_fairseq_base_ls960_asr_ls960.pth ]; then
+            echo "Downloading wav2vec2 model..."
+            curl -L -o models/wav2vec2_fairseq_base_ls960_asr_ls960.pth \
+              "https://huggingface.co/facebook/wav2vec2-base-960h/resolve/main/pytorch_model.bin" || \
+            echo "Warning: Could not download wav2vec2 model, alignment may not work"
+          fi
+
+      - name: Build with PyInstaller
+        working-directory: "S2 Action Coder"
+        run: |
+          pyinstaller Action_Coder_Intel.spec --noconfirm
+
+      - name: Test app launches successfully
+        working-directory: "S2 Action Coder"
+        run: |
+          echo "=== Starting app launch test ==="
+
+          # Launch the app in background
+          open "dist/S2 Action Coder.app" &
+
+          # Wait for app to start
+          sleep 15
+
+          # Check if process is running
+          if pgrep -f "S2 Action Coder" > /dev/null; then
+            echo "✅ App process is running"
+            ps aux | grep "S2 Action Coder" | grep -v grep
+          else
+            echo "❌ App process not found - may have crashed"
+            # Check for crash logs
+            ls -lt ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head -10 || true
+            cat ~/Library/Logs/DiagnosticReports/*.crash 2>/dev/null | tail -100 || true
+            exit 1
+          fi
+
+          # Wait a bit more for UI to fully render
+          sleep 10
+
+          # List all windows to see what's open
+          echo "=== Window list ==="
+          osascript -e 'tell application "System Events" to get name of every window of every process' 2>/dev/null || true
+
+          # Try to bring app to front
+          osascript -e 'tell application "S2 Action Coder" to activate' 2>/dev/null || true
+          sleep 3
+
+          # Take screenshot of entire screen
+          screencapture -x screenshot_test.png
+          echo "✅ Screenshot captured"
+
+          # Verify screenshot was created and has content
+          if [ -f screenshot_test.png ] && [ -s screenshot_test.png ]; then
+            echo "✅ Screenshot saved successfully"
+            ls -la screenshot_test.png
+          else
+            echo "⚠️ Screenshot may not have captured correctly"
+          fi
+
+          # Check if app is still running (didn't crash during our tests)
+          if pgrep -f "S2 Action Coder" > /dev/null; then
+            echo "✅ App still running after 25+ seconds - no crash detected"
+          else
+            echo "❌ App crashed during test"
+            exit 1
+          fi
+
+          # Kill the app
+          pkill -f "S2 Action Coder" || true
+          echo "=== App launch test complete ==="
+
+      - name: Upload test screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: S2-Intel-Launch-Screenshots
+          path: |
+            S2 Action Coder/screenshot_test.png
+
+      - name: Create unsigned DMG
+        if: ${{ !inputs.sign_and_notarize }}
+        working-directory: "S2 Action Coder"
+        run: |
+          hdiutil create -volname "S2 Action Coder" -srcfolder "dist/S2 Action Coder.app" \
+            -ov -format UDZO "FaceMirror-1.0.1-S2-Intel-unsigned.dmg"
+
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: S2-Action-Coder-Intel-App
+          path: "S2 Action Coder/dist/S2 Action Coder.app"
+
+      - name: Upload DMG (unsigned)
+        if: ${{ !inputs.sign_and_notarize }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: S2-Action-Coder-Intel-DMG-unsigned
+          path: "S2 Action Coder/FaceMirror-1.0.1-S2-Intel-unsigned.dmg"
