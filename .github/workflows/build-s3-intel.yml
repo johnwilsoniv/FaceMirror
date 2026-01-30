@@ -38,6 +38,53 @@ jobs:
         run: |
           pyinstaller Paralysis_Analyzer_Intel.spec --noconfirm
 
+      - name: Test app launches successfully
+        working-directory: "S3 Data Analysis"
+        run: |
+          echo "=== Starting app launch test ==="
+
+          # Launch the app in background
+          open "dist/S3 Data Analysis.app" &
+
+          # Wait for app to start
+          sleep 10
+
+          # Check if process is running
+          if pgrep -f "S3 Data Analysis" > /dev/null; then
+            echo "✅ App process is running"
+          else
+            echo "❌ App process not found - may have crashed"
+            # Check for crash logs
+            ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head -5 || true
+            exit 1
+          fi
+
+          # Wait a bit more for UI to fully render
+          sleep 5
+
+          # Take screenshot as proof
+          screencapture -x screenshot_test.png
+          echo "✅ Screenshot captured"
+
+          # Verify screenshot was created and has content
+          if [ -f screenshot_test.png ] && [ -s screenshot_test.png ]; then
+            echo "✅ Screenshot saved successfully"
+            ls -la screenshot_test.png
+          else
+            echo "⚠️ Screenshot may not have captured correctly"
+          fi
+
+          # Kill the app
+          pkill -f "S3 Data Analysis" || true
+          echo "=== App launch test complete ==="
+
+      - name: Upload test screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: S3-Intel-Launch-Screenshot
+          path: "S3 Data Analysis/screenshot_test.png"
+
       - name: Sign and Notarize
         if: ${{ inputs.sign_and_notarize }}
         working-directory: "S3 Data Analysis"
