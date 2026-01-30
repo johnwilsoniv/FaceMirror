@@ -49,6 +49,9 @@ jobs:
           # Install transformers for Wav2Vec2
           pip install transformers
 
+          # Install packages needed for spec file metadata
+          pip install requests filelock tokenizers huggingface_hub safetensors pyyaml sentencepiece
+
           # Install PyObjC for macOS app support
           pip install pyobjc-core pyobjc-framework-Cocoa
 
