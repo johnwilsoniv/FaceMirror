@@ -41,8 +41,9 @@ performance_analysis_results/
 # Backup files
 *.backup
 
-# PyInstaller spec files
-*.spec
+# PyInstaller spec files (allow main spec files, ignore build-generated ones)
+!Paralysis_Analyzer.spec
+!Paralysis_Analyzer_Intel.spec
 
 # Test data files (if not essential)
 batch_test.log
