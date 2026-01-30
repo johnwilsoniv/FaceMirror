@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     name: Build S3 Intel Mac
-    runs-on: macos-13  # Intel Mac runner
+    runs-on: macos-15-intel  # Intel Mac runner
 
     steps:
       - uses: actions/checkout@v4
