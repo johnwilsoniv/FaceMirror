@@ -36,8 +36,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller
 
-          # Install requirements but skip mlx packages (Apple Silicon only)
-          grep -v -E '^(mlx|mlx-whisper)' requirements.txt > requirements_ci.txt
+          # Install requirements but skip mlx packages (Apple Silicon only) and invalid PyQt5 subpackages
+          grep -v -E '^(mlx|mlx-whisper|PyQt5-multimedia|PyQt5-multimediawidgets)' requirements.txt > requirements_ci.txt
           pip install -r requirements_ci.txt
 
           # Install Intel-compatible torch
