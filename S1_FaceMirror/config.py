@@ -39,6 +39,14 @@ PROGRESS_UPDATE_INTERVAL = 50
 # Model & Detection Settings
 # ============================================================================
 
+# Landmark detector selection
+# Options: 'clnf' (default), 'spiga' (experimental)
+# 'clnf': Fast, GPU-accelerated CLNF with pymtcnn face detection (68 landmarks)
+# 'spiga': SPIGA 98-point landmarks with facenet-pytorch MTCNN, mapped to 68-point dlib format
+#          May provide better accuracy on paralyzed hemifaces (experimental)
+#          Requires: pip install spiga facenet-pytorch
+LANDMARK_DETECTOR = 'clnf'
+
 # Enable AU45 (blink) detection
 # Warning: Enabling AU45 requires landmark detection on every frame
 # This reduces performance from ~14-28 FPS to ~2-3 FPS

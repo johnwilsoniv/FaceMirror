@@ -1,8 +1,10 @@
-from pyfaceau_detector import PyFaceAU68LandmarkDetector
 from face_mirror import FaceMirror
 from video_processor import VideoProcessor
 import numpy as np
 import gc
+
+import config
+
 
 class StableFaceSplitter:
     """Main class that encapsulates face detection, mirroring, and video processing"""
@@ -18,20 +20,31 @@ class StableFaceSplitter:
             progress_callback: Optional callback function for progress updates (stage, current, total, message)
             skip_face_detection: Skip RetinaFace entirely, use default bbox (experimental)
         """
-        # Create PyFaceAU 68-point landmark detector with CLNF refinement
-        # CLNF improves eyebrow accuracy which is critical for glabella/midline calculation
-        # Frame 0 is now processed separately to avoid race conditions
-        # skip_redetection=True: Only run RetinaFace once (first frame), then track
-        # skip_face_detection=True: Skip RetinaFace entirely (experimental, uses default bbox)
-        self.landmark_detector = PyFaceAU68LandmarkDetector(
-            debug_mode=debug_mode,
-            device=device,
-            skip_redetection=not skip_face_detection,  # If skipping detection, also skip redetection
-            skip_face_detection=skip_face_detection,
-            use_clnf_refinement=True  # Re-enabled: Race condition fixed, testing if TLS issue resolved
-        )
-        if debug_mode:
-            print("Using PyFaceAU 68-point detector with CLNF refinement")
+        # Create landmark detector based on config setting
+        detector_type = getattr(config, 'LANDMARK_DETECTOR', 'clnf')
+
+        if detector_type == 'spiga':
+            # SPIGA detector: 98-point WFLW landmarks mapped to 68-point dlib format
+            # May provide better accuracy on paralyzed hemifaces (experimental)
+            from spiga_detector import SPIGALandmarkDetector
+            self.landmark_detector = SPIGALandmarkDetector(
+                debug_mode=debug_mode,
+                device=device
+            )
+            if debug_mode:
+                print("Using SPIGA 98→68 landmark detector (experimental)")
+        else:
+            # Default: CLNF detector with pymtcnn face detection
+            from pyfaceau_detector import PyFaceAU68LandmarkDetector
+            self.landmark_detector = PyFaceAU68LandmarkDetector(
+                debug_mode=debug_mode,
+                device=device,
+                skip_redetection=not skip_face_detection,  # If skipping detection, also skip redetection
+                skip_face_detection=skip_face_detection,
+                use_clnf_refinement=True  # Re-enabled: Race condition fixed, testing if TLS issue resolved
+            )
+            if debug_mode:
+                print("Using PyFaceAU 68-point detector with CLNF refinement")
 
         # Create component objects
         self.face_mirror = FaceMirror(self.landmark_detector)
