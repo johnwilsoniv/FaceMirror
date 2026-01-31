@@ -107,15 +107,63 @@ class SPIGALandmarkDetector:
         # Initialize SPIGA for landmark detection
         try:
             from spiga.inference.config import ModelConfig
-            from spiga.inference.framework import SPIGAFramework
+            import spiga.inference.pretreatment as pretreat
+            from spiga.models.spiga import SPIGA
+            import pkg_resources
 
             # SPIGA uses WFLW dataset configuration for 98 landmarks
             self.spiga_config = ModelConfig('wflw')
-            self.spiga = SPIGAFramework(self.spiga_config)
+
+            # Custom SPIGA initialization that supports CPU/MPS (not just CUDA)
+            # The original SPIGAFramework hardcodes CUDA, so we re-implement the loading
+            weights_path = pkg_resources.resource_filename('spiga', 'models/weights')
+            self._spiga_transforms = pretreat.get_transformers(self.spiga_config)
+
+            # Create model
+            self._spiga_model = SPIGA(
+                num_landmarks=self.spiga_config.dataset.num_landmarks,
+                num_edges=self.spiga_config.dataset.num_edges
+            )
+
+            # Load weights
+            weights_file = f"{weights_path}/{self.spiga_config.model_weights}"
+            if not Path(weights_file).exists():
+                # Download if not present
+                model_state_dict = torch.hub.load_state_dict_from_url(
+                    self.spiga_config.model_weights_url,
+                    model_dir=weights_path,
+                    file_name=self.spiga_config.model_weights
+                )
+            else:
+                model_state_dict = torch.load(weights_file, map_location='cpu')
+
+            self._spiga_model.load_state_dict(model_state_dict)
+
+            # Move to appropriate device (CPU or MPS, not CUDA on macOS)
+            if self.device.type == 'mps':
+                # MPS may have issues with some ops, fall back to CPU for SPIGA
+                self._spiga_device = torch.device('cpu')
+            else:
+                self._spiga_device = self.device
+
+            self._spiga_model = self._spiga_model.to(self._spiga_device)
+            self._spiga_model.eval()
+
+            # Load 3D model for pose estimation
+            loader_3DM = pretreat.AddModel3D(
+                self.spiga_config.dataset.ldm_ids,
+                ftmap_size=self.spiga_config.ftmap_size,
+                focal_ratio=self.spiga_config.focal_ratio,
+                totensor=True
+            )
+            params_3DM = loader_3DM()
+            self._spiga_model3d = params_3DM['model3d'].to(self._spiga_device)
+            self._spiga_cam_matrix = params_3DM['cam_matrix'].to(self._spiga_device)
+
             self._spiga_available = True
 
             if debug_mode:
-                safe_print(f"  SPIGA: Loaded (WFLW 98-point model)")
+                safe_print(f"  SPIGA: Loaded (WFLW 98-point model, device: {self._spiga_device})")
                 safe_print(f"  Output: 68-point dlib format (mapped)")
 
         except ImportError as e:
@@ -223,6 +271,59 @@ class SPIGALandmarkDetector:
 
         return None
 
+    def _spiga_inference(self, image: np.ndarray, bboxes: list) -> dict:
+        """
+        Run SPIGA inference on an image with bounding boxes.
+
+        This is a CPU/MPS-compatible reimplementation of SPIGAFramework.inference()
+
+        Args:
+            image: RGB image (numpy array)
+            bboxes: List of bounding boxes [[x, y, w, h], ...]
+
+        Returns:
+            Dictionary with 'landmarks' key containing detected landmarks
+        """
+        import copy
+        import torch
+
+        # Pretreatment: crop and transform faces
+        crop_bboxes = []
+        crop_images = []
+        for bbox in bboxes:
+            sample = {'image': copy.deepcopy(image), 'bbox': copy.deepcopy(bbox)}
+            sample_crop = self._spiga_transforms(sample)
+            crop_bboxes.append(sample_crop['bbox'])
+            crop_images.append(sample_crop['image'])
+
+        # Images to tensor and move to device
+        batch_images = torch.tensor(np.array(crop_images), dtype=torch.float).to(self._spiga_device)
+
+        # Batch 3D model and camera matrix
+        batch_model3D = self._spiga_model3d.unsqueeze(0).repeat(len(bboxes), 1, 1)
+        batch_cam_matrix = self._spiga_cam_matrix.unsqueeze(0).repeat(len(bboxes), 1, 1)
+
+        # Run inference
+        model_inputs = [batch_images, batch_model3D, batch_cam_matrix]
+        with torch.no_grad():
+            outputs = self._spiga_model(model_inputs)
+
+        # Post-treatment: convert landmarks back to image coordinates
+        features = {}
+        crop_bboxes_arr = np.array(crop_bboxes)
+        bboxes_arr = np.array(bboxes)
+
+        if 'Landmarks' in outputs.keys():
+            landmarks = outputs['Landmarks'][-1].cpu().detach().numpy()
+            landmarks = landmarks.transpose((1, 0, 2))
+            landmarks = landmarks * self.spiga_config.image_size
+            landmarks_norm = (landmarks - crop_bboxes_arr[:, 0:2]) / crop_bboxes_arr[:, 2:4]
+            landmarks_out = (landmarks_norm * bboxes_arr[:, 2:4]) + bboxes_arr[:, 0:2]
+            landmarks_out = landmarks_out.transpose((1, 0, 2))
+            features['landmarks'] = landmarks_out.tolist()
+
+        return features
+
     def _detect_98_landmarks(self, frame: np.ndarray, bbox: Tuple[float, float, float, float]) -> Optional[np.ndarray]:
         """
         Detect 98-point WFLW landmarks using SPIGA.
@@ -243,8 +344,8 @@ class SPIGALandmarkDetector:
         spiga_bbox = [x1, y1, x2 - x1, y2 - y1]
 
         try:
-            # SPIGA inference
-            features = self.spiga.inference(frame_rgb, [spiga_bbox])
+            # SPIGA inference (using our CPU-compatible implementation)
+            features = self._spiga_inference(frame_rgb, [spiga_bbox])
 
             if features and 'landmarks' in features:
                 landmarks = features['landmarks'][0]  # First face

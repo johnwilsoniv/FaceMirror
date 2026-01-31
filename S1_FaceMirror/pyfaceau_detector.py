@@ -83,10 +83,6 @@ class PyFaceAU68LandmarkDetector:
             gpu_status = "GPU" if self.clnf.use_gpu else "CPU"
             safe_print(f"  CLNF: Loaded ({gpu_status} accelerated)")
 
-        # Bbox calibration coefficients (MTCNN → CLNF)
-        # These map PyMTCNN output to CLNF-expected input
-        self.bbox_coeffs = (-0.0075, 0.2459, 1.0323, 0.7751)
-
         if debug_mode:
             safe_print("="*60 + "\n")
 
@@ -205,16 +201,9 @@ class PyFaceAU68LandmarkDetector:
 
                     if boxes is not None and len(boxes) > 0:
                         # PyMTCNN returns [x, y, w, h, conf]
+                        # pyclnf handles bbox calibration internally
                         x, y, w, h = boxes[0][:4]
-
-                        # Apply calibration coefficients
-                        cx, cy, cw, ch = self.bbox_coeffs
-                        self.cached_bbox = (
-                            x + w * cx,
-                            y + h * cy,
-                            w * cw,
-                            h * ch
-                        )
+                        self.cached_bbox = (x, y, w, h)
                     else:
                         if self.cached_bbox is None:
                             return None, {'valid': False, 'reason': 'No face detected'}

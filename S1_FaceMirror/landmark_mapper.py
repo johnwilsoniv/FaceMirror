@@ -39,13 +39,11 @@ WFLW_TO_DLIB_MAP = {
     0: 0, 2: 1, 4: 2, 6: 3, 8: 4, 10: 5, 12: 6, 14: 7, 16: 8,
     18: 9, 20: 10, 22: 11, 24: 12, 26: 13, 28: 14, 30: 15, 32: 16,
 
-    # Right eyebrow: WFLW 33-41 (9 pts) → Dlib 17-21 (5 pts)
-    # Sample every 2 points
-    33: 17, 35: 18, 37: 19, 39: 20, 41: 21,
+    # WFLW 33-37 (image left = subject's RIGHT eyebrow) → Dlib 22-26 (subject's RIGHT)
+    33: 22, 34: 23, 35: 24, 36: 25, 37: 26,
 
-    # Left eyebrow: WFLW 42-50 (9 pts) → Dlib 22-26 (5 pts)
-    # Sample every 2 points
-    42: 22, 44: 23, 46: 24, 48: 25, 50: 26,
+    # WFLW 42-46 (image right = subject's LEFT eyebrow) → Dlib 17-21 (subject's LEFT)
+    42: 17, 43: 18, 44: 19, 45: 20, 46: 21,
 
     # Nose: WFLW 51-59 (9 pts) → Dlib 27-35 (9 pts)
     # Direct 1:1 mapping
