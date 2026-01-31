@@ -51,23 +51,27 @@ try:
 except Exception:
     print("WARNING: whisperx metadata not found")
 
-# Check for FFmpeg binary to bundle
-ffmpeg_binary = None
+# Check for FFmpeg and FFprobe binaries to bundle
+binaries = []
+
 if IS_WINDOWS:
     ffmpeg_path = Path('bin/ffmpeg.exe')
-    if ffmpeg_path.exists():
-        ffmpeg_binary = (str(ffmpeg_path), 'bin')
+    ffprobe_path = Path('bin/ffprobe.exe')
 elif IS_MACOS:
     ffmpeg_path = Path('bin/ffmpeg')
-    if ffmpeg_path.exists():
-        ffmpeg_binary = (str(ffmpeg_path), 'bin')
+    ffprobe_path = Path('bin/ffprobe')
 
-binaries = []
-if ffmpeg_binary:
-    binaries.append(ffmpeg_binary)
-    print(f"INFO: Bundling FFmpeg from {ffmpeg_binary[0]}")
+if ffmpeg_path.exists():
+    binaries.append((str(ffmpeg_path), 'bin'))
+    print(f"INFO: Bundling FFmpeg from {ffmpeg_path}")
 else:
     print(f"WARNING: FFmpeg not found in bin/ directory. Application will require system FFmpeg.")
+
+if ffprobe_path.exists():
+    binaries.append((str(ffprobe_path), 'bin'))
+    print(f"INFO: Bundling FFprobe from {ffprobe_path}")
+else:
+    print(f"WARNING: FFprobe not found in bin/ directory. Audio duration detection may fail.")
 
 # Collect faster-whisper data
 datas += collect_data_files('faster_whisper')

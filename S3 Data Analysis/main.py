@@ -5,7 +5,7 @@ to run batch analysis from the command line.
 
 Usage:
     GUI mode:
-        python main.py
+        py thon main.py
 
     Command line batch mode:
         python main.py --batch --data-dir /path/to/data [--skip-visuals]
@@ -257,6 +257,22 @@ if __name__ == "__main__":
         exit_code = main()
         sys.exit(exit_code)
     except Exception as e_main:
-         logger.critical(f"Critical error in main execution: {e_main}", exc_info=True)
-         print(f"\nA critical error occurred: {e_main}. Check logs.", file=sys.stderr)
-         sys.exit(1)
+        logger.critical(f"Critical error in main execution: {e_main}", exc_info=True)
+        print(f"\nA critical error occurred: {e_main}. Check logs.", file=sys.stderr)
+
+        # Show error dialog with log location
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror(
+                "Data Analysis - Fatal Error",
+                f"An unexpected error occurred:\n\n{e_main}\n\n"
+                f"Log file: {log_file_path}"
+            )
+            root.destroy()
+        except:
+            pass
+
+        sys.exit(1)

@@ -175,15 +175,15 @@ def configure_pydub():
         print("pydub library found.")
     except ImportError:
         PYDUB_AVAILABLE = False
-        print("Warning: pydub missing. Snippet playback disabled.")
+        print("ERROR: pydub missing. Snippet playback disabled.")
         return # Cannot configure if not available
 
     try:
         import config_paths
-        import shutil
+
+        # Get paths from config_paths (handles bundled and system paths)
         ffmpeg_path = config_paths.get_ffmpeg_path()
-        ffprobe_path = shutil.which("ffprobe")
-        if not ffprobe_path and sys.platform == 'darwin' and os.path.exists('/opt/homebrew/bin/ffprobe'): ffprobe_path = '/opt/homebrew/bin/ffprobe'
+        ffprobe_path = config_paths.get_ffprobe_path()
 
         if ffmpeg_path:
             print(f"Config pydub: ffmpeg at {ffmpeg_path}")
@@ -194,10 +194,21 @@ def configure_pydub():
             if ffmpeg_dir not in current_path:
                 os.environ['PATH'] = ffmpeg_dir + os.pathsep + current_path
                 print(f"Config PATH: Added {ffmpeg_dir} to PATH for WhisperX")
-        else: print("WARN: ffmpeg not found for pydub.")
-        if ffprobe_path: print(f"Config pydub: ffprobe at {ffprobe_path}"); AudioSegment.ffprobe = ffprobe_path
-        else: print("WARN: ffprobe not found for pydub.")
-    except Exception as e: print(f"WARN: Could not config ffmpeg/ffprobe for pydub: {e}")
+        else:
+            print("ERROR: ffmpeg not found! Audio extraction will fail.")
+            print("  Searched: bundled bin/, system PATH, /opt/homebrew/bin/, /usr/local/bin/")
+
+        if ffprobe_path:
+            print(f"Config pydub: ffprobe at {ffprobe_path}")
+            AudioSegment.ffprobe = ffprobe_path
+        else:
+            print("ERROR: ffprobe not found! Audio duration detection will fail.")
+            print("  Searched: bundled bin/, system PATH, /opt/homebrew/bin/, /usr/local/bin/")
+
+    except Exception as e:
+        print(f"ERROR: Could not configure ffmpeg/ffprobe for pydub: {e}")
+        import traceback
+        traceback.print_exc()
 
 # Monkey-patch BatchProcessor (keep here or move to utils)
 def patch_batch_processor():

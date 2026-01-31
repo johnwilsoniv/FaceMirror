@@ -135,7 +135,7 @@ GENERATE_DEBUG_VIDEO = True
 # PyMTCNN backend for face detection
 # Options: 'auto', 'coreml', 'cuda', 'cpu'
 # 'coreml' is fastest on Apple Silicon
-MTCNN_BACKEND = 'coreml'
+MTCNN_BACKEND = 'auto'
 
 # ============================================================================
 # Device Selection Strategy (Legacy)

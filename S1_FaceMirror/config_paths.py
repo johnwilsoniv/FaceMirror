@@ -159,6 +159,63 @@ def get_cache_dir():
     return cache_dir
 
 
+def get_logs_dir():
+    """
+    Get logs directory for crash/error logging.
+    Creates directory if it doesn't exist.
+
+    Returns:
+        Path: ~/Documents/SplitFace/S1O Processed Files/logs/
+    """
+    base = get_output_base_dir()
+    logs_dir = base / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return logs_dir
+
+
+def get_ffprobe_path():
+    """
+    Get path to ffprobe executable.
+    Checks bundled location first, then system PATH, then common install locations.
+
+    Returns:
+        str: Path to ffprobe executable, or None if not found
+    """
+    # 1. Check for bundled ffprobe (in PyInstaller bundle)
+    if is_frozen():
+        app_dir = get_app_dir()
+        if sys.platform == 'win32':
+            bundled_ffprobe = app_dir / 'bin' / 'ffprobe.exe'
+        else:
+            bundled_ffprobe = app_dir / 'bin' / 'ffprobe'
+
+        if bundled_ffprobe.exists():
+            # Ensure executable permission on macOS/Linux
+            if sys.platform != 'win32':
+                try:
+                    bundled_ffprobe.chmod(bundled_ffprobe.stat().st_mode | stat.S_IEXEC)
+                except Exception:
+                    pass
+            return str(bundled_ffprobe)
+
+    # 2. Check system PATH
+    ffprobe_path = shutil.which('ffprobe')
+    if ffprobe_path:
+        return ffprobe_path
+
+    # 3. Check common installation locations
+    common_paths = [
+        '/opt/homebrew/bin/ffprobe',  # Apple Silicon Homebrew
+        '/usr/local/bin/ffprobe',      # Intel Mac Homebrew
+        '/usr/bin/ffprobe',            # Linux system
+    ]
+    for path in common_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+
+    return None
+
+
 def get_ffmpeg_path():
     """
     Get path to ffmpeg executable.
@@ -217,8 +274,12 @@ def print_paths_info():
     print(f"  Combined Data:     {get_combined_data_dir()}")
     print(f"  Weights:           {get_weights_dir()}")
     print(f"  HF Cache:          {get_cache_dir()}")
+    print(f"  Logs:              {get_logs_dir()}")
+    print(f"\nExecutables:")
     ffmpeg = get_ffmpeg_path()
+    ffprobe = get_ffprobe_path()
     print(f"  FFmpeg:            {ffmpeg if ffmpeg else 'NOT FOUND'}")
+    print(f"  FFprobe:           {ffprobe if ffprobe else 'NOT FOUND'}")
     print(f"{'='*60}\n")
 
 

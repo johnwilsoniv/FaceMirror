@@ -152,6 +152,57 @@ def get_ffmpeg_path():
     return None
 
 
+def get_ffprobe_path():
+    """
+    Find FFprobe executable (cross-platform, bundled or system)
+
+    Search order:
+    1. Bundled FFprobe in app (PyInstaller bundle)
+    2. System FFprobe (from PATH)
+    3. macOS Homebrew default location
+
+    Returns:
+        str: Path to FFprobe executable, or None if not found
+    """
+    if getattr(sys, 'frozen', False):
+        # Running in bundle - look in bundled bin directory
+        app_dir = get_app_dir()
+        if sys.platform == 'win32':
+            bundled_ffprobe = app_dir / 'bin' / 'ffprobe.exe'
+        else:
+            bundled_ffprobe = app_dir / 'bin' / 'ffprobe'
+
+        if bundled_ffprobe.exists():
+            # Ensure it's executable on Unix-like systems
+            if sys.platform != 'win32':
+                try:
+                    import stat
+                    bundled_ffprobe.chmod(bundled_ffprobe.stat().st_mode | stat.S_IEXEC)
+                except OSError:
+                    # Ignore chmod errors (e.g., read-only filesystem like DMG)
+                    pass
+            return str(bundled_ffprobe)
+
+    # Development or system FFprobe
+    # Try to find in PATH
+    ffprobe_path = shutil.which('ffprobe')
+    if ffprobe_path:
+        return ffprobe_path
+
+    # macOS: Try Homebrew default locations
+    if sys.platform == 'darwin':
+        homebrew_paths = [
+            '/opt/homebrew/bin/ffprobe',  # Apple Silicon
+            '/usr/local/bin/ffprobe',      # Intel Mac
+        ]
+        for path in homebrew_paths:
+            if Path(path).exists():
+                return path
+
+    # Not found
+    return None
+
+
 def get_whisper_cache_dir():
     """
     Get platform-specific cache directory for Whisper models
@@ -195,7 +246,9 @@ def print_paths_info():
     print(f"  Whisper Cache:     {get_whisper_cache_dir()}")
     print(f"\nExecutables:")
     ffmpeg = get_ffmpeg_path()
+    ffprobe = get_ffprobe_path()
     print(f"  FFmpeg:            {ffmpeg if ffmpeg else 'NOT FOUND'}")
+    print(f"  FFprobe:           {ffprobe if ffprobe else 'NOT FOUND'}")
     print(f"{'='*60}\n")
 
 

@@ -30,8 +30,9 @@ datas = []
 # Add weights directory (pyfaceau model files)
 datas += [('weights', 'weights')]
 
-# Add FFmpeg binary
+# Add FFmpeg and FFprobe binaries
 datas += [('bin/ffmpeg', 'bin')]
+datas += [('bin/ffprobe', 'bin')]
 
 # Add local Python modules as data files (ensures they're included)
 local_modules = [
@@ -128,12 +129,17 @@ a = Analysis(
         'PyQt5',
         'PySide2',
         'matplotlib',  # Not needed for S1
+        'pyclnf.cpp_warp',  # Exclude C extension, Python fallback will be used
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Filter out cpp_warp binary (has Python fallback using cv2.warpAffine)
+a.binaries = [b for b in a.binaries if 'cpp_warp' not in b[0]]
+a.datas = [d for d in a.datas if 'cpp_warp' not in d[0] or d[0].endswith('.py')]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
@@ -150,7 +156,7 @@ exe = EXE(
     console=False,  # GUI application with tkinter windows
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch='arm64',
     codesign_identity=None,
     entitlements_file=None,
 )

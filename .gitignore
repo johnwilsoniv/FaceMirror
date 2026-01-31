@@ -59,3 +59,28 @@ S Data/
 models/
 .claude/
 S2 Action Coder/models/
+
+# Manuscript figures and development scripts
+manuscript_figures/
+landmark_comparison.py
+hemiconstruct_comparison.py
+
+# Build artifacts
+*.dmg
+**/bin/
+**/bin_x86_64/
+dmg_staging/
+entitlements.plist
+venv_x86_64/
+
+# Model weights (large files)
+weights/
+
+# Screenshots
+*.png
+
+# Intel spec files (generated)
+*_Intel.spec
+
+# Performance profiling
+performance_profiler.py

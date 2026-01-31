@@ -5,6 +5,9 @@ S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 import config
 config.apply_environment_settings()
 
+import logging
+from datetime import datetime
+
 # Lightweight imports - safe for multiprocessing child processes
 import os
 from pathlib import Path
@@ -34,6 +37,54 @@ def safe_print(*args, **kwargs):
         builtins.print(*args, **kwargs)
     except (BrokenPipeError, IOError):
         pass  # Stdout disconnected (e.g., GUI subprocess terminated)
+
+
+# Global logger
+logger = None
+
+
+def setup_logging():
+    """
+    Set up file-based logging for crash diagnostics.
+    Logs are written to ~/Documents/SplitFace/S1O Processed Files/logs/
+    """
+    global logger
+
+    try:
+        logs_dir = config_paths.get_logs_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = logs_dir / f"facemirror_{timestamp}.log"
+
+        # Configure root logger
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file, encoding='utf-8'),
+                logging.StreamHandler()  # Also print to console
+            ]
+        )
+
+        logger = logging.getLogger('FaceMirror')
+        logger.info(f"Face Mirror v{config_paths.VERSION} starting")
+        logger.info(f"Log file: {log_file}")
+        logger.info(f"Platform: {sys.platform}")
+        logger.info(f"Python: {sys.version}")
+        logger.info(f"Frozen: {config_paths.is_frozen()}")
+
+        # Log paths info
+        logger.info(f"App Dir: {config_paths.get_app_dir()}")
+        ffmpeg = config_paths.get_ffmpeg_path()
+        ffprobe = config_paths.get_ffprobe_path()
+        logger.info(f"FFmpeg: {ffmpeg if ffmpeg else 'NOT FOUND'}")
+        logger.info(f"FFprobe: {ffprobe if ffprobe else 'NOT FOUND'}")
+
+        return log_file
+    except Exception as e:
+        # If logging setup fails, continue without file logging
+        safe_print(f"Warning: Could not set up file logging: {e}")
+        logger = logging.getLogger('FaceMirror')
+        return None
 
 
 # CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
@@ -814,4 +865,35 @@ def main():
     workflow_mirror_openface()
 
 if __name__ == "__main__":
-    main()
+    # Set up logging first (before any other operations)
+    log_file = setup_logging()
+
+    try:
+        main()
+    except Exception as e:
+        # Log the crash with full traceback
+        import traceback
+        error_msg = f"FATAL ERROR: {e}\n{traceback.format_exc()}"
+
+        if logger:
+            logger.critical(error_msg)
+        else:
+            safe_print(error_msg)
+
+        # Show error dialog to user
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            root = tk.Tk()
+            root.withdraw()
+            log_location = f"\n\nLog file: {log_file}" if log_file else ""
+            messagebox.showerror(
+                "Face Mirror - Fatal Error",
+                f"An unexpected error occurred:\n\n{e}\n\n"
+                f"Please check the log file for details.{log_location}"
+            )
+            root.destroy()
+        except:
+            pass
+
+        sys.exit(1)
