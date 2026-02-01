@@ -45,7 +45,7 @@ PROGRESS_UPDATE_INTERVAL = 50
 # 'spiga': SPIGA 98-point landmarks with facenet-pytorch MTCNN, mapped to 68-point dlib format
 #          May provide better accuracy on paralyzed hemifaces (experimental)
 #          Requires: pip install spiga facenet-pytorch
-LANDMARK_DETECTOR = 'clnf'
+LANDMARK_DETECTOR = 'spiga'
 
 # Enable AU45 (blink) detection
 # Warning: Enabling AU45 requires landmark detection on every frame
@@ -183,6 +183,32 @@ def apply_environment_settings():
     os.environ["OPENBLAS_NUM_THREADS"] = str(OPENBLAS_NUM_THREADS)
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(VECLIB_MAXIMUM_THREADS)
     os.environ["NUMEXPR_NUM_THREADS"] = str(NUMEXPR_NUM_THREADS)
+
+    # Apply onnxruntime CPU-only patch to fix CoreML compatibility issues
+    # This is needed for PyMTCNN (used by both CLNF and SPIGA pipelines)
+    _apply_onnxruntime_cpu_patch()
+
+
+def _apply_onnxruntime_cpu_patch():
+    """
+    Monkey-patch onnxruntime to force CPU-only execution provider.
+
+    This fixes CoreML backend errors on macOS when running PyMTCNN.
+    The patch must be applied BEFORE any pyfaceau/pymtcnn imports.
+    """
+    try:
+        import onnxruntime as ort
+        _original_InferenceSession = ort.InferenceSession
+
+        def _patched_InferenceSession(model_path, *args, **kwargs):
+            """Force CPU-only execution provider."""
+            kwargs['providers'] = ['CPUExecutionProvider']
+            return _original_InferenceSession(model_path, *args, **kwargs)
+
+        ort.InferenceSession = _patched_InferenceSession
+        print("[ONNX] Forced onnxruntime to use CPUExecutionProvider")
+    except ImportError:
+        pass  # onnxruntime not installed, skip patch
 
 
 def get_profiling_output_dir():

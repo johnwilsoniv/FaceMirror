@@ -139,13 +139,8 @@ class SPIGALandmarkDetector:
 
             self._spiga_model.load_state_dict(model_state_dict)
 
-            # Move to appropriate device (CPU or MPS, not CUDA on macOS)
-            if self.device.type == 'mps':
-                # MPS may have issues with some ops, fall back to CPU for SPIGA
-                self._spiga_device = torch.device('cpu')
-            else:
-                self._spiga_device = self.device
-
+            # Force CPU for SPIGA - MPS has im2col fallback overhead
+            self._spiga_device = torch.device('cpu')
             self._spiga_model = self._spiga_model.to(self._spiga_device)
             self._spiga_model.eval()
 
@@ -159,6 +154,9 @@ class SPIGALandmarkDetector:
             params_3DM = loader_3DM()
             self._spiga_model3d = params_3DM['model3d'].to(self._spiga_device)
             self._spiga_cam_matrix = params_3DM['cam_matrix'].to(self._spiga_device)
+            # Pre-expand for single face (batch size 1) to avoid per-frame allocation
+            self._spiga_model3d_batch = self._spiga_model3d.unsqueeze(0)
+            self._spiga_cam_matrix_batch = self._spiga_cam_matrix.unsqueeze(0)
 
             self._spiga_available = True
 
@@ -284,37 +282,40 @@ class SPIGALandmarkDetector:
         Returns:
             Dictionary with 'landmarks' key containing detected landmarks
         """
-        import copy
         import torch
 
         # Pretreatment: crop and transform faces
         crop_bboxes = []
         crop_images = []
         for bbox in bboxes:
-            sample = {'image': copy.deepcopy(image), 'bbox': copy.deepcopy(bbox)}
+            sample = {'image': image, 'bbox': list(bbox)}
             sample_crop = self._spiga_transforms(sample)
             crop_bboxes.append(sample_crop['bbox'])
             crop_images.append(sample_crop['image'])
 
         # Images to tensor and move to device
-        batch_images = torch.tensor(np.array(crop_images), dtype=torch.float).to(self._spiga_device)
+        batch_images = torch.from_numpy(np.array(crop_images)).float().to(self._spiga_device)
 
-        # Batch 3D model and camera matrix
-        batch_model3D = self._spiga_model3d.unsqueeze(0).repeat(len(bboxes), 1, 1)
-        batch_cam_matrix = self._spiga_cam_matrix.unsqueeze(0).repeat(len(bboxes), 1, 1)
+        # Use pre-expanded 3D model for single face (common case)
+        if len(bboxes) == 1:
+            batch_model3D = self._spiga_model3d_batch
+            batch_cam_matrix = self._spiga_cam_matrix_batch
+        else:
+            batch_model3D = self._spiga_model3d.unsqueeze(0).expand(len(bboxes), -1, -1)
+            batch_cam_matrix = self._spiga_cam_matrix.unsqueeze(0).expand(len(bboxes), -1, -1)
 
-        # Run inference
+        # Run inference with inference_mode (faster than no_grad)
         model_inputs = [batch_images, batch_model3D, batch_cam_matrix]
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self._spiga_model(model_inputs)
 
         # Post-treatment: convert landmarks back to image coordinates
         features = {}
-        crop_bboxes_arr = np.array(crop_bboxes)
-        bboxes_arr = np.array(bboxes)
+        crop_bboxes_arr = np.array(crop_bboxes, dtype=np.float32)
+        bboxes_arr = np.array(bboxes, dtype=np.float32)
 
         if 'Landmarks' in outputs.keys():
-            landmarks = outputs['Landmarks'][-1].cpu().detach().numpy()
+            landmarks = outputs['Landmarks'][-1].cpu().numpy()
             landmarks = landmarks.transpose((1, 0, 2))
             landmarks = landmarks * self.spiga_config.image_size
             landmarks_norm = (landmarks - crop_bboxes_arr[:, 0:2]) / crop_bboxes_arr[:, 2:4]

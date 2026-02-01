@@ -6,10 +6,104 @@ Uses PyPI packages:
 - pyfaceau (>=1.3.4): Full AU extraction pipeline
 - pyclnf (>=0.2.2): GPU-accelerated CLNF landmark detection
 - pymtcnn (>=1.1.1): CoreML/CUDA face detection
+
+Optionally uses SPIGA for landmark detection (experimental).
 """
 
 from pyfaceau.processor import OpenFaceProcessor as PyFaceAUProcessor
 from pathlib import Path
+import numpy as np
+import importlib.util
+
+# Import local config.py (not pyfaceau.config)
+_config_path = Path(__file__).parent / 'config.py'
+_spec = importlib.util.spec_from_file_location("local_config", _config_path)
+config = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(config)
+
+
+class SPIGALandmarkWrapper:
+    """
+    Wrapper that makes SPIGA compatible with pyfaceau's CLNF interface.
+
+    Provides the same .fit() interface as pyclnf CLNF but uses SPIGA
+    for landmark detection. Uses CalcParams to compute PDM params from landmarks.
+    """
+
+    def __init__(self, spiga_detector, pdm_parser):
+        """
+        Args:
+            spiga_detector: SPIGALandmarkDetector instance
+            pdm_parser: PDMParser instance for CalcParams
+        """
+        from pyfaceau.pipeline import CalcParams
+
+        self.spiga_detector = spiga_detector
+        self._cached_bbox = None
+        self.calc_params = CalcParams(pdm_parser)
+
+        # Store PDM for compatibility
+        self.pdm = pdm_parser
+
+    _call_count = 0  # Class variable to track calls
+
+    def fit(self, frame, bbox, detector_type=None, return_params=True):
+        """
+        Detect landmarks using SPIGA (CLNF-compatible interface).
+
+        Args:
+            frame: BGR image
+            bbox: (x, y, w, h) bounding box
+            detector_type: Ignored (for CLNF compatibility)
+            return_params: If True, return info dict with params
+
+        Returns:
+            landmarks: (68, 2) array
+            info: dict with 'converged', 'iterations', 'params'
+        """
+        SPIGALandmarkWrapper._call_count += 1
+        if SPIGALandmarkWrapper._call_count <= 3:
+            print(f"[SPIGA WRAPPER] fit() called (call #{SPIGALandmarkWrapper._call_count})")
+
+        # Convert bbox to SPIGA format if needed
+        if len(bbox) == 4:
+            x, y, w, h = bbox
+            self._cached_bbox = (x, y, x + w, y + h)  # (x1, y1, x2, y2)
+
+        # Use SPIGA detector
+        self.spiga_detector.cached_bbox = self._cached_bbox
+        landmarks, spiga_info = self.spiga_detector.get_face_mesh(frame, detection_interval=0)
+
+        if landmarks is None:
+            # Return zeros if detection failed
+            landmarks = np.zeros((68, 2), dtype=np.float32)
+            info = {
+                'converged': False,
+                'iterations': 0,
+                'params': np.zeros(40, dtype=np.float32)  # 6 global + 34 local
+            }
+        else:
+            # Use CalcParams to compute PDM params from landmarks
+            try:
+                params = self.calc_params.calc_params(landmarks)
+                params = params.astype(np.float32)
+            except Exception:
+                # Fallback to zeros if CalcParams fails
+                params = np.zeros(40, dtype=np.float32)
+
+            info = {
+                'converged': True,
+                'iterations': 1,
+                'params': params,
+                'confidence': spiga_info.get('confidence', 1.0)
+            }
+
+        return landmarks, info
+
+    def reset_temporal_state(self):
+        """Reset temporal state (CLNF compatibility)."""
+        self.spiga_detector.reset_tracking_history()
+        self._cached_bbox = None
 
 
 class OpenFace3Processor(PyFaceAUProcessor):
@@ -18,7 +112,7 @@ class OpenFace3Processor(PyFaceAUProcessor):
 
     Features:
     - 17 Action Units (AU01-AU45) with r > 0.95 correlation to OpenFace 2.2
-    - GPU-accelerated CLNF landmarks (~15 fps)
+    - GPU-accelerated CLNF landmarks (~15 fps) OR SPIGA landmarks (experimental)
     - PyMTCNN face detection (CoreML/CUDA/CPU auto-selection)
     - 100% Python implementation (no C++ dependencies)
     """
@@ -46,6 +140,10 @@ class OpenFace3Processor(PyFaceAUProcessor):
         else:
             weights_dir = Path(weights_dir)
 
+        # Check if SPIGA should be used for AU extraction
+        detector_type = getattr(config, 'LANDMARK_DETECTOR', 'clnf')
+        self._using_spiga = (detector_type == 'spiga')
+
         # Initialize PyFaceAU processor with enhanced settings
         # Note: verbose=True enables progress reporting during AU extraction
         super().__init__(
@@ -58,7 +156,38 @@ class OpenFace3Processor(PyFaceAUProcessor):
         self.debug_mode = debug_mode
         self.calculate_landmarks = True  # PyFaceAU always calculates landmarks
 
-        if debug_mode:
+        if self._using_spiga:
+            # Replace CLNF with SPIGA wrapper AFTER pipeline is created
+            try:
+                from spiga_detector import SPIGALandmarkDetector
+
+                # Force pipeline initialization to get pdm_parser
+                # This must succeed for either CLNF or SPIGA to work
+                if not self.pipeline._components_initialized:
+                    self.pipeline._initialize_components()
+
+                # Now create SPIGA detector and replace the landmark detector
+                spiga = SPIGALandmarkDetector(debug_mode=debug_mode)
+                # Pass PDM parser for CalcParams to compute proper geometric features
+                pdm_parser = self.pipeline.pdm_parser
+                self.pipeline.landmark_detector = SPIGALandmarkWrapper(spiga, pdm_parser)
+
+                if debug_mode:
+                    print("\n" + "="*60)
+                    print("SPIGA AU PROCESSOR (EXPERIMENTAL)")
+                    print("="*60)
+                    print("  Backend: pyfaceau + SPIGA landmarks")
+                    print("  Landmarks: SPIGA 98→68 mapped")
+                    print("  Face Detection: pyfaceau PyMTCNN + SPIGA FaceNet MTCNN")
+                    print("  Geometric: CalcParams from SPIGA landmarks")
+                    print("="*60 + "\n")
+            except Exception as e:
+                import traceback
+                print(f"Warning: SPIGA initialization failed ({e}), falling back to CLNF")
+                traceback.print_exc()
+                self._using_spiga = False
+
+        if not self._using_spiga and debug_mode:
             print("\n" + "="*60)
             print("GPU-ACCELERATED AU PROCESSOR")
             print("="*60)
