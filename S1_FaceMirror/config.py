@@ -45,7 +45,7 @@ PROGRESS_UPDATE_INTERVAL = 50
 # 'spiga': SPIGA 98-point landmarks with facenet-pytorch MTCNN, mapped to 68-point dlib format
 #          May provide better accuracy on paralyzed hemifaces (experimental)
 #          Requires: pip install spiga facenet-pytorch
-LANDMARK_DETECTOR = 'spiga'
+LANDMARK_DETECTOR = 'clnf'
 
 # Enable AU45 (blink) detection
 # Warning: Enabling AU45 requires landmark detection on every frame

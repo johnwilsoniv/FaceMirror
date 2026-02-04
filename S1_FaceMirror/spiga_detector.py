@@ -310,18 +310,37 @@ class SPIGALandmarkDetector:
             outputs = self._spiga_model(model_inputs)
 
         # Post-treatment: convert landmarks back to image coordinates
+        # SPIGA's TargetCropAug expands the bbox by target_dist before scaling to 256x256
+        # We need to compute the correct inverse affine transformation
         features = {}
-        crop_bboxes_arr = np.array(crop_bboxes, dtype=np.float32)
-        bboxes_arr = np.array(bboxes, dtype=np.float32)
+        target_dist = self.spiga_config.target_dist  # 1.6 by default
+        img_size_x, img_size_y = self.spiga_config.image_size  # (256, 256)
 
         if 'Landmarks' in outputs.keys():
+            # Raw output shape: (batch, num_landmarks, 2)
             landmarks = outputs['Landmarks'][-1].cpu().numpy()
-            landmarks = landmarks.transpose((1, 0, 2))
-            landmarks = landmarks * self.spiga_config.image_size
-            landmarks_norm = (landmarks - crop_bboxes_arr[:, 0:2]) / crop_bboxes_arr[:, 2:4]
-            landmarks_out = (landmarks_norm * bboxes_arr[:, 2:4]) + bboxes_arr[:, 0:2]
-            landmarks_out = landmarks_out.transpose((1, 0, 2))
-            features['landmarks'] = landmarks_out.tolist()
+            # Scale from [0,1] to [0,256]
+            landmarks = landmarks * np.array([img_size_x, img_size_y])
+
+            # Apply correct inverse transformation for each bbox
+            landmarks_out = []
+            for i, bbox in enumerate(bboxes):
+                x, y, w, h = bbox
+                # SPIGA expands the bbox to a square with side = max(w,h) * target_dist
+                side = max(w, h) * target_dist
+                # Scale factor: 256 / side (assuming square output)
+                scale = img_size_x / side
+                # Offset: where the expanded region starts in original image coords
+                x_offset = x - (side - w) / 2
+                y_offset = y - (side - h) / 2
+
+                # Inverse transformation: from 256x256 space to original image
+                lm = landmarks[i]  # (num_landmarks, 2)
+                lm_orig = lm / scale + np.array([x_offset, y_offset])
+                landmarks_out.append(lm_orig.tolist())
+
+            # Output: list of faces, each face is list of [x,y] landmarks
+            features['landmarks'] = landmarks_out
 
         return features
 
@@ -375,10 +394,11 @@ class SPIGALandmarkDetector:
             self._frame_idx += 1
 
             # Detect face (first frame or periodic refresh)
+            # Note: If cached_bbox is already set (e.g., by SPIGALandmarkWrapper),
+            # skip detection to use the provided bbox from pyfaceau pipeline
             should_detect = (
                 self.cached_bbox is None or
-                detection_interval == 0 or
-                self._frame_idx % detection_interval == 0
+                (detection_interval > 0 and self._frame_idx % detection_interval == 0)
             )
 
             if should_detect:

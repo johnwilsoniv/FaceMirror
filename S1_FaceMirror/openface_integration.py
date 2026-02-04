@@ -65,14 +65,22 @@ class SPIGALandmarkWrapper:
         if SPIGALandmarkWrapper._call_count <= 3:
             print(f"[SPIGA WRAPPER] fit() called (call #{SPIGALandmarkWrapper._call_count})")
 
-        # Convert bbox to SPIGA format if needed
-        if len(bbox) == 4:
-            x, y, w, h = bbox
-            self._cached_bbox = (x, y, x + w, y + h)  # (x1, y1, x2, y2)
+        # NOTE: PyMTCNN and FaceNet MTCNN detect faces at different positions.
+        # PyMTCNN bbox starts ~256px lower (more neck/shoulders), while FaceNet
+        # focuses more on the face. Using PyMTCNN bbox with SPIGA produces landmarks
+        # that are shifted relative to CLNF landmarks.
+        #
+        # Solution: Let SPIGA use its own FaceNet MTCNN detection (don't override bbox).
+        # The scaling correction below will align the landmark spread with CLNF.
 
-        # Use SPIGA detector
-        self.spiga_detector.cached_bbox = self._cached_bbox
+        # Use SPIGA detector with its native FaceNet MTCNN detection
+        # (don't set cached_bbox - let SPIGA detect the face itself)
         landmarks, spiga_info = self.spiga_detector.get_face_mesh(frame, detection_interval=0)
+
+        # Note: SPIGA landmarks have different semantics than CLNF (different face detector,
+        # different landmark definitions). The face alignment uses a similarity transform
+        # based on landmark RELATIVE positions, so absolute positions don't need to match.
+        # We pass SPIGA landmarks as-is and let the alignment handle the normalization.
 
         if landmarks is None:
             # Return zeros if detection failed
@@ -85,10 +93,16 @@ class SPIGALandmarkWrapper:
         else:
             # Use CalcParams to compute PDM params from landmarks
             try:
-                params = self.calc_params.calc_params(landmarks)
-                params = params.astype(np.float32)
-            except Exception:
+                # calc_params returns (params_global, params_local) tuple
+                params_global, params_local = self.calc_params.calc_params(landmarks)
+                # Concatenate to match CLNF format: [6 global + 34 local]
+                params = np.concatenate([
+                    params_global.astype(np.float32),
+                    params_local.astype(np.float32)
+                ])
+            except Exception as e:
                 # Fallback to zeros if CalcParams fails
+                print(f"[SPIGA WRAPPER] CalcParams failed: {e}")
                 params = np.zeros(40, dtype=np.float32)
 
             info = {

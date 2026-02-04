@@ -39,11 +39,12 @@ WFLW_TO_DLIB_MAP = {
     0: 0, 2: 1, 4: 2, 6: 3, 8: 4, 10: 5, 12: 6, 14: 7, 16: 8,
     18: 9, 20: 10, 22: 11, 24: 12, 26: 13, 28: 14, 30: 15, 32: 16,
 
-    # WFLW 33-37 (image left = subject's RIGHT eyebrow) → Dlib 22-26 (subject's RIGHT)
-    33: 22, 34: 23, 35: 24, 36: 25, 37: 26,
+    # WFLW 33-37 (image left side = subject's right eyebrow) → Dlib 17-21 (right eyebrow)
+    # Both WFLW and dlib use subject's perspective for left/right
+    33: 17, 34: 18, 35: 19, 36: 20, 37: 21,
 
-    # WFLW 42-46 (image right = subject's LEFT eyebrow) → Dlib 17-21 (subject's LEFT)
-    42: 17, 43: 18, 44: 19, 45: 20, 46: 21,
+    # WFLW 42-46 (image right side = subject's left eyebrow) → Dlib 22-26 (left eyebrow)
+    42: 22, 43: 23, 44: 24, 45: 25, 46: 26,
 
     # Nose: WFLW 51-59 (9 pts) → Dlib 27-35 (9 pts)
     # Direct 1:1 mapping

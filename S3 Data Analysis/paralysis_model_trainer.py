@@ -16,7 +16,6 @@ with warnings.catch_warnings():
     from sklearn.calibration import CalibratedClassifierCV
     from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier, VotingClassifier
     import xgboost as xgb
-
     try:
         import optuna
 
