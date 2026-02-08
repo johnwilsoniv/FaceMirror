@@ -27,29 +27,43 @@ class SPIGALandmarkWrapper:
     Wrapper that makes SPIGA compatible with pyfaceau's CLNF interface.
 
     Provides the same .fit() interface as pyclnf CLNF but uses SPIGA
-    for landmark detection. Uses CalcParams to compute PDM params from landmarks.
+    for landmark detection. Uses 2D Procrustes to correct landmark proportions
+    for stable Kabsch alignment, and CalcParams for geometric features.
     """
 
-    def __init__(self, spiga_detector, pdm_parser):
+    # Same rigid indices used by face_aligner's Kabsch alignment
+    RIGID_INDICES = [1, 2, 3, 4, 12, 13, 14, 15, 27, 28, 29, 31, 32, 33, 34, 35, 36, 39, 40, 41, 42, 45, 46, 47]
+
+    # SPIGA-to-CLNF alignment calibration constants
+    # Measured from 50 frames across 5 patients (3 paralysis + 2 normal)
+    # Scale: corrects SPIGA rigid points being more tightly clustered than CLNF
+    # Offset: corrects SPIGA landmark centroid shift vs CLNF CalcParams center
+    SPIGA_SCALE_CORRECTION = 1.0346
+    SPIGA_OFFSET_X = 0.22
+    SPIGA_OFFSET_Y = 2.37
+
+    def __init__(self, spiga_detector, pdm_parser, reg_factor=10.0):
         """
         Args:
             spiga_detector: SPIGALandmarkDetector instance
             pdm_parser: PDMParser instance for CalcParams
+            reg_factor: Regularization factor for CalcParams (higher = more constrained)
         """
-        from pyfaceau.pipeline import CalcParams
+        from pyfaceau.alignment.calc_params import CalcParams
 
         self.spiga_detector = spiga_detector
         self._cached_bbox = None
-        self.calc_params = CalcParams(pdm_parser)
+        self.calc_params = CalcParams(pdm_parser, reg_factor=reg_factor)
 
         # Store PDM for compatibility
         self.pdm = pdm_parser
 
-    _call_count = 0  # Class variable to track calls
-
     def fit(self, frame, bbox, detector_type=None, return_params=True):
         """
         Detect landmarks using SPIGA (CLNF-compatible interface).
+
+        Returns Procrustes-corrected landmarks (PDM proportions at detected position)
+        for alignment, and stores raw SPIGA landmarks in info['raw_landmarks'].
 
         Args:
             frame: BGR image
@@ -58,57 +72,56 @@ class SPIGALandmarkWrapper:
             return_params: If True, return info dict with params
 
         Returns:
-            landmarks: (68, 2) array
-            info: dict with 'converged', 'iterations', 'params'
+            landmarks: (68, 2) Procrustes-corrected landmarks (for alignment)
+            info: dict with 'converged', 'iterations', 'params', 'raw_landmarks'
         """
-        SPIGALandmarkWrapper._call_count += 1
-        if SPIGALandmarkWrapper._call_count <= 3:
-            print(f"[SPIGA WRAPPER] fit() called (call #{SPIGALandmarkWrapper._call_count})")
-
-        # NOTE: PyMTCNN and FaceNet MTCNN detect faces at different positions.
-        # PyMTCNN bbox starts ~256px lower (more neck/shoulders), while FaceNet
-        # focuses more on the face. Using PyMTCNN bbox with SPIGA produces landmarks
-        # that are shifted relative to CLNF landmarks.
-        #
-        # Solution: Let SPIGA use its own FaceNet MTCNN detection (don't override bbox).
-        # The scaling correction below will align the landmark spread with CLNF.
-
         # Use SPIGA detector with its native FaceNet MTCNN detection
-        # (don't set cached_bbox - let SPIGA detect the face itself)
-        landmarks, spiga_info = self.spiga_detector.get_face_mesh(frame, detection_interval=0)
+        raw_landmarks, spiga_info = self.spiga_detector.get_face_mesh(frame, detection_interval=0)
 
-        # Note: SPIGA landmarks have different semantics than CLNF (different face detector,
-        # different landmark definitions). The face alignment uses a similarity transform
-        # based on landmark RELATIVE positions, so absolute positions don't need to match.
-        # We pass SPIGA landmarks as-is and let the alignment handle the normalization.
-
-        if landmarks is None:
-            # Return zeros if detection failed
+        if raw_landmarks is None:
             landmarks = np.zeros((68, 2), dtype=np.float32)
             info = {
                 'converged': False,
                 'iterations': 0,
-                'params': np.zeros(40, dtype=np.float32)  # 6 global + 34 local
+                'params': np.zeros(40, dtype=np.float32),
+                'raw_landmarks': np.zeros((68, 2), dtype=np.float32)
             }
         else:
-            # Use CalcParams to compute PDM params from landmarks
             try:
-                # calc_params returns (params_global, params_local) tuple
-                params_global, params_local = self.calc_params.calc_params(landmarks)
+                # Procrustes-correct: PDM proportions at SPIGA position (stable alignment)
+                landmarks = self.calc_params.procrustes_correct(
+                    raw_landmarks, self.RIGID_INDICES
+                )
+
+                # Apply scale calibration: expand Procrustes-corrected landmarks to match
+                # CLNF's RMS spread. SPIGA rigid points are ~3.5% more tightly clustered
+                # than CLNF's, causing the Kabsch alignment to over-zoom.
+                centroid = np.mean(landmarks, axis=0)
+                landmarks = (landmarks - centroid) * self.SPIGA_SCALE_CORRECTION + centroid
+
+                # CalcParams on raw landmarks for geometric features
+                params_global, params_local = self.calc_params.calc_params(raw_landmarks)
+
+                # Use raw SPIGA landmark centroid for position, with calibrated offset
+                raw_centroid = np.mean(raw_landmarks, axis=0)
+                params_global[4] = raw_centroid[0] + self.SPIGA_OFFSET_X
+                params_global[5] = raw_centroid[1] + self.SPIGA_OFFSET_Y
+
                 # Concatenate to match CLNF format: [6 global + 34 local]
                 params = np.concatenate([
                     params_global.astype(np.float32),
                     params_local.astype(np.float32)
                 ])
             except Exception as e:
-                # Fallback to zeros if CalcParams fails
                 print(f"[SPIGA WRAPPER] CalcParams failed: {e}")
+                landmarks = raw_landmarks
                 params = np.zeros(40, dtype=np.float32)
 
             info = {
                 'converged': True,
                 'iterations': 1,
                 'params': params,
+                'raw_landmarks': raw_landmarks,
                 'confidence': spiga_info.get('confidence', 1.0)
             }
 
@@ -184,7 +197,7 @@ class OpenFace3Processor(PyFaceAUProcessor):
                 spiga = SPIGALandmarkDetector(debug_mode=debug_mode)
                 # Pass PDM parser for CalcParams to compute proper geometric features
                 pdm_parser = self.pipeline.pdm_parser
-                self.pipeline.landmark_detector = SPIGALandmarkWrapper(spiga, pdm_parser)
+                self.pipeline.landmark_detector = SPIGALandmarkWrapper(spiga, pdm_parser, reg_factor=10.0)
 
                 if debug_mode:
                     print("\n" + "="*60)

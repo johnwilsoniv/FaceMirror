@@ -342,9 +342,63 @@ class SPIGALandmarkDetector:
             # Output: list of faces, each face is list of [x,y] landmarks
             features['landmarks'] = landmarks_out
 
+        # Extract head pose and compute 2D face center from 3D projection
+        if 'Pose' in outputs.keys():
+            pose = outputs['Pose'].cpu().numpy()  # (batch, 6): [pitch, yaw, roll, tx, ty, tz]
+
+            # Get camera matrix and 3D model for projection
+            cam = self._spiga_cam_matrix.cpu().numpy()  # (3, 3)
+            model3d = self._spiga_model3d.cpu().numpy()  # (98, 3)
+
+            pose_out = []
+            face_centers = []
+            for i, bbox in enumerate(bboxes):
+                p = pose[i]  # [pitch, yaw, roll, tx, ty, tz]
+                t = p[3:6]
+
+                # Build rotation matrix matching pose_proj.py exactly:
+                #   euler[0] = -(pitch - 90), euler[1] = -yaw, euler[2] = -(roll + 90)
+                #   R = Ry @ Rp @ Rr  (yaw-pitch-roll order)
+                a0 = np.radians(-(p[0] - 90))  # modified yaw
+                a1 = np.radians(-p[1])          # modified pitch
+                a2 = np.radians(-(p[2] + 90))   # modified roll
+                cy_, sy_ = np.cos(a0), np.sin(a0)
+                cp_, sp_ = np.cos(a1), np.sin(a1)
+                cr_, sr_ = np.cos(a2), np.sin(a2)
+                Ry = np.array([[cy_, 0, sy_], [0, 1, 0], [-sy_, 0, cy_]])
+                Rp = np.array([[cp_, -sp_, 0], [sp_, cp_, 0], [0, 0, 1]])
+                Rr = np.array([[1, 0, 0], [0, cr_, -sr_], [0, sr_, cr_]])
+                R = Ry @ Rp @ Rr
+
+                # Project ALL 98 3D model points to 2D (not just centroid)
+                # Under perspective projection, centroid(projected) != projected(centroid)
+                # Camera matrix is for ftmap_size (64x64), scale to crop size (256x256)
+                ftmap_to_crop = 4.0  # 256 / 64
+                pts_cam = (R @ model3d.T).T + t  # (98, 3) in camera coords
+                pts_proj = (cam @ pts_cam.T).T  # (98, 3) projected
+                pts_2d = pts_proj[:, :2] / pts_proj[:, 2:3]  # (98, 2) perspective division
+                center_ftmap = np.mean(pts_2d, axis=0)  # centroid of projected points
+                u_crop = center_ftmap[0] * ftmap_to_crop
+                v_crop = center_ftmap[1] * ftmap_to_crop
+
+                # Transform from crop space to original image space
+                x, y, w, h = bbox
+                side = max(w, h) * target_dist
+                scale = img_size_x / side
+                x_offset = x - (side - w) / 2
+                y_offset = y - (side - h) / 2
+
+                u_image = u_crop / scale + x_offset
+                v_image = v_crop / scale + y_offset
+                face_centers.append([float(u_image), float(v_image)])
+                pose_out.append(p.tolist())
+
+            features['pose'] = pose_out
+            features['face_center'] = face_centers
+
         return features
 
-    def _detect_98_landmarks(self, frame: np.ndarray, bbox: Tuple[float, float, float, float]) -> Optional[np.ndarray]:
+    def _detect_98_landmarks(self, frame: np.ndarray, bbox: Tuple[float, float, float, float]) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
         Detect 98-point WFLW landmarks using SPIGA.
 
@@ -353,7 +407,9 @@ class SPIGALandmarkDetector:
             bbox: (x1, y1, x2, y2) face bounding box
 
         Returns:
-            (98, 2) array of landmarks or None if detection failed
+            Tuple of:
+                landmarks: (98, 2) array of landmarks or None if detection failed
+                face_center: (2,) array [x, y] of 3D-projected face center, or None
         """
         # SPIGA expects RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -369,13 +425,16 @@ class SPIGALandmarkDetector:
 
             if features and 'landmarks' in features:
                 landmarks = features['landmarks'][0]  # First face
-                return np.array(landmarks, dtype=np.float32)
+                face_center = None
+                if 'face_center' in features:
+                    face_center = np.array(features['face_center'][0], dtype=np.float32)
+                return np.array(landmarks, dtype=np.float32), face_center
 
         except Exception as e:
             if self.debug_mode:
                 safe_print(f"SPIGA detection error: {e}")
 
-        return None
+        return None, None
 
     def get_face_mesh(self, frame: np.ndarray, detection_interval: int = 30) -> Tuple[Optional[np.ndarray], dict]:
         """
@@ -412,7 +471,7 @@ class SPIGALandmarkDetector:
                     return None, {'valid': False, 'reason': 'MTCNN failed to detect face'}
 
             # Detect 98-point landmarks using cached bbox
-            landmarks_98 = self._detect_98_landmarks(frame, self.cached_bbox)
+            landmarks_98, face_center = self._detect_98_landmarks(frame, self.cached_bbox)
 
             if landmarks_98 is None:
                 # Try reusing previous landmarks
@@ -462,7 +521,7 @@ class SPIGALandmarkDetector:
             if len(self.frame_quality_history) > self.history_size:
                 self.frame_quality_history.pop(0)
 
-            return smoothed_points, {
+            info = {
                 'valid': validation['valid'],
                 'mapping_warnings': validation.get('warnings', []),
                 'mapping_stats': validation.get('stats', {}),
@@ -470,6 +529,10 @@ class SPIGALandmarkDetector:
                 'output_landmarks': 68,
                 'confidence': 1.0
             }
+            if face_center is not None:
+                info['face_center'] = face_center
+
+            return smoothed_points, info
 
     def get_facial_midline(self, landmarks: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         """
