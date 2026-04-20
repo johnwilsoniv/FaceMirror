@@ -497,6 +497,15 @@ def prepare_data_generalized(zone_key, results_file_path=None, expert_file_path=
             f"[{zone_name_display}] Merge resulted in an empty DataFrame. Check Patient IDs and file contents.")
         return None, None, None
 
+    # Sort patients deterministically by ID before any feature extraction or
+    # train/test split. Without this, the row order depends on combined_results.csv
+    # processing order (which can vary across main.py runs due to filesystem
+    # ordering), making train_test_split(random_state=42, ...) non-reproducible.
+    # See investigation Apr 2026: this row-order dependency caused fresh retrains
+    # to score 0.64 vs Jan 1's 0.84 on Lower Face despite identical code, params,
+    # and library versions.
+    merged_df = merged_df.sort_values(patient_id_col_final, kind='stable').reset_index(drop=True)
+
     merged_df['Expert_Std_Left'] = merged_df[expert_left_orig_name].apply(standardize_paralysis_labels)
     merged_df['Expert_Std_Right'] = merged_df[expert_right_orig_name].apply(standardize_paralysis_labels)
     valid_left_mask_final = merged_df['Expert_Std_Left'] != 'NA'
