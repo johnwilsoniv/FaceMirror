@@ -43,19 +43,30 @@ pytest tests/ -v --tb=long         # full diffs
 
 ## What's tested
 
-Six pipeline stages, each with separate tests. The framework currently
-covers stages 3–6a; stages 1–2 (bbox, landmarks) are marked `xfail` until
-sub-PR 2 instruments pyfaceau-side capture.
+Seven pipeline stages plus several invariant tests that catch specific bug
+classes the Apr 2026 manuscript-regression investigation surfaced:
 
 | Stage | What's compared | Threshold split |
 |---|---|---|
-| 1. Face detection | bbox per frame | normal vs paralyzed (xfail) |
-| 2. Landmarks | 68 (x,y) per frame | normal vs paralyzed (xfail) |
+| 1. Face detection | bbox per frame | normal vs paralyzed |
+| 2. Landmarks | 68 (x,y) per frame | normal vs paralyzed |
 | 3. AU intensities | 17 AUs per frame, frame-paired | severity × difficulty bucket |
 | 4. Peak frame detection | `{action}_Max Frame` per (patient, side) | shared |
 | 5. Engineered features | mid_face_features output diff | shared |
 | 6a. Inference parity | saved Jan 1 model on py vs cpp features | shared |
-| 6b. Retrain reproducibility | fresh retrain with `use_known_optimal=True` | per-zone (sub-PR 3) |
+| 6b. Retrain reproducibility | fresh retrain with `use_known_optimal=True` | per-zone |
+| 7. Production prediction | `ParalysisDetector.detect()` per canary × zone × side | shared |
+
+Plus invariant + regression-class tests:
+
+| Test | What it catches |
+|---|---|
+| `test_no_state_carryover.py` | per-video state leaking across batch processing (the IMG_0861 240-px bug) |
+| `test_pyfaceau_invariants.py::run_to_run_determinism` | non-deterministic pyfaceau paths (timestamp RNG, parallel scheduling) |
+| `test_pyfaceau_invariants.py::clnf_config_use_gpu_disabled` | accidental re-enablement of broken GPU mode |
+| `test_pyfaceau_invariants.py::gpu_divergence_within_band` | GPU regression OR fix (catches both directions) |
+| `test_batch_processor_e2e.py` | drift in find_peak_frame, baseline logic, per-action aggregation in batch processor |
+| `test_framework_self_test.py` | the test framework itself failing to catch regressions |
 
 ## The 10 canary patients
 

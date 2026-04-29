@@ -93,3 +93,17 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
 - **Files written:** 68
 
+## 2026-04-29T18:19:49+00:00
+- **Stage(s):** gpu_divergence
+- **Reason:** initial GPU vs CPU divergence baseline on IMG_0942 left
+- **Git SHA:** `fa60e4cfc5f4f7c6efcb6521d0150891d529d8d6`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
+## 2026-04-29T19:45:23+00:00
+- **Stage(s):** batch_processor_subset
+- **Reason:** initial baseline lock
+- **Git SHA:** `fa60e4cfc5f4f7c6efcb6521d0150891d529d8d6`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+

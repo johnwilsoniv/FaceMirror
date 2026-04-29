@@ -736,6 +736,133 @@ def append_history(args: argparse.Namespace, written: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def stage_batch_processor_subset(args: argparse.Namespace) -> list[Path]:
+    """Run facial_au_batch_processor on the 2-canary Tier-0 subset and lock
+    its output. Closes the gap between the AU CSVs (S2O) and the
+    combined_results.csv (S3O) — the locked goldens should detect any
+    change in find_peak_frame, baseline-frame logic, or per-action
+    aggregation.
+
+    NOT in the default 'all' order because (a) it requires running the
+    analyzer on real AU CSVs (~10s), and (b) most goldens regens won't
+    affect this output.
+    """
+    SUBSET_IDS = ["IMG_0942", "IMG_2380"]
+    out_path = GOLDEN_ROOT / "batch_processor_subset.parquet"
+
+    from facial_au_batch_processor import FacialAUBatchProcessor
+    import tempfile as _tempfile
+
+    canaries = [c for c in CANARIES if c.id in SUBSET_IDS]
+    for c in canaries:
+        for side in ("left", "right"):
+            if not c.pyfaceau_csv(side).exists():
+                print(f"  SKIP: missing pyfaceau CSV for {c.id} {side}")
+                return []
+
+    with _tempfile.TemporaryDirectory() as td:
+        td_path = Path(td)
+        processor = FacialAUBatchProcessor(output_dir=str(td_path))
+        for c in canaries:
+            processor.add_patient(
+                left_csv=str(c.pyfaceau_csv("left")),
+                right_csv=str(c.pyfaceau_csv("right")),
+                video_path=str(c.video("left")) if c.video("left").exists() else None,
+                patient_id=c.id,
+            )
+        processor.process_all(extract_frames=False, max_workers=1)
+        produced_csv = td_path / "combined_results.csv"
+        if not produced_csv.exists():
+            print(f"  ERROR: combined_results.csv not produced")
+            return []
+        df = pd.read_csv(produced_csv, low_memory=False)
+        df = df[df["Patient ID"].isin(SUBSET_IDS)].sort_values("Patient ID").reset_index(drop=True)
+        # Drop columns that legitimately vary across runs (timestamps, paths)
+        skip_cols = {
+            "Processing Status", "Processing Time", "Output Path",
+            "Frame Path", "Timestamp", "Output Folder",
+        }
+        keep_cols = [c for c in df.columns if c not in skip_cols]
+        df = df[keep_cols]
+        # Stringify Patient ID to ensure parquet stability
+        if "Patient ID" in df.columns:
+            df["Patient ID"] = df["Patient ID"].astype(str)
+        stable_dataframe(df).to_parquet(out_path, index=False, compression="zstd")
+        print(f"  Locked batch processor subset output ({len(df)} rows × {len(df.columns)} cols)")
+        for _, row in df.iterrows():
+            pks = {col.split("_")[0]: int(row[col]) for col in df.columns if col.endswith("_Max Frame") and pd.notna(row[col])}
+            print(f"    {row['Patient ID']}: peak frames {pks}")
+    return [out_path]
+
+
+def stage_gpu_divergence(args: argparse.Namespace) -> list[Path]:
+    """Measure CPU vs GPU AU output divergence on IMG_0942 left and lock
+    the upper band per AU.
+
+    Lives outside the default 'all' order because:
+      - Slow (~1 min: needs two pyfaceau Pipelines on 30 frames each)
+      - Only relevant when GPU code changes — most goldens regens won't
+        need to re-measure this
+    Run explicitly: `python tests/update_goldens.py --stage gpu_divergence ...`
+    """
+    out_path = GOLDEN_ROOT / "gpu_divergence_baseline.json"
+    canary_id = "IMG_0942"
+    side = "left"
+    canary = next((c for c in CANARIES if c.id == canary_id), None)
+    if canary is None or not canary.video(side).exists():
+        print(f"  SKIP: {canary_id} {side} video missing")
+        return []
+
+    from pyfaceau.processor import OpenFaceProcessor
+    from pyfaceau.config import CLNF_CONFIG
+
+    max_frames = 30
+
+    def _run(use_gpu: bool):
+        saved = CLNF_CONFIG.get("use_gpu", False)
+        try:
+            CLNF_CONFIG["use_gpu"] = use_gpu
+            proc = OpenFaceProcessor(verbose=False)
+            df = proc.pipeline.process_video(
+                str(canary.video(side)), output_csv=None, max_frames=max_frames
+            )
+            return df.reset_index(drop=True)
+        finally:
+            CLNF_CONFIG["use_gpu"] = saved
+
+    print(f"  CPU run on {canary_id} {side} (max {max_frames} frames)...")
+    cpu_df = _run(False)
+    print(f"  GPU run on {canary_id} {side} (max {max_frames} frames)...")
+    gpu_df = _run(True)
+
+    common = cpu_df["frame"].isin(gpu_df["frame"]) & gpu_df["frame"].isin(cpu_df["frame"])
+    cpu_ok = cpu_df.loc[common & (cpu_df["success"] == 1) & (gpu_df["success"] == 1)]
+    gpu_ok = gpu_df.loc[common & (cpu_df["success"] == 1) & (gpu_df["success"] == 1)]
+
+    au_cols = [c for c in cpu_df.columns if c.startswith("AU") and c.endswith("_r")]
+    per_au: dict[str, float] = {}
+    for au in au_cols:
+        a = cpu_ok[au].astype(float).to_numpy()
+        b = gpu_ok[au].astype(float).to_numpy()
+        per_au[au] = float(np.mean(np.abs(a - b)))
+
+    # Lock upper band as observed_mae + 0.05 (room for tiny drift)
+    upper_band = {au: round(min(0.5, mae + 0.05), 4) for au, mae in per_au.items()}
+
+    obj = {
+        "canary": f"{canary_id}_{side}",
+        "max_frames": max_frames,
+        "n_compared_frames": int(len(cpu_ok)),
+        "observed_per_au_mae": {au: round(v, 4) for au, v in per_au.items()},
+        "max_acceptable_per_au_mae": upper_band,
+        "_relaxation": "+0.05 over observed, capped at 0.5",
+    }
+    out_path.write_text(json.dumps(obj, indent=2, sort_keys=True) + "\n")
+    print(f"  Locked GPU divergence baseline ({len(per_au)} AUs)")
+    print(f"    worst observed MAE: {max(per_au.values()):.4f} ({max(per_au, key=per_au.get)})")
+    return [out_path]
+
+
 def stage_production_predictions(args: argparse.Namespace) -> list[Path]:
     """Lock per-canary × side × zone production-detector severities.
 
@@ -881,6 +1008,8 @@ STAGES: dict[str, callable] = {
     "test_split":             stage_test_split,
     "metric_bands":           stage_metric_bands,
     "retrain_bands":          stage_retrain_bands,
+    "gpu_divergence":         stage_gpu_divergence,
+    "batch_processor_subset": stage_batch_processor_subset,
 }
 
 
