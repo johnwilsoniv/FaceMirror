@@ -134,3 +134,55 @@ def test_framework_catches_test_split_drift(tmp_path):
     assert fake_current != locked["test_patients_sides"], (
         "FRAMEWORK BUG: list equality didn't detect a single-element diff"
     )
+
+
+@pytest.mark.tier0
+def test_framework_catches_synthetic_state_carryover():
+    """Plant a state-carryover regression: synthesize two AU DataFrames that
+    differ in a way state corruption would manifest (cached_bbox staleness on
+    frame 0 → wrong landmarks → wrong AU values from frame 1 onward).
+
+    Confirms that pd.testing.assert_frame_equal with check_exact=True (the
+    same call test_no_state_carryover_img_0861_isolation_vs_batch makes)
+    fails on this synthetic input. If THIS assertion ever stops failing, the
+    real state-carryover test would silently let regressions through.
+    """
+    import numpy as np
+
+    n_frames = 30
+    rng = np.random.RandomState(0)
+    base_aus = rng.rand(n_frames, 17)
+    iso_df = pd.DataFrame(base_aus, columns=[
+        "AU01_r", "AU02_r", "AU04_r", "AU05_r", "AU06_r", "AU07_r",
+        "AU09_r", "AU10_r", "AU12_r", "AU14_r", "AU15_r", "AU17_r",
+        "AU20_r", "AU23_r", "AU25_r", "AU26_r", "AU45_r",
+    ])
+    iso_df.insert(0, "frame", np.arange(n_frames))
+    iso_df.insert(1, "success", 1)
+
+    # State carryover: imagine the cached bbox from a previous video shifted
+    # the face crop by a few px. Downstream HOG features change, AU
+    # predictions shift. Simulate by adding noise specifically to the AUs that
+    # are most landmark-sensitive (AU45 = blink, AU06/07 = eye region).
+    batch_df = iso_df.copy()
+    batch_df["AU45_r"] = batch_df["AU45_r"] + 0.05  # systematic 0.05 shift
+    batch_df.iloc[0, batch_df.columns.get_loc("AU06_r")] += 0.20  # frame-0 spike
+
+    # The real test does pd.testing.assert_frame_equal with check_exact=True
+    # and pytest.fails on AssertionError. Here, just verify that comparison
+    # raises (we expect it to).
+    try:
+        pd.testing.assert_frame_equal(
+            iso_df.reset_index(drop=True),
+            batch_df.reset_index(drop=True),
+            check_dtype=False,
+            check_exact=True,
+        )
+    except AssertionError:
+        return  # good — the comparison detected the planted regression
+
+    raise AssertionError(
+        "FRAMEWORK BUG: pd.testing.assert_frame_equal(check_exact=True) did not "
+        "catch a planted 0.05 systematic AU45_r shift + frame-0 AU06_r spike — "
+        "state-carryover test would silently let real regressions through."
+    )
