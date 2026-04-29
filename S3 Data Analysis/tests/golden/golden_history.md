@@ -86,3 +86,10 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
 - **Files written:** 1
 
+## 2026-04-29T17:44:33+00:00
+- **Stage(s):** all
+- **Reason:** all 20 pyfaceau parquets captured; final calibration
+- **Git SHA:** `c3937ad8d8fc2abda0e9620bcfe371e56c1c503d`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 68
+
