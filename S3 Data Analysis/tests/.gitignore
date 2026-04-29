@@ -1,0 +1,4 @@
+# Don't commit pytest cache or python bytecode
+.pytest_cache/
+__pycache__/
+*.pyc

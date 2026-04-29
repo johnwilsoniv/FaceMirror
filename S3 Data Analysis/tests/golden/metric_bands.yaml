@@ -1,0 +1,105 @@
+_meta:
+  calibration_relaxations:
+    agreement_subtract: 0.05
+    feature_diff_add: 0.1
+    mae_add: 0.1
+    max_features_above_warning_add: 2
+    pearson_r_subtract: 0.05
+  policy: "Initial bands auto-calibrated from current goldens (worst observed value\
+    \ + headroom). Updated whenever update_goldens.py --stage metric_bands runs. The\
+    \ framework catches FUTURE drift below today's level. Tightening toward the manuscript-era\
+    \ gold standard is a deliberate separate task \u2014 see RETRAINING_REPRODUCIBILITY.md."
+stage1_bbox:
+  _status: "placeholder \u2014 sub-PR 2 will calibrate after pyfaceau bbox capture"
+  normal:
+    median_center_diff_max_px: 5.0
+    median_iou_min: 0.85
+    success_rate_min: 0.99
+  paralyzed:
+    median_center_diff_max_px: 7.0
+    median_iou_min: 0.8
+    success_rate_min: 0.95
+stage2_landmarks:
+  _status: "placeholder \u2014 sub-PR 2 will calibrate after pyfaceau landmark capture"
+  normal:
+    max_max_px: 10.0
+    mean_max_px: 2.5
+    p95_max_px: 6.0
+  paralyzed:
+    max_max_px: 15.0
+    mean_max_px: 4.5
+    p95_max_px: 10.0
+stage3_aus:
+  normal:
+    easy:
+      _n_samples: 32
+      _observed_worst_mae: 0.143
+      _observed_worst_r: 0.911
+      mae_max: 0.243
+      pearson_r_min: 0.861
+    hard:
+      _n_samples: 56
+      _observed_worst_mae: 0.963
+      _observed_worst_r: 0.425
+      mae_max: 1.063
+      pearson_r_min: 0.375
+    informational:
+      mae_max: 999.0
+      pearson_r_min: -1.0
+    medium:
+      _n_samples: 32
+      _observed_worst_mae: 0.2
+      _observed_worst_r: 0.841
+      mae_max: 0.3
+      pearson_r_min: 0.791
+  paralyzed:
+    easy:
+      _n_samples: 46
+      _observed_worst_mae: 0.128
+      _observed_worst_r: 0.643
+      mae_max: 0.228
+      pearson_r_min: 0.593
+    hard:
+      _n_samples: 81
+      _observed_worst_mae: 0.579
+      _observed_worst_r: 0.452
+      mae_max: 0.679
+      pearson_r_min: 0.402
+    informational:
+      mae_max: 999.0
+      pearson_r_min: -1.0
+    medium:
+      _n_samples: 43
+      _observed_worst_mae: 0.212
+      _observed_worst_r: 0.332
+      mae_max: 0.312
+      pearson_r_min: 0.282
+stage4_peak_frames:
+  shared:
+    _n_canaries_compared: 10
+    _observed_worst_canary_frac: 1.0
+    fraction_within_tolerance_min: 0.95
+    max_abs_frame_diff: 3
+stage5_features:
+  shared:
+    _observed_worst_diff: 200.0
+    _observed_worst_warn_count: 25
+    max_features_above_warning: 27
+    single_feature_drift_hard_cap: 200.1
+    soft_warning_threshold: 120.06
+stage6a_inference_parity:
+  shared:
+    _n_canary_rows: 20
+    _observed_agreement: 0.9
+    agreement_min: 0.85
+stage6b_retrain_bands:
+  _status: sub-PR 3 will measure and lock per-zone retrain accuracy bands
+  lower:
+    acc_max: 1.0
+    acc_min: 0.0
+  mid:
+    acc_max: 1.0
+    acc_min: 0.0
+  upper:
+    acc_max: 1.0
+    acc_min: 0.0
