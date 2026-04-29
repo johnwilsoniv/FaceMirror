@@ -72,3 +72,17 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
 - **Files written:** 1
 
+## 2026-04-29T17:19:00+00:00
+- **Stage(s):** retrain_bands
+- **Reason:** PYTHONSTARTUP bug fixed; re-measure deterministic bands
+- **Git SHA:** `71fe1c9c6b16ff1bf4703905c27d6d6e680bbf5d`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
+## 2026-04-29T17:19:45+00:00
+- **Stage(s):** metric_bands
+- **Reason:** tight Tier 2 bands now that wrapper bug is fixed
+- **Git SHA:** `71fe1c9c6b16ff1bf4703905c27d6d6e680bbf5d`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
