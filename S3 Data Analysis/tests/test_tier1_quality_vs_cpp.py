@@ -39,6 +39,10 @@ from _pipeline_helpers import (  # noqa: E402
     AU_COLUMNS,
     AU_DIFFICULTY,
     compare_au_frames,
+    compare_bbox_frames,
+    compare_landmark_frames,
+    derive_bbox_from_landmarks,
+    load_pyfaceau_landmarks,
     saved_jan1_predict,
 )
 from conftest import (  # noqa: E402
@@ -274,17 +278,109 @@ def test_inference_parity_pyfaceau_vs_cpp(jan1_model, metric_bands):
 
 
 # ---------------------------------------------------------------------------
-# Stage 1 + Stage 2 placeholders (sub-PR 2)
+# Stage 1 — bbox quality vs C++ (derived from landmarks since C++ CSV doesn't
+# expose face_detection bbox columns)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.tier1
-@pytest.mark.xfail(reason="Stage 1 (bbox quality) requires pyfaceau-side bbox capture; sub-PR 2", strict=True)
-def test_bbox_quality_vs_cpp_placeholder():
-    raise NotImplementedError("see sub-PR 2 plan")
+@parametrize_canaries_sides(tier=1)
+def test_bbox_quality_vs_cpp(canary: Canary, side: str, metric_bands):
+    """For each canary × side: pyfaceau bbox vs C++-derived bbox (axis-aligned
+    rect of the 68 C++ landmarks). Catches face-detection regressions on
+    pyfaceau side. Different (more permissive) thresholds for paralyzed faces.
+
+    Skipped if the pyfaceau landmark parquet hasn't been generated yet
+    (run instrument_pyfaceau.py first).
+    """
+    py_path = GOLDEN_ROOT / "landmarks" / f"{canary.id}_{side}" / "pyfaceau.parquet"
+    cpp_path = GOLDEN_ROOT / "landmarks" / f"{canary.id}_{side}" / "cpp.parquet"
+    if not py_path.exists():
+        pytest.skip(
+            f"pyfaceau landmarks not captured for {canary.id} {side}; "
+            f"run: python tests/instrument_pyfaceau.py --canary {canary.id} --side {side}"
+        )
+    if not cpp_path.exists():
+        pytest.skip(f"C++ landmarks missing for {canary.id} {side}")
+
+    py = load_pyfaceau_landmarks(py_path)
+    cpp = pd.read_parquet(cpp_path).set_index("frame", drop=True)
+    cpp = cpp[~cpp.index.duplicated(keep="first")]
+    cpp_with_bbox = derive_bbox_from_landmarks(cpp)
+
+    cmp = compare_bbox_frames(py, cpp_with_bbox)
+    bands = metric_bands["stage1_bbox"][canary.threshold_bucket]
+
+    failures = []
+    if not (cmp.median_iou >= bands["median_iou_min"]):
+        failures.append(f"median_iou={cmp.median_iou:.3f} < {bands['median_iou_min']:.3f}")
+    if "p10_iou_min" in bands and not (cmp.p10_iou >= bands["p10_iou_min"]):
+        failures.append(f"p10_iou={cmp.p10_iou:.3f} < {bands['p10_iou_min']:.3f}")
+    if not (cmp.median_center_diff_px <= bands["median_center_diff_max_px"]):
+        failures.append(
+            f"median_center_diff={cmp.median_center_diff_px:.2f}px > "
+            f"{bands['median_center_diff_max_px']:.2f}px"
+        )
+    if "p90_center_diff_max_px" in bands and not (cmp.p90_center_diff_px <= bands["p90_center_diff_max_px"]):
+        failures.append(
+            f"p90_center_diff={cmp.p90_center_diff_px:.2f}px > "
+            f"{bands['p90_center_diff_max_px']:.2f}px"
+        )
+    if not (cmp.success_rate_py >= bands["success_rate_min"]):
+        failures.append(
+            f"success_rate_py={cmp.success_rate_py:.3f} < {bands['success_rate_min']:.3f}"
+        )
+    if failures:
+        pytest.fail(
+            f"BBox quality regression for {canary.id} {side} ({canary.threshold_bucket}):\n  "
+            + "\n  ".join(failures)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — landmark quality vs C++
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.tier1
-@pytest.mark.xfail(reason="Stage 2 (landmark quality) requires pyfaceau-side landmark capture; sub-PR 2", strict=True)
-def test_landmark_quality_vs_cpp_placeholder():
-    raise NotImplementedError("see sub-PR 2 plan")
+@parametrize_canaries_sides(tier=1)
+def test_landmark_quality_vs_cpp(canary: Canary, side: str, metric_bands):
+    """For each canary × side: per-frame pyfaceau 68 landmarks vs C++ 68
+    landmarks. Asserts mean / p95 / max per-landmark Euclidean distance is
+    within bands (separated by patient severity)."""
+    py_path = GOLDEN_ROOT / "landmarks" / f"{canary.id}_{side}" / "pyfaceau.parquet"
+    cpp_path = GOLDEN_ROOT / "landmarks" / f"{canary.id}_{side}" / "cpp.parquet"
+    if not py_path.exists():
+        pytest.skip(
+            f"pyfaceau landmarks not captured for {canary.id} {side}; "
+            f"run: python tests/instrument_pyfaceau.py --canary {canary.id} --side {side}"
+        )
+    if not cpp_path.exists():
+        pytest.skip(f"C++ landmarks missing for {canary.id} {side}")
+
+    py = load_pyfaceau_landmarks(py_path)
+    cpp = pd.read_parquet(cpp_path).set_index("frame", drop=True)
+    cpp = cpp[~cpp.index.duplicated(keep="first")]
+    cmp = compare_landmark_frames(py, cpp)
+    bands = metric_bands["stage2_landmarks"][canary.threshold_bucket]
+
+    failures = []
+    if not (cmp.mean_per_landmark_px <= bands["mean_max_px"]):
+        failures.append(
+            f"mean per-landmark={cmp.mean_per_landmark_px:.2f}px > {bands['mean_max_px']:.2f}px"
+        )
+    if not (cmp.p95_per_landmark_px <= bands["p95_max_px"]):
+        failures.append(
+            f"p95 per-landmark={cmp.p95_per_landmark_px:.2f}px > {bands['p95_max_px']:.2f}px"
+        )
+    if not (cmp.max_per_landmark_px <= bands["max_max_px"]):
+        failures.append(
+            f"max per-landmark={cmp.max_per_landmark_px:.2f}px > {bands['max_max_px']:.2f}px"
+        )
+    if failures:
+        per_region = ", ".join(f"{r}={v:.1f}px" for r, v in cmp.per_region_mean_px.items())
+        pytest.fail(
+            f"Landmark quality regression for {canary.id} {side} ({canary.threshold_bucket}):\n  "
+            + "\n  ".join(failures)
+            + f"\n  per-region means: {per_region}"
+        )

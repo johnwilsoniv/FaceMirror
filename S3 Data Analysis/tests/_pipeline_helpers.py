@@ -166,6 +166,96 @@ def compare_au_frames(py_df: pd.DataFrame, cpp_df: pd.DataFrame) -> AUComparison
 
 
 @dataclass(frozen=True)
+class BboxComparison:
+    n_frames_compared: int
+    median_iou: float           # IoU over all paired frames where both succeeded
+    p10_iou: float              # 10th percentile IoU (catches sporadic failures)
+    median_center_diff_px: float
+    p90_center_diff_px: float
+    success_rate_py: float
+    success_rate_cpp: float
+
+
+def _bbox_iou(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Per-frame IoU between two arrays of bboxes [N, 4] in (x1,y1,x2,y2) form."""
+    x1 = np.maximum(a[:, 0], b[:, 0])
+    y1 = np.maximum(a[:, 1], b[:, 1])
+    x2 = np.minimum(a[:, 2], b[:, 2])
+    y2 = np.minimum(a[:, 3], b[:, 3])
+    inter_w = np.clip(x2 - x1, 0, None)
+    inter_h = np.clip(y2 - y1, 0, None)
+    inter = inter_w * inter_h
+    area_a = (a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1])
+    area_b = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
+    union = area_a + area_b - inter
+    iou = np.where(union > 0, inter / union, 0.0)
+    return iou
+
+
+def derive_bbox_from_landmarks(lm_df: pd.DataFrame) -> pd.DataFrame:
+    """C++ FeatureExtraction CSVs don't include face_detection bbox columns —
+    the bbox is implicit in the 68 landmarks. Use the landmarks' axis-aligned
+    bounding rectangle as the C++-side bbox for IoU comparison."""
+    out = lm_df.copy()
+    x_cols = [f"x_{i}" for i in range(68)]
+    y_cols = [f"y_{i}" for i in range(68)]
+    xs = lm_df[x_cols].to_numpy()
+    ys = lm_df[y_cols].to_numpy()
+    out["bbox_x1"] = np.nanmin(xs, axis=1)
+    out["bbox_y1"] = np.nanmin(ys, axis=1)
+    out["bbox_x2"] = np.nanmax(xs, axis=1)
+    out["bbox_y2"] = np.nanmax(ys, axis=1)
+    return out
+
+
+def compare_bbox_frames(py_df: pd.DataFrame, cpp_df: pd.DataFrame) -> BboxComparison:
+    """Frame-pair bbox columns. Both DataFrames must be indexed by frame and
+    have bbox_x1, bbox_y1, bbox_x2, bbox_y2, success columns."""
+    common = py_df.index.intersection(cpp_df.index)
+    py = py_df.loc[common]
+    cpp = cpp_df.loc[common]
+    success_mask = (py["success"].astype(int) == 1) & (cpp["success"].astype(int) == 1)
+    success_rate_py = float((py["success"].astype(int) == 1).mean())
+    success_rate_cpp = float((cpp["success"].astype(int) == 1).mean())
+    py_ok = py.loc[success_mask]
+    cpp_ok = cpp.loc[success_mask]
+    n = len(py_ok)
+    if n == 0:
+        return BboxComparison(0, float("nan"), float("nan"), float("nan"), float("nan"),
+                              success_rate_py, success_rate_cpp)
+    a = py_ok[["bbox_x1", "bbox_y1", "bbox_x2", "bbox_y2"]].to_numpy(dtype=float)
+    b = cpp_ok[["bbox_x1", "bbox_y1", "bbox_x2", "bbox_y2"]].to_numpy(dtype=float)
+    valid = ~(np.isnan(a).any(axis=1) | np.isnan(b).any(axis=1))
+    a, b = a[valid], b[valid]
+    if len(a) == 0:
+        return BboxComparison(0, float("nan"), float("nan"), float("nan"), float("nan"),
+                              success_rate_py, success_rate_cpp)
+    ious = _bbox_iou(a, b)
+    cx_diff = np.abs((a[:, 0] + a[:, 2]) / 2 - (b[:, 0] + b[:, 2]) / 2)
+    cy_diff = np.abs((a[:, 1] + a[:, 3]) / 2 - (b[:, 1] + b[:, 3]) / 2)
+    center_dist = np.hypot(cx_diff, cy_diff)
+    return BboxComparison(
+        n_frames_compared=int(len(a)),
+        median_iou=float(np.median(ious)),
+        p10_iou=float(np.percentile(ious, 10)),
+        median_center_diff_px=float(np.median(center_dist)),
+        p90_center_diff_px=float(np.percentile(center_dist, 90)),
+        success_rate_py=success_rate_py,
+        success_rate_cpp=success_rate_cpp,
+    )
+
+
+def load_pyfaceau_landmarks(parquet_path: Path) -> pd.DataFrame:
+    """Load the pyfaceau-side bbox + landmarks parquet produced by
+    instrument_pyfaceau.py. Returns DataFrame indexed by frame."""
+    df = pd.read_parquet(parquet_path)
+    if "frame" not in df.columns:
+        raise ValueError(f"{parquet_path} missing 'frame' column")
+    df = df.set_index("frame", drop=True)
+    return _dedupe_by_frame(df)
+
+
+@dataclass(frozen=True)
 class LandmarkComparison:
     n_frames_compared: int
     mean_per_landmark_px: float       # avg over all 68 landmarks, all frames

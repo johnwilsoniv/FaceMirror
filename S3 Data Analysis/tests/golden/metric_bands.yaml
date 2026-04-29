@@ -10,25 +10,45 @@ _meta:
     \ framework catches FUTURE drift below today's level. Tightening toward the manuscript-era\
     \ gold standard is a deliberate separate task \u2014 see RETRAINING_REPRODUCIBILITY.md."
 stage1_bbox:
-  _status: "placeholder \u2014 sub-PR 2 will calibrate after pyfaceau bbox capture"
+  _status: auto-calibrated from pyfaceau-side parquets present in tests/golden/landmarks/
   normal:
-    median_center_diff_max_px: 5.0
-    median_iou_min: 0.85
-    success_rate_min: 0.99
+    _n_canaries: 2
+    _observed_worst_med_center_diff: 77.63
+    _observed_worst_median_iou: 0.698
+    _observed_worst_success_rate: 1.0
+    median_center_diff_max_px: 79.63
+    median_iou_min: 0.648
+    p10_iou_min: 0.526
+    p90_center_diff_max_px: 97.86
+    success_rate_min: 0.98
   paralyzed:
-    median_center_diff_max_px: 7.0
-    median_iou_min: 0.8
-    success_rate_min: 0.95
+    _n_canaries: 1
+    _observed_worst_med_center_diff: 21.33
+    _observed_worst_median_iou: 0.874
+    _observed_worst_success_rate: 1.0
+    median_center_diff_max_px: 23.33
+    median_iou_min: 0.824
+    p10_iou_min: 0.678
+    p90_center_diff_max_px: 56.34
+    success_rate_min: 0.98
 stage2_landmarks:
-  _status: "placeholder \u2014 sub-PR 2 will calibrate after pyfaceau landmark capture"
+  _status: auto-calibrated from pyfaceau-side parquets present in tests/golden/landmarks/
   normal:
-    max_max_px: 10.0
-    mean_max_px: 2.5
-    p95_max_px: 6.0
+    _n_canaries: 2
+    _observed_worst_max_px: 53.8
+    _observed_worst_mean_px: 1.0
+    _observed_worst_p95_px: 3.24
+    max_max_px: 58.8
+    mean_max_px: 2.0
+    p95_max_px: 5.24
   paralyzed:
-    max_max_px: 15.0
-    mean_max_px: 4.5
-    p95_max_px: 10.0
+    _n_canaries: 1
+    _observed_worst_max_px: 17.26
+    _observed_worst_mean_px: 0.86
+    _observed_worst_p95_px: 2.94
+    max_max_px: 22.26
+    mean_max_px: 1.86
+    p95_max_px: 4.94
 stage3_aus:
   normal:
     easy:
@@ -93,13 +113,28 @@ stage6a_inference_parity:
     _observed_agreement: 0.9
     agreement_min: 0.85
 stage6b_retrain_bands:
-  _status: sub-PR 3 will measure and lock per-zone retrain accuracy bands
+  _relaxation_acc: 0.06
+  _relaxation_rationale: "\xB10.06 accommodates retrain stochasticity not pinned by\
+    \ random_state=42 (SMOTE RNG, threshold-optimization CV, XGBoost threading)."
+  _status: auto-calibrated from retrain_bands.json (re-measure with --stage retrain_bands)
   lower:
-    acc_max: 1.0
-    acc_min: 0.0
+    _current_pyfaceau_observed_acc: 0.8393
+    _paper_observed_acc: 0.8393
+    current_pyfaceau_acc_max: 0.8993
+    current_pyfaceau_acc_min: 0.7793
+    paper_acc_max: 0.8993
+    paper_acc_min: 0.7793
   mid:
-    acc_max: 1.0
-    acc_min: 0.0
+    _current_pyfaceau_observed_acc: 0.8889
+    _paper_observed_acc: 0.8704
+    current_pyfaceau_acc_max: 0.9489
+    current_pyfaceau_acc_min: 0.8289
+    paper_acc_max: 0.9304
+    paper_acc_min: 0.8104
   upper:
-    acc_max: 1.0
-    acc_min: 0.0
+    _current_pyfaceau_observed_acc: 0.8679
+    _paper_observed_acc: 0.8679
+    current_pyfaceau_acc_max: 0.9279
+    current_pyfaceau_acc_min: 0.8079
+    paper_acc_max: 0.9279
+    paper_acc_min: 0.8079

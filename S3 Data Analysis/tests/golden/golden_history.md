@@ -30,3 +30,38 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
 - **Files written:** 67
 
+## 2026-04-29T15:39:35+00:00
+- **Stage(s):** landmarks
+- **Reason:** snapshot landmarks (only 1/20 pyfaceau parquets so far; rest queued)
+- **Git SHA:** `5ded846746cc79a49add034944c067dbf205a74f`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 20
+
+## 2026-04-29T15:39:47+00:00
+- **Stage(s):** metric_bands
+- **Reason:** calibrate from 1 pyfaceau parquet
+- **Git SHA:** `5ded846746cc79a49add034944c067dbf205a74f`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
+## 2026-04-29T16:17:23+00:00
+- **Stage(s):** retrain_bands
+- **Reason:** complete Tier 2 baseline (samefile fix)
+- **Git SHA:** `5ded846746cc79a49add034944c067dbf205a74f`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
+## 2026-04-29T16:17:39+00:00
+- **Stage(s):** metric_bands
+- **Reason:** incorporate retrain_bands measurements
+- **Git SHA:** `5ded846746cc79a49add034944c067dbf205a74f`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+
+## 2026-04-29T16:18:19+00:00
+- **Stage(s):** metric_bands
+- **Reason:** widen Tier 2 bands to ±0.06 for stochasticity
+- **Git SHA:** `5ded846746cc79a49add034944c067dbf205a74f`
+- **pip-freeze SHA256:** `e0661c83e53e6f40563234155dfbfdc1634deb31877ec8165fe901e3f97d08d5`
+- **Files written:** 1
+

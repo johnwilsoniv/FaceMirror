@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# preflight-retrain — verify the regression-test framework's goldens are
+# fresh AND the Tier 0 invariants pass before any retraining.
+#
+# Why this exists: the manuscript-regression investigation chased a "10pp
+# accuracy drop" for weeks. Running a 3-second Tier 0 check before each
+# retrain would have flagged the per-video state-carryover bug and the
+# deterministic-sort regression at the moment they were introduced.
+#
+# Usage:
+#   bin/preflight-retrain          # exits 0 if safe, non-zero if not
+#
+# Checks:
+#   1. golden/checksums.json exists and matches current golden contents
+#      (catches anyone hand-editing a golden parquet/json)
+#   2. Tier 0 pytest passes (catches saved-model load breakage,
+#      train_test_split partition drift, and Tier 0 canary AU drift)
+#   3. Stale-warning if golden_history.md's most recent entry is > 30 days old
+#      (advisory only, not blocking)
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+PYTHON="${PYTHON:-../.venv/bin/python}"
+GOLDEN_DIR="tests/golden"
+HISTORY_FILE="$GOLDEN_DIR/golden_history.md"
+
+red()    { printf "\033[31m%s\033[0m\n" "$*"; }
+green()  { printf "\033[32m%s\033[0m\n" "$*"; }
+yellow() { printf "\033[33m%s\033[0m\n" "$*"; }
+bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
+
+bold "preflight: SplitFace S3 retrain readiness"
+echo "---"
+
+# ---- check 1: golden checksums ----------------------------------------
+if [[ ! -f "$GOLDEN_DIR/checksums.json" ]]; then
+    red "FAIL: tests/golden/checksums.json missing"
+    echo "  Run: $PYTHON tests/update_goldens.py --stage all --reason 'initial baseline'"
+    exit 1
+fi
+
+# Use python to verify each file's SHA matches the json
+EPHEMERAL_OK=$($PYTHON - <<'PYEOF' "$GOLDEN_DIR"
+import hashlib, json, sys
+from pathlib import Path
+gd = Path(sys.argv[1])
+sums = json.loads((gd / "checksums.json").read_text())
+mismatches = []
+for rel, expected in sums.items():
+    p = gd / rel
+    if not p.exists():
+        mismatches.append((rel, "missing"))
+        continue
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    actual = h.hexdigest()
+    if actual != expected:
+        mismatches.append((rel, "sha mismatch"))
+if mismatches:
+    print("FAIL")
+    for m in mismatches[:10]:
+        print(f"    {m[0]}: {m[1]}")
+    sys.exit(2)
+print("OK")
+PYEOF
+) || true
+if [[ "$EPHEMERAL_OK" != "OK" ]]; then
+    red "FAIL: tests/golden contents do not match checksums.json"
+    echo "$EPHEMERAL_OK" | tail -n +2
+    echo ""
+    echo "  Either:"
+    echo "    - someone hand-edited a golden file (revert the edit)"
+    echo "    - a golden was regenerated but checksums.json wasn't updated:"
+    echo "        $PYTHON tests/update_goldens.py --stage <stage> --reason '...'"
+    exit 1
+fi
+green "  checksums OK"
+
+# ---- check 2: Tier 0 pytest passes ------------------------------------
+echo ""
+echo "Running Tier 0 (deterministic invariants)..."
+if PYTHONHASHSEED=42 OMP_NUM_THREADS=1 \
+   $PYTHON -m pytest tests/ -m tier0 -q --tb=line; then
+    green "  Tier 0 OK"
+else
+    red ""
+    red "FAIL: Tier 0 tests are failing — DO NOT retrain until this is fixed."
+    echo "  Run with -v for full output:"
+    echo "    PYTHONHASHSEED=42 OMP_NUM_THREADS=1 $PYTHON -m pytest tests/ -m tier0 -v"
+    exit 1
+fi
+
+# ---- check 3: golden freshness (advisory only) ------------------------
+if [[ -f "$HISTORY_FILE" ]]; then
+    LAST_TS=$(grep -oE '^## [0-9]{4}-[0-9]{2}-[0-9]{2}' "$HISTORY_FILE" | tail -1 | sed 's/^## //')
+    if [[ -n "$LAST_TS" ]]; then
+        # Days between LAST_TS and today
+        if command -v gdate >/dev/null 2>&1; then
+            DATE_CMD="gdate"
+        else
+            DATE_CMD="date"
+        fi
+        EPOCH_LAST=$($DATE_CMD -j -f "%Y-%m-%d" "$LAST_TS" "+%s" 2>/dev/null || \
+                     $DATE_CMD -d "$LAST_TS" "+%s" 2>/dev/null || echo 0)
+        EPOCH_NOW=$($DATE_CMD "+%s")
+        DAYS=$(( (EPOCH_NOW - EPOCH_LAST) / 86400 ))
+        if [[ "$DAYS" -gt 30 ]]; then
+            yellow ""
+            yellow "WARN: goldens last updated $DAYS days ago ($LAST_TS)."
+            yellow "  Consider regenerating: make goldens"
+        fi
+    fi
+fi
+
+echo ""
+green "Ready to retrain."
+exit 0

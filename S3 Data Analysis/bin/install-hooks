@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# install-hooks — wire the SplitFace S3 pre-commit hook into the local
+# repository's .git/hooks/. Idempotent.
+#
+# The hook runs `make tier0` on every commit (when files under "S3 Data
+# Analysis/" change). Tier 0 takes ~3 seconds. To bypass for a one-off
+# emergency: `git commit --no-verify`.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+S3_DIR="$REPO_ROOT/S3 Data Analysis"
+HOOK_TEMPLATE="$S3_DIR/bin/_pre-commit-template.sh"
+HOOK_DEST="$REPO_ROOT/.git/hooks/pre-commit"
+
+if [[ ! -d "$REPO_ROOT/.git" ]]; then
+    echo "ERROR: not in a git repository (no $REPO_ROOT/.git)"; exit 1
+fi
+if [[ ! -f "$HOOK_TEMPLATE" ]]; then
+    echo "ERROR: hook template missing at $HOOK_TEMPLATE"; exit 1
+fi
+
+if [[ -f "$HOOK_DEST" ]] && ! grep -q "splitface-s3-tier0" "$HOOK_DEST"; then
+    echo "WARN: $HOOK_DEST already exists and was not installed by us."
+    echo "      Move it aside and re-run if you want our hook."
+    exit 1
+fi
+
+cp "$HOOK_TEMPLATE" "$HOOK_DEST"
+chmod +x "$HOOK_DEST"
+echo "Installed $HOOK_DEST"
+echo ""
+echo "It runs 'make tier0' (~3s) on every commit that touches"
+echo "  S3 Data Analysis/* files."
+echo ""
+echo "To bypass for an emergency commit: git commit --no-verify"
+echo "To remove:                          make uninstall-hooks"

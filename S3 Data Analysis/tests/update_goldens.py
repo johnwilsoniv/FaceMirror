@@ -41,8 +41,11 @@ import datetime as dt
 import importlib
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
@@ -59,10 +62,14 @@ from _pipeline_helpers import (  # noqa: E402
     AU_DIFFICULTY,
     LANDMARK_REGIONS,
     compare_au_frames,
+    compare_bbox_frames,
+    compare_landmark_frames,
+    derive_bbox_from_landmarks,
     file_sha256,
     load_cpp_aus,
     load_cpp_landmarks,
     load_pyfaceau_aus,
+    load_pyfaceau_landmarks,
     prepare_mid_features,
     saved_jan1_predict,
     stable_dataframe,
@@ -139,12 +146,16 @@ def stage_aus(args: argparse.Namespace) -> list[Path]:
 
 
 def stage_landmarks(args: argparse.Namespace) -> list[Path]:
-    """Write C++ landmarks per canary × side as parquet. Pyfaceau-side
-    landmark capture requires instrumenting the pipeline (sub-PR 2 work);
-    until then this stage only locks the C++ side as the gold reference."""
+    """Write C++ landmarks per canary × side. The pyfaceau landmark parquet
+    is produced by `instrument_pyfaceau.py` (slow, run separately); this
+    stage just snapshots the C++ side and reports whether the pyfaceau
+    counterpart exists.
+    """
     written: list[Path] = []
     out_dir = GOLDEN_ROOT / "landmarks"
     out_dir.mkdir(parents=True, exist_ok=True)
+    have_pyfaceau = 0
+    missing_pyfaceau: list[str] = []
     for c in CANARIES:
         for side in ("left", "right"):
             cpp_csv = c.cpp_csv(side)
@@ -159,9 +170,27 @@ def stage_landmarks(args: argparse.Namespace) -> list[Path]:
             sub = out_dir / f"{c.id}_{side}"
             sub.mkdir(exist_ok=True)
             cpp_out = sub / "cpp.parquet"
-            stable_dataframe(cpp_lm).to_parquet(cpp_out, index=False, compression="zstd")
+            stable_dataframe(cpp_lm.reset_index()).to_parquet(cpp_out, index=False, compression="zstd")
             written.append(cpp_out)
-            print(f"  {c.id:>22s} {side:5s}  cpp landmarks: {cpp_lm.shape}")
+            py_out = sub / "pyfaceau.parquet"
+            if py_out.exists():
+                have_pyfaceau += 1
+                py_lm = load_pyfaceau_landmarks(py_out)
+                # quick sanity report
+                cmp = compare_landmark_frames(
+                    py_lm[["success"] + [f"x_{i}" for i in range(68)] + [f"y_{i}" for i in range(68)]],
+                    derive_bbox_from_landmarks(cpp_lm)[["success"] + [f"x_{i}" for i in range(68)] + [f"y_{i}" for i in range(68)]]
+                ) if "x_0" in py_lm.columns else None
+                marker = f"  py mean={cmp.mean_per_landmark_px:.2f}px max={cmp.max_per_landmark_px:.2f}px" if cmp else ""
+            else:
+                missing_pyfaceau.append(f"{c.id}_{side}")
+                marker = "  (no pyfaceau side — run instrument_pyfaceau.py)"
+            print(f"  {c.id:>22s} {side:5s}  cpp landmarks: {cpp_lm.shape}{marker}")
+    if missing_pyfaceau:
+        print(f"\n  NOTE: {len(missing_pyfaceau)} pyfaceau landmark parquets missing:")
+        print(f"    {missing_pyfaceau[:6]}{'...' if len(missing_pyfaceau) > 6 else ''}")
+        print(f"    Generate with: python tests/instrument_pyfaceau.py --all")
+    print(f"\n  Have pyfaceau-side parquets: {have_pyfaceau}/20 ({100*have_pyfaceau/20:.0f}%)")
     return written
 
 
@@ -374,16 +403,85 @@ def stage_metric_bands(args: argparse.Namespace) -> list[Path]:
             },
         },
         "stage1_bbox": {
-            "_status": "placeholder — sub-PR 2 will calibrate after pyfaceau bbox capture",
+            "_status": "calibrated empirically when pyfaceau parquets exist; placeholder bands otherwise",
             "normal":    {"median_iou_min": 0.85, "median_center_diff_max_px": 5.0, "success_rate_min": 0.99},
             "paralyzed": {"median_iou_min": 0.80, "median_center_diff_max_px": 7.0, "success_rate_min": 0.95},
         },
         "stage2_landmarks": {
-            "_status": "placeholder — sub-PR 2 will calibrate after pyfaceau landmark capture",
+            "_status": "calibrated empirically when pyfaceau parquets exist; placeholder bands otherwise",
             "normal":    {"mean_max_px": 2.5, "p95_max_px": 6.0, "max_max_px": 10.0},
             "paralyzed": {"mean_max_px": 4.5, "p95_max_px": 10.0, "max_max_px": 15.0},
         },
     }
+
+    # ------ Stages 1 + 2 calibration (only if pyfaceau parquets exist) ------
+    landmarks_dir = GOLDEN_ROOT / "landmarks"
+    bbox_obs: dict[str, list] = {"normal": [], "paralyzed": []}
+    lm_obs: dict[str, list] = {"normal": [], "paralyzed": []}
+    if landmarks_dir.exists():
+        for c in CANARIES:
+            for side in ("left", "right"):
+                sub = landmarks_dir / f"{c.id}_{side}"
+                py_p = sub / "pyfaceau.parquet"
+                cpp_p = sub / "cpp.parquet"
+                if not (py_p.exists() and cpp_p.exists()):
+                    continue
+                py = load_pyfaceau_landmarks(py_p)
+                cpp = pd.read_parquet(cpp_p).set_index("frame", drop=True)
+                cpp = cpp[~cpp.index.duplicated(keep="first")]
+                # Bbox: pyfaceau has bbox cols directly; C++ doesn't, derive from landmarks
+                if all(c_ in py.columns for c_ in ["bbox_x1", "bbox_y1", "bbox_x2", "bbox_y2"]):
+                    cpp_with_bbox = derive_bbox_from_landmarks(cpp)
+                    bcmp = compare_bbox_frames(py, cpp_with_bbox)
+                    bbox_obs[c.threshold_bucket].append(bcmp)
+                # Landmarks: both have x_0..x_67/y_0..y_67
+                if "x_0" in py.columns and "x_0" in cpp.columns:
+                    lcmp = compare_landmark_frames(py, cpp)
+                    lm_obs[c.threshold_bucket].append(lcmp)
+    if any(bbox_obs.values()):
+        out["stage1_bbox"] = {
+            "_status": "auto-calibrated from pyfaceau-side parquets present in tests/golden/landmarks/",
+        }
+        for sev in ("normal", "paralyzed"):
+            obs = bbox_obs[sev]
+            if not obs:
+                continue
+            worst_iou_med = min(o.median_iou for o in obs if not np.isnan(o.median_iou))
+            worst_p10_iou = min(o.p10_iou for o in obs if not np.isnan(o.p10_iou))
+            worst_med_center = max(o.median_center_diff_px for o in obs if not np.isnan(o.median_center_diff_px))
+            worst_p90_center = max(o.p90_center_diff_px for o in obs if not np.isnan(o.p90_center_diff_px))
+            worst_succ = min(o.success_rate_py for o in obs)
+            out["stage1_bbox"][sev] = {
+                "median_iou_min": float(round(max(0.0, worst_iou_med - 0.05), 3)),
+                "p10_iou_min": float(round(max(0.0, worst_p10_iou - 0.10), 3)),
+                "median_center_diff_max_px": float(round(worst_med_center + 2.0, 2)),
+                "p90_center_diff_max_px": float(round(worst_p90_center + 5.0, 2)),
+                "success_rate_min": float(round(max(0.0, worst_succ - 0.02), 3)),
+                "_observed_worst_median_iou": float(round(worst_iou_med, 3)),
+                "_observed_worst_med_center_diff": float(round(worst_med_center, 2)),
+                "_observed_worst_success_rate": float(round(worst_succ, 3)),
+                "_n_canaries": len(obs),
+            }
+    if any(lm_obs.values()):
+        out["stage2_landmarks"] = {
+            "_status": "auto-calibrated from pyfaceau-side parquets present in tests/golden/landmarks/",
+        }
+        for sev in ("normal", "paralyzed"):
+            obs = lm_obs[sev]
+            if not obs:
+                continue
+            worst_mean = max(o.mean_per_landmark_px for o in obs if not np.isnan(o.mean_per_landmark_px))
+            worst_p95 = max(o.p95_per_landmark_px for o in obs if not np.isnan(o.p95_per_landmark_px))
+            worst_max = max(o.max_per_landmark_px for o in obs if not np.isnan(o.max_per_landmark_px))
+            out["stage2_landmarks"][sev] = {
+                "mean_max_px": float(round(worst_mean + 1.0, 2)),
+                "p95_max_px": float(round(worst_p95 + 2.0, 2)),
+                "max_max_px": float(round(worst_max + 5.0, 2)),
+                "_observed_worst_mean_px": float(round(worst_mean, 2)),
+                "_observed_worst_p95_px": float(round(worst_p95, 2)),
+                "_observed_worst_max_px": float(round(worst_max, 2)),
+                "_n_canaries": len(obs),
+            }
 
     # ------ Stage 3 calibration ------
     aus_dir = GOLDEN_ROOT / "aus"
@@ -529,13 +627,44 @@ def stage_metric_bands(args: argparse.Namespace) -> list[Path]:
             "_status": "no predictions_*.json to calibrate from",
         }}
 
-    # ------ Stage 6b: NOT auto-calibrated (sub-PR 3) ------
-    out["stage6b_retrain_bands"] = {
-        "_status": "sub-PR 3 will measure and lock per-zone retrain accuracy bands",
-        "mid":   {"acc_min": 0.0, "acc_max": 1.0},
-        "upper": {"acc_min": 0.0, "acc_max": 1.0},
-        "lower": {"acc_min": 0.0, "acc_max": 1.0},
-    }
+    # ------ Stage 6b: read from retrain_bands.json if present ------
+    # observed acc ± 0.06. The wider band (vs ±0.04 = ±2 patients on n_test=54)
+    # accommodates retrain stochasticity NOT controlled by random_state=42:
+    # SMOTE has its own RNG, OrdinalBinaryClassifier's threshold optimization
+    # uses stratified CV with non-42 seed, and class-weighted XGBoost has
+    # internal threading nondeterminism. Empirically: identical-config retrains
+    # of mid_paper produced 0.926 → 0.870 → 0.870 (5pp swing on the first run).
+    rb_path = GOLDEN_ROOT / "retrain_bands.json"
+    if rb_path.exists():
+        rb = json.loads(rb_path.read_text())
+        out["stage6b_retrain_bands"] = {
+            "_status": "auto-calibrated from retrain_bands.json (re-measure with --stage retrain_bands)",
+            "_relaxation_acc": 0.06,
+            "_relaxation_rationale": (
+                "±0.06 accommodates retrain stochasticity not pinned by random_state=42 "
+                "(SMOTE RNG, threshold-optimization CV, XGBoost threading)."
+            ),
+        }
+        for zone in ("mid", "upper", "lower"):
+            zone_entry: dict = {}
+            for source_label in ("paper", "current_pyfaceau"):
+                key = f"{zone}_{source_label}"
+                m = rb.get(key, {})
+                acc = m.get("accuracy")
+                if acc is None:
+                    continue
+                zone_entry[f"{source_label}_acc_min"] = float(round(max(0.0, acc - 0.06), 4))
+                zone_entry[f"{source_label}_acc_max"] = float(round(min(1.0, acc + 0.06), 4))
+                zone_entry[f"_{source_label}_observed_acc"] = float(round(acc, 4))
+            if zone_entry:
+                out["stage6b_retrain_bands"][zone] = zone_entry
+    else:
+        out["stage6b_retrain_bands"] = {
+            "_status": "no retrain_bands.json yet — run `python tests/update_goldens.py --stage retrain_bands` (slow, ~20 min)",
+            "mid":   {"acc_min": 0.0, "acc_max": 1.0},
+            "upper": {"acc_min": 0.0, "acc_max": 1.0},
+            "lower": {"acc_min": 0.0, "acc_max": 1.0},
+        }
 
     out_path = GOLDEN_ROOT / "metric_bands.yaml"
     out_path.write_text(_yaml.safe_dump(out, sort_keys=True, default_flow_style=False))
@@ -600,14 +729,92 @@ def append_history(args: argparse.Namespace, written: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def stage_retrain_bands(args: argparse.Namespace) -> list[Path]:
+    """Measure current retrain test accuracy per (zone × source) and write
+    bands to golden/retrain_bands.json. Bands = observed acc ± 0.04.
+
+    SLOW (~3-5 min per measurement, 6 measurements = 15-30 min total). Run
+    only when a Tier 2 baseline needs refresh — e.g. after sklearn upgrade.
+
+    Writes golden/retrain_bands.json which stage_metric_bands then reads to
+    populate metric_bands.yaml's stage6b_retrain_bands section.
+
+    Crucially: this never modifies the production combined_results.csv on
+    disk — it overrides INPUT_FILES['results_csv'] in the subprocess via
+    PYTHONSTARTUP so production state is undisturbed (so other tests can
+    keep running concurrently).
+    """
+    out_path = GOLDEN_ROOT / "retrain_bands.json"
+    paper_csv = S3_ROOT / "paper_combined_results.csv"
+    if not (paper_csv.exists() and PYFACEAU_COMBINED_CSV.exists()):
+        print(f"  SKIP: missing CSV inputs (paper={paper_csv.exists()}, current={PYFACEAU_COMBINED_CSV.exists()})")
+        return []
+
+    measurements: dict[str, dict[str, float]] = {}
+    log_dir = HERE / "_retrain_bands_logs"
+    log_dir.mkdir(exist_ok=True)
+
+    for source_label, src in (("paper", paper_csv), ("current_pyfaceau", PYFACEAU_COMBINED_CSV)):
+        for zone in ("mid", "upper", "lower"):
+            # Per-run helper: enable use_known_optimal AND redirect INPUT_FILES
+            helper = HERE / f"_retrain_bands_helper_{zone}_{source_label}.py"
+            helper.write_text(
+                f"# Auto-generated by update_goldens.stage_retrain_bands\n"
+                f"import sys\n"
+                f"sys.path.insert(0, {str(S3_ROOT)!r})\n"
+                f"import paralysis_config\n"
+                f"paralysis_config.INPUT_FILES['results_csv'] = {str(src)!r}\n"
+                f"for z in ('mid','upper','lower'):\n"
+                f"    paralysis_config.ZONE_CONFIG[z]['training']['hyperparameter_tuning']['use_known_optimal'] = True\n"
+            )
+            env = {**os.environ, "PYTHONHASHSEED": "42", "OMP_NUM_THREADS": "1",
+                   "PYTHONSTARTUP": str(helper)}
+            log_path = log_dir / f"{zone}_{source_label}.log"
+            t0 = time.perf_counter()
+            try:
+                with log_path.open("w") as f:
+                    rc = subprocess.run(
+                        [sys.executable, "paralysis_training_pipeline.py", zone],
+                        cwd=str(S3_ROOT), env=env, stdout=f, stderr=subprocess.STDOUT,
+                        timeout=900,
+                    ).returncode
+            finally:
+                helper.unlink(missing_ok=True)
+            dt = time.perf_counter() - t0
+            acc = None
+            bal = None
+            txt = log_path.read_text()
+            m = re.search(r"Overall Accuracy:\s*([\d.]+)", txt)
+            if m:
+                acc = float(m.group(1))
+            m = re.search(r"Balanced Accuracy:\s*([\d.]+)", txt)
+            if m:
+                bal = float(m.group(1))
+            key = f"{zone}_{source_label}"
+            measurements[key] = {
+                "zone": zone,
+                "source": source_label,
+                "exit_code": int(rc),
+                "accuracy": acc,
+                "balanced_accuracy": bal,
+                "elapsed_sec": round(dt, 1),
+                "log": str(log_path.relative_to(S3_ROOT)),
+            }
+            print(f"  {key:>30s}: acc={acc} bal={bal} ({dt:.1f}s, exit {rc})")
+
+    out_path.write_text(json.dumps(measurements, indent=2, sort_keys=True) + "\n")
+    return [out_path]
+
+
 STAGES: dict[str, callable] = {
-    "aus":           stage_aus,
-    "landmarks":     stage_landmarks,
-    "peak_frames":   stage_peak_frames,
-    "features":      stage_features,
-    "predictions":   stage_predictions,
-    "test_split":    stage_test_split,
-    "metric_bands":  stage_metric_bands,
+    "aus":            stage_aus,
+    "landmarks":      stage_landmarks,
+    "peak_frames":    stage_peak_frames,
+    "features":       stage_features,
+    "predictions":    stage_predictions,
+    "test_split":     stage_test_split,
+    "metric_bands":   stage_metric_bands,
+    "retrain_bands":  stage_retrain_bands,
 }
 
 

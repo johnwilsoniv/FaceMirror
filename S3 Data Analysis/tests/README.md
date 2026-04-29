@@ -16,23 +16,29 @@ framework is the durable fix.
 ## Quick start
 
 ```bash
-# Tier 0 (≤30s): determinism invariants — run on every commit
-pytest -m tier0
+cd "S3 Data Analysis"
 
-# Tier 1 (≤10min): full quality vs C++ on 10 canary patients — run before merging
-pytest -m tier1
+# Most common — done from the S3 directory:
+make tier0        # determinism gate (≤30s)
+make test         # tier0 + tier1 (full quality vs C++)
+make test-all     # adds tier2 (release-gate retrains)
 
-# Tier 2 (≤15min): retrain reproducibility — run before tagging a release
-pytest -m tier2  # NOTE: not yet implemented (sub-PR 3)
+# One-time setup: install the pre-commit hook so Tier 0 runs before each commit
+make install-hooks
 
-# Run everything that's currently implemented
-pytest
+# Before any retraining: confirm goldens are fresh + Tier 0 passes
+make preflight-retrain
 
-# Run just one canary
-pytest -k IMG_0861
+# All available targets
+make help
+```
 
-# Verbose with full diffs
-pytest -v --tb=long
+Direct pytest invocations also work:
+
+```bash
+PYTHONHASHSEED=42 OMP_NUM_THREADS=1 pytest tests/ -m tier0
+pytest tests/ -k IMG_0861          # run just one canary
+pytest tests/ -v --tb=long         # full diffs
 ```
 
 ## What's tested
@@ -143,14 +149,51 @@ These live on each engineer's local filesystem — paths are baked into
 - `/Users/johnwilsoniv/Documents/SplitFace/S3O Results/combined_results_OF_v2.csv`
 - `S3 Data Analysis/dist/Paralysis Analyzer.app/.../models/mid_face_*.pkl` — saved Jan 1 model
 
-## Coming next
+## Developer workflow integration
 
-- **Sub-PR 2**: Stage 1 (bbox) and Stage 2 (landmarks) tests. Requires
-  capturing pyfaceau-side bbox and landmarks per frame (currently the
-  pyfaceau output CSV only persists AUs). Will likely add a `--instrument`
-  flag to a wrapper around pyfaceau's pipeline that saves all per-frame
-  intermediates to parquet.
-- **Sub-PR 3**: Stage 6b (retrain reproducibility). Runs
-  `paralysis_training_pipeline.py` for each zone with `use_known_optimal=True`
-  on `paper_combined_results.csv`, asserts test acc lands in the locked band.
-  Will be the only test that takes more than a minute.
+Three pieces, all installed from the `S3 Data Analysis/` directory:
+
+**Makefile** (`make help` for the full list) — wraps every common operation
+with the right env vars set. Examples:
+
+```bash
+make tier0          # 3s determinism gate
+make tier1          # 10min quality vs C++
+make tier2          # 15min release-gate retrains
+make test           # tier0 + tier1
+make goldens        # regen fast goldens (~10s)
+make instrument     # rerun pyfaceau on canaries (~80min)
+make retrain-bands  # rerun Tier 2 baseline (~20min)
+make preflight      # safety check before retraining
+make clean          # remove pytest/python caches
+```
+
+**Pre-commit hook** — runs `make tier0` automatically on every commit that
+touches files under `S3 Data Analysis/`. Setup:
+
+```bash
+make install-hooks   # one-time per checkout
+```
+
+When a future commit accidentally regresses pyfaceau or the pipeline state,
+the hook fails the commit immediately. Bypass for one-off emergencies with
+`git commit --no-verify`.
+
+To remove: `make uninstall-hooks`.
+
+**Pre-retrain checklist** (`bin/preflight-retrain`) — before running
+`paralysis_training_pipeline.py` on any zone, run this to verify:
+1. Every golden file's SHA256 still matches `checksums.json` (catches
+   anyone hand-editing a golden)
+2. Tier 0 tests pass (catches saved-model load breakage and split drift)
+3. Goldens aren't stale (>30 days = advisory warning)
+
+Recommended pre-retrain incantation:
+
+```bash
+make preflight-retrain && python paralysis_training_pipeline.py mid
+```
+
+If preflight fails, the script prints the specific check that failed and
+the command to fix it. Don't ignore the failure — the manuscript regression
+investigation chased exactly the kinds of bugs this catches.
