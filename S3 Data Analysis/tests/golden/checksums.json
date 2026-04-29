@@ -48,11 +48,14 @@
   "landmarks/IMG_0422_right/cpp.parquet": "b3fb1626d754d58796fe49ffddf529b03c6eb4449dc9cd2bd8e20c0a51e79f90",
   "landmarks/IMG_0422_right/pyfaceau.parquet": "1370da9c89476b1be0d6284e22d0a24b291838562a029e5147b080fb1d8b7524",
   "landmarks/IMG_0642_left/cpp.parquet": "8517044c29cefdc09754864078dc50b41bbb088510add8d77d8bb534fd7840ac",
+  "landmarks/IMG_0642_left/pyfaceau.parquet": "3f3cb71ab5b841306b78e409905991f5eca5bdc7b5072ebe8677559b1d6a0326",
   "landmarks/IMG_0642_right/cpp.parquet": "eea6736f1047ebf9c9d21cf6c7b2c7256f799ce85e1ec2361c7ead058c74d8fb",
   "landmarks/IMG_0861_left/cpp.parquet": "5b42f57f729b4fc262b1b3f803f85d64306009dc50c7e95445d16c86a8991848",
   "landmarks/IMG_0861_right/cpp.parquet": "fc574485a8be2dec29ba092b4f6a9604b057d7099213aeefe48b9318c43c75cd",
   "landmarks/IMG_0942_left/cpp.parquet": "c2fbda5b4390493f05ab70fbc7f3a270e2e137b131470ea471247c8642e3bda7",
+  "landmarks/IMG_0942_left/pyfaceau.parquet": "b67300ffb7602a27ca24039ddc3e1a715839925fa8a802042b3c0051de7fe8f5",
   "landmarks/IMG_0942_right/cpp.parquet": "151ca21efbe6f74bfd6c95a3a6cde24c26fbd52efbbf63821edfa21ec07c633c",
+  "landmarks/IMG_0942_right/pyfaceau.parquet": "eac9cbdac8c2620f217e89852d67275385209ac21401acfceccfdff80d5b2c44",
   "landmarks/IMG_2259_left/cpp.parquet": "9f8883fa512931179f964e3d55af93c1c9074e3f4b3857fbf9a7216414374cbe",
   "landmarks/IMG_2259_right/cpp.parquet": "9cef332c8b96f7612244911cab4de807cab93ddb94cbee6e09f3383bc6a4085c",
   "landmarks/IMG_2380_left/cpp.parquet": "c2167367cc62d0ae03c0eea6fd2e44feac789ac79aa4085f7990e60fd7f5da61",
@@ -68,6 +71,7 @@
   "peak_frames.json": "f0f5439ff3238a1b2f5b03829fe954f5e706561bd12b51be567c561f02681420",
   "predictions_cpp.json": "fed2eb3f75916c4f0ce0858841f9b41c88ea8fe2b6b0d4f26ffc9af477e2c5e7",
   "predictions_pyfaceau.json": "d6507fc2500e1d8b9824271e2c286f2fb01cab147e702874d68133bc22d9e10b",
+  "production_predictions.json": "b204148505f72970fb52d131e3f485044f599282d58751f5dfd0e7edd62c84e5",
   "retrain_bands.json": "3fd9716999131d2937e31b35bcb147d18d4e6534b43196bdec56d27f54f36f2a",
   "test_split_seed42.json": "f077a14cc05b7590e2f3f5bb217d2be0f71d16b5364a59177d0fe51771fb2cde"
 }

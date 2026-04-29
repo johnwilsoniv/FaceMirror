@@ -729,6 +729,56 @@ def append_history(args: argparse.Namespace, written: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 
 
+def stage_production_predictions(args: argparse.Namespace) -> list[Path]:
+    """Lock per-canary × side × zone production-detector severities.
+
+    Calls ParalysisDetector(zone).detect(row, side) for each canary using the
+    current pyfaceau combined_results.csv row. Locks the predicted severity
+    string ('Normal' | 'Partial' | 'Complete' | 'Error') so test_tier1_production_inference
+    can detect future drift in the production inference path.
+
+    Catches a different class of regression than stage_predictions (which
+    uses the training-side feature pipeline): production goes through
+    extract_features_for_detection() per single row, not the bulk
+    extract_features() loop.
+    """
+    out_path = GOLDEN_ROOT / "production_predictions.json"
+    if not PYFACEAU_COMBINED_CSV.exists():
+        print(f"  SKIP: missing {PYFACEAU_COMBINED_CSV}")
+        return []
+    from paralysis_detector import ParalysisDetector
+
+    detectors = {z: ParalysisDetector(z) for z in ("mid", "upper", "lower")}
+    df = pd.read_csv(PYFACEAU_COMBINED_CSV, low_memory=False)
+    canary_ids = {c.id for c in CANARIES}
+
+    obj: dict[str, dict] = {}
+    for _, row in df.iterrows():
+        pid = row.get("Patient ID")
+        if pid not in canary_ids:
+            continue
+        rd = row.to_dict()
+        per_canary: dict = {}
+        for zone, det in detectors.items():
+            for side in ("left", "right"):
+                result_str, conf, _details = det.detect(rd, side)
+                per_canary[f"{zone}_{side}"] = result_str
+                # also lock confidence to a coarse bucket for human eyeballing;
+                # not used by the test (which compares result_str only) but
+                # surfaces big confidence shifts in the diff.
+                per_canary[f"{zone}_{side}_conf_bucket"] = round(conf, 1)
+        obj[pid] = per_canary
+        # quick visual summary
+        sev_str = " ".join(
+            f"{z}/{s[0]}={per_canary[f'{z}_{s}'][0]}"
+            for z in ("mid",) for s in ("left", "right")
+        )
+        print(f"  {pid:>22s}: {sev_str}")
+    out_path.write_text(json.dumps(obj, indent=2, sort_keys=True) + "\n")
+    print(f"  Locked production predictions for {len(obj)} canaries")
+    return [out_path]
+
+
 def stage_retrain_bands(args: argparse.Namespace) -> list[Path]:
     """Measure current retrain test accuracy per (zone × source) and write
     bands to golden/retrain_bands.json. Bands = observed acc ± 0.04.
@@ -807,14 +857,15 @@ def stage_retrain_bands(args: argparse.Namespace) -> list[Path]:
 
 
 STAGES: dict[str, callable] = {
-    "aus":            stage_aus,
-    "landmarks":      stage_landmarks,
-    "peak_frames":    stage_peak_frames,
-    "features":       stage_features,
-    "predictions":    stage_predictions,
-    "test_split":     stage_test_split,
-    "metric_bands":   stage_metric_bands,
-    "retrain_bands":  stage_retrain_bands,
+    "aus":                    stage_aus,
+    "landmarks":              stage_landmarks,
+    "peak_frames":            stage_peak_frames,
+    "features":               stage_features,
+    "predictions":            stage_predictions,
+    "production_predictions": stage_production_predictions,
+    "test_split":             stage_test_split,
+    "metric_bands":           stage_metric_bands,
+    "retrain_bands":          stage_retrain_bands,
 }
 
 
@@ -832,8 +883,14 @@ def main() -> int:
 
     if args.stage == "all":
         # Order matters: features depends on combined_results being on disk;
-        # predictions depends on features parquets existing
-        order = ["aus", "landmarks", "peak_frames", "test_split", "features", "predictions", "metric_bands"]
+        # predictions depends on features parquets existing.
+        # retrain_bands not in default 'all' (it's slow ~20min); run it
+        # separately when sklearn/xgboost upgrade.
+        order = [
+            "aus", "landmarks", "peak_frames", "test_split",
+            "features", "predictions", "production_predictions",
+            "metric_bands",
+        ]
     else:
         order = [args.stage]
 

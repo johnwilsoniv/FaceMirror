@@ -2,15 +2,23 @@
 into parquet files under tests/golden/{bbox,landmarks}/<canary>_<side>/pyfaceau.parquet.
 
 Why a separate script (not part of update_goldens.py): pyfaceau processing is
-slow (~30-60s per ~600-frame video; 10 canaries × 2 sides ≈ 15-20 min total).
-We don't want every regen of fast goldens (peak frames, features, predictions)
-to incur that cost. This script is run once after pyfaceau changes; the
-fast `update_goldens.py` then snapshots the resulting parquets.
+slow (~5-17 min per ~1000-frame video back-to-back). We don't want every
+regen of fast goldens to incur that cost. This script is run once after
+pyfaceau changes; the fast `update_goldens.py --stage landmarks` snapshots
+the resulting parquets.
 
 Usage:
     python tests/instrument_pyfaceau.py --canary IMG_0942 --side left
     python tests/instrument_pyfaceau.py --all          # all 10 canaries × both sides
     python tests/instrument_pyfaceau.py --tier0        # just IMG_0942 + IMG_2380
+    python tests/instrument_pyfaceau.py --all --workers 4   # parallel (default 1)
+
+Parallelism:
+    The default is single-process. Use --workers N to fan out across N
+    pyfaceau processes. Each worker maintains its own OpenFaceProcessor (one
+    ~10s init per worker). On an M-series Mac with 10+ cores and 16GB RAM,
+    --workers 4 typically reduces total wall time from ~80 min to ~20 min for
+    a 20-video --all run; --workers 6 has diminishing returns.
 
 Per-frame schema (parquet):
     frame:int           1-indexed (matches C++)
@@ -27,6 +35,7 @@ C++ (1-indexed) for clean joins with C++ outputs.
 from __future__ import annotations
 
 import argparse
+import multiprocessing as mp
 import sys
 import time
 from pathlib import Path
@@ -159,8 +168,65 @@ def instrument_one(canary: Canary, side: str, processor=None, force: bool = Fals
 
 
 # ---------------------------------------------------------------------------
+# Multiprocessing worker
+# ---------------------------------------------------------------------------
+
+# Per-worker processor cache. Initialized once when the worker starts so we
+# only pay the ~10s pyfaceau init cost once per worker, not once per video.
+_WORKER_PROCESSOR = None
+
+
+def _worker_init():
+    global _WORKER_PROCESSOR
+    _WORKER_PROCESSOR = _build_processor()
+
+
+def _worker_task(task: tuple) -> tuple[str, str, bool, str]:
+    """Process one (canary, side) using the worker's cached processor.
+    Returns (canary_id, side, success_bool, message)."""
+    canary, side, force = task
+    try:
+        out = instrument_one(canary, side, processor=_WORKER_PROCESSOR, force=force)
+        return (canary.id, side, out is not None, "ok" if out is not None else "skipped")
+    except Exception as e:  # surface but don't crash the pool
+        return (canary.id, side, False, f"ERROR: {type(e).__name__}: {e}")
+
+
+# ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
+
+
+def _run_serial(targets, sides, force) -> int:
+    print(f"Initializing PyFaceAU processor (one-time)...")
+    processor = _build_processor()
+    print(f"Processing {len(targets)} canaries × {len(sides)} sides = "
+          f"{len(targets) * len(sides)} videos sequentially\n")
+    written = 0
+    for c in targets:
+        for side in sides:
+            res = instrument_one(c, side, processor=processor, force=force)
+            if res is not None:
+                written += 1
+    return written
+
+
+def _run_parallel(targets, sides, force, workers) -> int:
+    tasks = [(c, side, force) for c in targets for side in sides]
+    print(f"Spawning {workers} pyfaceau workers (each ~10s init) for {len(tasks)} videos\n")
+    # 'spawn' (vs the default 'fork' on macOS) is required for PyTorch / coreml /
+    # any C-extension state to initialize cleanly inside each worker.
+    ctx = mp.get_context("spawn")
+    written = 0
+    t0 = time.perf_counter()
+    with ctx.Pool(processes=workers, initializer=_worker_init) as pool:
+        for canary_id, side, ok, msg in pool.imap_unordered(_worker_task, tasks):
+            tag = "OK" if ok else "FAIL"
+            elapsed = time.perf_counter() - t0
+            print(f"  [{tag}] {canary_id} {side}  ({msg})  — wall {elapsed:.0f}s")
+            if ok:
+                written += 1
+    return written
 
 
 def main() -> int:
@@ -172,6 +238,8 @@ def main() -> int:
     parser.add_argument("--side", choices=("left", "right", "both"), default="both",
                         help="Which side(s) to process (default: both)")
     parser.add_argument("--force", action="store_true", help="Regenerate even if golden parquet exists")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Parallel pyfaceau workers (default 1 = serial). Set 4-6 for fan-out.")
     args = parser.parse_args()
 
     if args.all:
@@ -185,16 +253,10 @@ def main() -> int:
 
     sides = ["left", "right"] if args.side == "both" else [args.side]
 
-    print(f"Initializing PyFaceAU processor (one-time)...")
-    processor = _build_processor()
-    print(f"Processing {len(targets)} canaries × {len(sides)} sides = {len(targets) * len(sides)} videos\n")
-
-    written = 0
-    for c in targets:
-        for side in sides:
-            res = instrument_one(c, side, processor=processor, force=args.force)
-            if res is not None:
-                written += 1
+    if args.workers <= 1:
+        written = _run_serial(targets, sides, args.force)
+    else:
+        written = _run_parallel(targets, sides, args.force, args.workers)
     print(f"\nWrote {written} parquet files. Now run:")
     print(f"  python tests/update_goldens.py --stage landmarks --reason 'instrument_pyfaceau ran'")
     return 0
