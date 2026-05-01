@@ -52,7 +52,8 @@ jobs:
           python -m pip install \
               numpy pandas pyyaml \
               scikit-learn==1.6.1 xgboost==2.1.4 joblib \
-              imbalanced-learn optuna
+              imbalanced-learn optuna \
+              matplotlib seaborn pyarrow
 
       - name: Re-evaluate saved models on paper_combined_results.csv
         working-directory: "S3 Data Analysis"
