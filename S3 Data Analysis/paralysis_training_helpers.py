@@ -467,15 +467,17 @@ def apply_smote_and_cleaning(X_train, y_train, smote_config, random_state, zone_
                 logger.info(
                     f"[{zone_name_log}] SMOTE params (primary): k={actual_k_neighbors}, variant={variant}, strategy={current_smote_strategy}")
                 smote_instance = None
+                # imblearn ≥0.13 dropped n_jobs from BorderlineSMOTE and ADASYN.
+                # Without this fix the previous code silently raised TypeError,
+                # got caught by the outer except, and fell back to unsampled data.
                 if variant == 'borderline':
                     kind = adaptive_params.get('borderline_kind', 'borderline-1')
                     smote_instance = BorderlineSMOTE(k_neighbors=actual_k_neighbors, random_state=random_state,
-                                                     sampling_strategy=current_smote_strategy, kind=kind,
-                                                     n_jobs=n_jobs_parallel)
+                                                     sampling_strategy=current_smote_strategy, kind=kind)
                 elif variant == 'adasyn':
                     smote_instance = ADASYN(n_neighbors=actual_k_neighbors, random_state=random_state,
-                                            sampling_strategy=current_smote_strategy, n_jobs=n_jobs_parallel)
-                else:  # regular SMOTE (note: SMOTE doesn't have n_jobs parameter)
+                                            sampling_strategy=current_smote_strategy)
+                else:  # regular SMOTE
                     smote_instance = SMOTE(k_neighbors=actual_k_neighbors, random_state=random_state,
                                            sampling_strategy=current_smote_strategy)
                 X_resampled_np, y_resampled = smote_instance.fit_resample(X_train_np, y_train_np)

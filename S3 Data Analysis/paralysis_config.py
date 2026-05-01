@@ -254,20 +254,23 @@ ZONE_CONFIG = {
                     'optuna_early_stopping_rounds': 25,
                     'patience': 15
                 },
-                # OPTIMAL PARAMS from 92.59% accuracy run (2025-12-30 21:37:13)
-                # Use these with 'use_known_optimal': True to skip Optuna
+                # MID FACE — ACTUAL Jan 1 saved model hyperparameters (extracted
+                # from mid_face_model.pkl trial #75 of mid_optuna_study.pkl).
+                # Reproduces manuscript Mid 93.52% / F1_w 0.92 when used with
+                # use_known_optimal=True. The previous values here were from a
+                # different (earlier) training run, NOT the saved Jan 1 model.
                 'known_optimal_params': {
-                    'learning_rate': 0.04926,
-                    'max_depth': 3,
-                    'n_estimators': 372,
-                    'min_child_weight': 2,
-                    'gamma': 0.1324,
-                    'subsample': 0.742,
-                    'colsample_bytree': 0.705,
-                    'reg_alpha': 0.1589,
-                    'reg_lambda': 0.2426
+                    'learning_rate': 0.07853157566684632,
+                    'max_depth': 6,
+                    'n_estimators': 356,
+                    'min_child_weight': 3,
+                    'gamma': 0.19474058804975103,
+                    'subsample': 0.9985678857060178,
+                    'colsample_bytree': 0.8741357683817155,
+                    'reg_alpha': 0.2211224417343506,
+                    'reg_lambda': 0.9039281074465417,
                 },
-                'use_known_optimal': False  # Set True to skip Optuna and use known params
+                'use_known_optimal': False  # Set True to reproduce Jan 1 saved model
             }
         },
         'feature_selection': {
@@ -341,6 +344,20 @@ if 'lower' in ZONE_CONFIG:
     ZONE_CONFIG['lower']['feature_selection']['top_n_features'] = 60
     ZONE_CONFIG['lower']['training']['class_weights'] = {0: 1.0, 1: 3.5, 2: 2.5}
     ZONE_CONFIG['lower']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 200
+    # ACTUAL Jan 1 saved Lower model hyperparameters — reproduces manuscript
+    # Lower 84.68% when used with use_known_optimal=True.
+    ZONE_CONFIG['lower']['training']['hyperparameter_tuning']['known_optimal_params'] = {
+        'learning_rate': 0.005884590762936441,
+        'max_depth': 4,
+        'n_estimators': 303,
+        'min_child_weight': 1,
+        'gamma': 0.2557386847582601,
+        'subsample': 0.7480129055882456,
+        'colsample_bytree': 0.8146512413863402,
+        'reg_alpha': 0.015498732486287243,
+        'reg_lambda': 0.02625753157267492,
+    }
+    ZONE_CONFIG['lower']['training']['hyperparameter_tuning']['use_known_optimal'] = False
 
 if 'mid' in ZONE_CONFIG:
     # OPTIMIZED: Use aggressive weights for extreme imbalance (75%/15%/10%)
@@ -353,6 +370,20 @@ if 'upper' in ZONE_CONFIG:
     ZONE_CONFIG['upper']['training']['class_weights'] = {0: 1.0, 1: 3.0, 2: 2.0}
     ZONE_CONFIG['upper']['training']['hyperparameter_tuning']['optuna']['n_trials'] = 200
     ZONE_CONFIG['upper']['training']['calibration']['method'] = 'sigmoid'
+    # ACTUAL Jan 1 saved Upper model hyperparameters — reproduces manuscript
+    # Upper 82.55% when used with use_known_optimal=True.
+    ZONE_CONFIG['upper']['training']['hyperparameter_tuning']['known_optimal_params'] = {
+        'learning_rate': 0.005126777143462284,
+        'max_depth': 3,
+        'n_estimators': 334,
+        'min_child_weight': 5,
+        'gamma': 0.39896374555668446,
+        'subsample': 0.6218933166762908,
+        'colsample_bytree': 0.8422648083984527,
+        'reg_alpha': 0.001531074069871758,
+        'reg_lambda': 0.11091725070527865,
+    }
+    ZONE_CONFIG['upper']['training']['hyperparameter_tuning']['use_known_optimal'] = False
 
 REVIEW_CONFIG = {
     'similarity_threshold': 0.95,

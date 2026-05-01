@@ -1,0 +1,56 @@
+{
+  "lower_current_pyfaceau": {
+    "accuracy": 0.6429,
+    "balanced_accuracy": 0.6975,
+    "elapsed_sec": 4.7,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/lower_current_pyfaceau.log",
+    "source": "current_pyfaceau",
+    "zone": "lower"
+  },
+  "lower_paper": {
+    "accuracy": 0.8036,
+    "balanced_accuracy": 0.7313,
+    "elapsed_sec": 4.8,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/lower_paper.log",
+    "source": "paper",
+    "zone": "lower"
+  },
+  "mid_current_pyfaceau": {
+    "accuracy": 0.7963,
+    "balanced_accuracy": 0.7764,
+    "elapsed_sec": 4.0,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/mid_current_pyfaceau.log",
+    "source": "current_pyfaceau",
+    "zone": "mid"
+  },
+  "mid_paper": {
+    "accuracy": 0.8889,
+    "balanced_accuracy": 0.8171,
+    "elapsed_sec": 4.2,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/mid_paper.log",
+    "source": "paper",
+    "zone": "mid"
+  },
+  "upper_current_pyfaceau": {
+    "accuracy": 0.7358,
+    "balanced_accuracy": 0.7612,
+    "elapsed_sec": 4.0,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/upper_current_pyfaceau.log",
+    "source": "current_pyfaceau",
+    "zone": "upper"
+  },
+  "upper_paper": {
+    "accuracy": 0.8868,
+    "balanced_accuracy": 0.8535,
+    "elapsed_sec": 3.8,
+    "exit_code": 0,
+    "log": "tests/_retrain_bands_logs/upper_paper.log",
+    "source": "paper",
+    "zone": "upper"
+  }
+}

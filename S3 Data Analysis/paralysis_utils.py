@@ -248,6 +248,172 @@ def _extract_base_au_features(df_input, side, actions_list, aus_list, feature_ex
 
     return pd.DataFrame(feature_data_dict, index=df_input.index)
 
+
+def _get_au_value_series(df_input, action, side_cap, au, use_normalized=True):
+    raw_col = f"{action}_{side_cap} {au}"
+    norm_col = f"{raw_col} (Normalized)"
+    raw_series = df_input.get(raw_col, pd.Series(0.0, index=df_input.index))
+    raw_numeric = pd.to_numeric(raw_series, errors='coerce').fillna(0.0)
+    if not use_normalized:
+        return raw_numeric
+    norm_series = df_input.get(norm_col, raw_series)
+    norm_numeric = pd.to_numeric(norm_series, errors='coerce')
+    return norm_numeric.fillna(raw_numeric)
+
+
+def _extract_coupling_features(df_input, side, actions_list, trigger_aus, coupled_aus,
+                               feature_extraction_config, type_display_name="Type",
+                               context_aus=None, include_aggregates=True):
+    """
+    Per-action trigger/coupled feature pattern used by binary coupling-pattern detectors.
+
+    For each action and each (trigger, coupled) AU pair, produces:
+      - {action}_{trigger_au}_trig_norm        target-side trigger value
+      - {action}_{coupled_au}_coup_norm        target-side coupled value
+      - {action}_Ratio_{coupled}_vs_{trigger}  coupling magnitude
+      - {action}_Asym_Ratio_{coupled}_coup     bilateral asymmetry of coupled AU
+      - {action}_Asym_PercDiff_{coupled}_coup  bilateral percent diff of coupled AU
+      - {action}_{ctx_au}_context_norm         optional context AUs (target side)
+
+    With include_aggregates=True, also produces Avg/Max/Std across actions for each
+    trigger and coupled AU.
+
+    Use alongside _extract_base_au_features (which gives baseline _val_side / _Asym_Ratio
+    primitives) — call this for the trigger/coupled overlay specific to coupling detectors.
+    """
+    feature_data_dict = {}
+    side_cap = side.capitalize() if isinstance(side, str) else 'Left'
+    opposite_side_str = 'Right' if side_cap == 'Left' else 'Left'
+
+    use_normalized_val = feature_extraction_config.get('use_normalized', True)
+    min_value_param = feature_extraction_config.get('min_value', 0.0001)
+    perc_cap_val = feature_extraction_config.get('percent_diff_cap', 200.0)
+    context_aus = context_aus or []
+
+    trigger_action_values = {au: [] for au in trigger_aus}
+    coupled_action_values = {au: [] for au in coupled_aus}
+
+    for action in actions_list:
+        for trig_au in trigger_aus:
+            trig_val = _get_au_value_series(df_input, action, side_cap, trig_au, use_normalized_val)
+            feature_data_dict[f"{action}_{trig_au}_trig_norm"] = trig_val
+            trigger_action_values[trig_au].append(trig_val)
+
+        for coup_au in coupled_aus:
+            coup_val_side = _get_au_value_series(df_input, action, side_cap, coup_au, use_normalized_val)
+            coup_val_opp = _get_au_value_series(df_input, action, opposite_side_str, coup_au, use_normalized_val)
+            feature_data_dict[f"{action}_{coup_au}_coup_norm"] = coup_val_side
+            coupled_action_values[coup_au].append(coup_val_side)
+
+            for trig_au in trigger_aus:
+                trig_val = feature_data_dict[f"{action}_{trig_au}_trig_norm"]
+                feature_data_dict[f"{action}_Ratio_{coup_au}_vs_{trig_au}"] = calculate_ratio(
+                    coup_val_side, trig_val, min_value=min_value_param
+                )
+
+            feature_data_dict[f"{action}_Asym_Ratio_{coup_au}_coup"] = calculate_ratio(
+                coup_val_side, coup_val_opp, min_value=min_value_param
+            )
+            feature_data_dict[f"{action}_Asym_PercDiff_{coup_au}_coup"] = calculate_percent_diff(
+                coup_val_side, coup_val_opp, min_value=min_value_param, cap=perc_cap_val
+            )
+
+        for ctx_au in context_aus:
+            feature_data_dict[f"{action}_{ctx_au}_context_norm"] = _get_au_value_series(
+                df_input, action, side_cap, ctx_au, use_normalized_val
+            )
+
+    if include_aggregates:
+        for au, series_list in {**trigger_action_values, **coupled_action_values}.items():
+            if not series_list:
+                continue
+            stacked = pd.concat(series_list, axis=1)
+            feature_data_dict[f"Avg_{au}_AcrossActions"] = stacked.mean(axis=1)
+            feature_data_dict[f"Max_{au}_AcrossActions"] = stacked.max(axis=1)
+            feature_data_dict[f"Std_{au}_AcrossActions"] = stacked.std(axis=1).fillna(0.0)
+
+    return pd.DataFrame(feature_data_dict, index=df_input.index)
+
+
+def _extract_paralysis_conditioned_features(df_input, side, actions_list, trigger_aus, coupled_aus,
+                                            feature_extraction_config, type_display_name="Type"):
+    """Features that condition coupled-AU activation on trigger-AU validity.
+
+    True coupling (synkinesis) requires BOTH the trigger AU and the coupled AU to
+    activate on the target side. Contralateral compensation (e.g., the unaffected
+    eye over-closing while the paralyzed eye does not) elevates the coupled AU on
+    the target side WITHOUT a corresponding bilateral trigger pattern, producing
+    false positives in pure coupling-magnitude features.
+
+    For each action × (trig, coup) pair this produces three discriminators:
+      - {action}_Product_{coup}_x_{trig}_target  : coup_target × trig_target
+            (synkinesis = both high; compensation suppressed because trig low)
+      - {action}_Product_{coup}_x_{trig}_AsymDiff: signed bilateral product diff
+            (positive = stronger coupling-with-valid-trigger on target side)
+      - {action}_{coup}_x_TrigSymmetry_{trig}    : coup_target × trig_Asym_Ratio
+            (suppresses compensation cases where trig is markedly asymmetric)
+
+    Plus, for each action × coup pair, side-agnostic "bilateral coupling"
+    features that distinguish true synkinesis (both sides show the coupled AU
+    activated proportional to motor ability) from compensation (only the
+    unaffected side shows the coupled AU):
+      - {action}_Bilateral_Min_{coup}    : min(coup_L, coup_R)
+      - {action}_Bilateral_Ratio_{coup}  : min/max — 1.0 fully bilateral, 0 unilateral
+      - {action}_Bilateral_GeoMean_{coup}: sqrt(coup_L × coup_R) — 0 if either side is 0
+    """
+    feature_data_dict = {}
+    side_cap = side.capitalize() if isinstance(side, str) else 'Left'
+    opposite_str = 'Right' if side_cap == 'Left' else 'Left'
+
+    use_normalized_val = feature_extraction_config.get('use_normalized', True)
+    min_value_param = feature_extraction_config.get('min_value', 0.0001)
+
+    if not trigger_aus or not coupled_aus:
+        return pd.DataFrame(feature_data_dict, index=df_input.index)
+
+    for action in actions_list:
+        trig_target_vals = {
+            au: _get_au_value_series(df_input, action, side_cap, au, use_normalized_val)
+            for au in trigger_aus
+        }
+        trig_opposite_vals = {
+            au: _get_au_value_series(df_input, action, opposite_str, au, use_normalized_val)
+            for au in trigger_aus
+        }
+        trig_asym_ratios = {
+            au: calculate_ratio(trig_target_vals[au], trig_opposite_vals[au], min_value=min_value_param)
+            for au in trigger_aus
+        }
+
+        for coup_au in coupled_aus:
+            coup_target = _get_au_value_series(df_input, action, side_cap, coup_au, use_normalized_val)
+            coup_opposite = _get_au_value_series(df_input, action, opposite_str, coup_au, use_normalized_val)
+
+            for trig_au in trigger_aus:
+                trig_target = trig_target_vals[trig_au]
+                trig_opposite = trig_opposite_vals[trig_au]
+
+                feature_data_dict[f"{action}_Product_{coup_au}_x_{trig_au}_target"] = (
+                    coup_target * trig_target
+                )
+                feature_data_dict[f"{action}_Product_{coup_au}_x_{trig_au}_AsymDiff"] = (
+                    coup_target * trig_target - coup_opposite * trig_opposite
+                )
+                feature_data_dict[f"{action}_{coup_au}_x_TrigSymmetry_{trig_au}"] = (
+                    coup_target * trig_asym_ratios[trig_au]
+                )
+
+            feature_data_dict[f"{action}_Bilateral_Min_{coup_au}"] = np.minimum(coup_target, coup_opposite)
+            feature_data_dict[f"{action}_Bilateral_Ratio_{coup_au}"] = calculate_ratio(
+                coup_target, coup_opposite, min_value=min_value_param
+            )
+            feature_data_dict[f"{action}_Bilateral_GeoMean_{coup_au}"] = np.sqrt(
+                np.maximum(coup_target * coup_opposite, 0.0)
+            )
+
+    return pd.DataFrame(feature_data_dict, index=df_input.index)
+
+
 def prepare_data_generalized(zone_key, results_file_path=None, expert_file_path=None, base_config_dict=None,
                              input_files_global_dict=None, class_names_global_dict=None):
     if base_config_dict is None:
@@ -330,6 +496,15 @@ def prepare_data_generalized(zone_key, results_file_path=None, expert_file_path=
         logger.error(
             f"[{zone_name_display}] Merge resulted in an empty DataFrame. Check Patient IDs and file contents.")
         return None, None, None
+
+    # Sort patients deterministically by ID before any feature extraction or
+    # train/test split. Without this, the row order depends on combined_results.csv
+    # processing order (which can vary across main.py runs due to filesystem
+    # ordering), making train_test_split(random_state=42, ...) non-reproducible.
+    # See investigation Apr 2026: this row-order dependency caused fresh retrains
+    # to score 0.64 vs Jan 1's 0.84 on Lower Face despite identical code, params,
+    # and library versions.
+    merged_df = merged_df.sort_values(patient_id_col_final, kind='stable').reset_index(drop=True)
 
     merged_df['Expert_Std_Left'] = merged_df[expert_left_orig_name].apply(standardize_paralysis_labels)
     merged_df['Expert_Std_Right'] = merged_df[expert_right_orig_name].apply(standardize_paralysis_labels)

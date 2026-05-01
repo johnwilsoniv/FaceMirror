@@ -120,7 +120,21 @@ def train_model_workflow(zone_key_mw, X_train_df_mw, y_train_arr_mw, X_test_df_m
         del best_xgb_params_mw['num_class']
 
     optuna_study_object_mw = None
-    if tuning_cfg_mw.get('enabled', False) and tuning_cfg_mw.get('method') == 'optuna' and OPTUNA_AVAILABLE:
+    # NEW (Apr 2026 H1.5 investigation): honor use_known_optimal=True. The flag
+    # was previously documented in RETRAINING_REPRODUCIBILITY.md and defined in
+    # paralysis_config.py but never read here, so it had no effect.
+    if tuning_cfg_mw.get('use_known_optimal', False):
+        known = tuning_cfg_mw.get('known_optimal_params', {})
+        if known:
+            logger.info(
+                f"[{zone_name_disp_mw}] use_known_optimal=True: skipping Optuna; using known_optimal_params={known}"
+            )
+            best_xgb_params_mw.update(known)
+        else:
+            logger.warning(
+                f"[{zone_name_disp_mw}] use_known_optimal=True but known_optimal_params is empty; falling through to defaults."
+            )
+    elif tuning_cfg_mw.get('enabled', False) and tuning_cfg_mw.get('method') == 'optuna' and OPTUNA_AVAILABLE:
         # ... (Optuna setup and run - unchanged from previous full version)
         logger.info(f"[{zone_name_disp_mw}] Starting Optuna for XGBoost (base for VotingClassifier) parameters...")
         optuna_settings_mw = tuning_cfg_mw.get('optuna', {})

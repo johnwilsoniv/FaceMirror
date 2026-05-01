@@ -1,0 +1,148 @@
+name: Regression Tests
+
+# Runs the saved-model regression sentinel that doesn't require the local
+# canary video corpus. The full canary suite (tiers 1+2) requires data on
+# the developer machine and runs locally via `make test`.
+
+on:
+  push:
+    branches: [ main, 'feature/**' ]
+    paths:
+      - 'S3 Data Analysis/**'
+      - 'pyfaceau/**'
+      - 'pyclnf/**'
+      - 'pyfhog/**'
+      - 'pymtcnn/**'
+      - 'requirements.lock'
+      - '.github/workflows/regression-tests.yml'
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Mondays 06:00 UTC — weekly regression sentinel
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  saved-model-eval:
+    name: Saved-model load + smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-regression-tests-v3
+
+      # Explicit deps for the saved-model-eval inline script. Lockfile-based
+      # install was tried earlier and proved fragile (silently swallowed
+      # sklearn install failures). The explicit list is the minimum needed
+      # for `paralysis_utils.prepare_data_generalized` and the model load.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+              numpy pandas pyyaml \
+              scikit-learn==1.6.1 xgboost==2.1.4 joblib \
+              imbalanced-learn optuna \
+              matplotlib seaborn pyarrow
+
+      - name: Saved-model load + smoke test
+        working-directory: "S3 Data Analysis"
+        env:
+          PYTHONHASHSEED: '42'
+          OMP_NUM_THREADS: '1'
+        run: |
+          # Verifies that all three saved models load cleanly, the scaler
+          # transforms a synthetic feature row, predict() returns a valid
+          # class label, and the eval_metrics.json reference file is
+          # present and parseable.
+          #
+          # We can't run the full regression test (vs paper_combined_results.csv)
+          # in CI because the expert-label key (`FPRS FP Key.csv`) is gitignored
+          # for clinical-data-PHI reasons. The full regression test runs locally
+          # via the eval_metrics.json record + manual `python tests/.../...`.
+          # CI catches: dependency drift, pickle corruption, predict() API
+          # breakage, missing eval_metrics references.
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          sys.path.insert(0, '.')
+          import sklearn; sklearn.set_config(enable_metadata_routing=True)
+          import joblib, numpy as np
+          import paralysis_training_helpers  # ensure custom classes importable
+
+          MODEL_DIR = Path('models')
+          failures = []
+          for zone in ['upper', 'mid', 'lower']:
+              try:
+                  model = joblib.load(MODEL_DIR / f'{zone}_face_model.pkl')
+                  scaler = joblib.load(MODEL_DIR / f'{zone}_face_scaler.pkl')
+                  with open(MODEL_DIR / f'{zone}_face_features.list') as f:
+                      feats = [l.strip() for l in f if l.strip()]
+                  ref_path = MODEL_DIR / f'{zone}_face_eval_metrics.json'
+                  if not ref_path.exists():
+                      print(f'::error::{ref_path} missing'); failures.append(zone); continue
+                  ref = json.loads(ref_path.read_text())
+                  expected = ref['evaluation']['on_paper_combined_results']
+
+                  # Synthesize a single-row feature vector and confirm scaler+model
+                  # produce a valid prediction without raising.
+                  n_feats = len(feats)
+                  X = np.zeros((1, n_feats), dtype=np.float64)
+                  X_scaled = scaler.transform(X)
+                  y_pred = model.predict(X_scaled)
+                  assert y_pred.shape == (1,), f'unexpected predict shape {y_pred.shape}'
+                  assert int(y_pred[0]) in (0, 1, 2), f'invalid class {y_pred[0]}'
+                  # Probability prediction also works
+                  y_proba = model.predict_proba(X_scaled)
+                  assert y_proba.shape == (1, 3), f'unexpected proba shape {y_proba.shape}'
+
+                  print(f'{zone:6s}  OK  ({n_feats} features, '
+                        f'reference acc={expected["accuracy"]:.3f}, '
+                        f'F1w={expected["f1_weighted"]:.3f})')
+              except Exception as e:
+                  print(f'::error::{zone}: {type(e).__name__}: {e}')
+                  failures.append(zone)
+
+          if failures:
+              print(f'::error::Saved-model load failed for: {failures}')
+              sys.exit(1)
+          print('All saved models load cleanly and produce valid predictions.')
+          print('Note: full regression test (against paper_combined_results.csv)')
+          print('runs locally — requires gitignored FPRS FP Key.csv expert labels.')
+          PY
+
+  determinism-gate:
+    name: Tier 0 determinism (graceful skip if no canary corpus)
+    runs-on: ubuntu-latest
+    # Most tier0 tests need the local canary corpus and gracefully skip
+    # in CI. The job is informational only — failures don't block PR merge.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with: { lfs: true }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+              pytest pyyaml \
+              numpy pandas pyarrow matplotlib \
+              scikit-learn==1.6.1 xgboost==2.1.4 joblib \
+              imbalanced-learn optuna
+      - name: Run tier0 (skips canary-dependent tests)
+        working-directory: "S3 Data Analysis"
+        env:
+          PYTHONHASHSEED: '42'
+          OMP_NUM_THREADS: '1'
+        run: python -m pytest tests/ -m tier0 -ra --tb=short || true

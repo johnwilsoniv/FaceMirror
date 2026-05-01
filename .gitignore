@@ -68,6 +68,7 @@ hemiconstruct_comparison.py
 # Build artifacts
 *.dmg
 **/bin/
+!S3 Data Analysis/bin/
 **/bin_x86_64/
 dmg_staging/
 entitlements.plist

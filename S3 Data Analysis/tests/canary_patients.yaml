@@ -1,0 +1,157 @@
+# Canary patients for the SplitFace pipeline regression-test framework.
+#
+# Selection criteria:
+#   - L+R mirrored video at S1O Processed Files/Face Mirror 1.0 Output
+#   - L+R C++ AU CSVs at S2O Coded Files OF
+#   - Standardized expert label in FPRS FP Key.csv
+#   - Distributed across severity (Normal / Mid Partial / Mid Complete) and
+#     across at-least-one-zone-affected vs all-zones-affected presentations.
+#
+# Schema:
+#   id:        Patient ID matching all asset filenames
+#   severity:  highest Mid Face label across L+R sides ("Normal" | "Partial" | "Complete")
+#   labels:    standardized expert labels for all 6 zone-side cells
+#   tier0:     true if used in the fast (Tier 0) determinism gate
+#   role:      free-form description of why this patient was picked
+#   in_gold_cpp_reference: true if rich C++ reference (with landmarks/HOG)
+#                          already lives in gold_cpp_reference/ — those don't
+#                          need a re-run; otherwise the AU-only CSV in
+#                          S2O Coded Files OF is used.
+#
+# IMPORTANT: do not re-order or re-id without updating golden/test_split_seed42.json
+# and golden/predictions_*.json — they reference patients by id.
+
+canaries:
+  - id: IMG_0422
+    severity: Normal
+    labels:
+      upper_left: Normal
+      upper_right: Normal
+      mid_left: Normal
+      mid_right: Normal
+      lower_left: Normal
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: true
+    role: Normal canary (bearded male; long-standing pyfaceau test video)
+
+  - id: IMG_0942
+    severity: Normal
+    labels:
+      upper_left: Normal
+      upper_right: Normal
+      mid_left: Normal
+      mid_right: Normal
+      lower_left: Normal
+      lower_right: Normal
+    tier0: true
+    in_gold_cpp_reference: true
+    role: Tier 0 normal — pyfaceau primary test video (1110 frames/side)
+
+  - id: IMG_0642
+    severity: Normal
+    labels:
+      upper_left: Normal
+      upper_right: Normal
+      mid_left: Normal
+      mid_right: Normal
+      lower_left: Normal
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: false
+    role: Third normal canary for variance check
+
+  - id: IMG_2380
+    severity: Partial
+    labels:
+      upper_left: Normal
+      upper_right: Normal
+      mid_left: Normal
+      mid_right: Partial
+      lower_left: Normal
+      lower_right: Complete
+    tier0: true
+    in_gold_cpp_reference: false
+    role: Tier 0 paralyzed — Mid Partial right (Mid-sensitive), Lower Complete right
+
+  - id: IMG_3847
+    severity: Partial
+    labels:
+      upper_left: Complete
+      upper_right: Normal
+      mid_left: Partial
+      mid_right: Normal
+      lower_left: Complete
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: false
+    role: Mid Partial left + Upper/Lower Complete (zone-gradient on one side)
+
+  - id: IMG_4923
+    severity: Partial
+    labels:
+      upper_left: Normal
+      upper_right: Complete
+      mid_left: Normal
+      mid_right: Partial
+      lower_left: Normal
+      lower_right: Partial
+    tier0: false
+    in_gold_cpp_reference: false
+    role: Edge case — stable cross-extractor misclassification (both pyfaceau
+      and C++ predict Complete on this Partial patient)
+
+  - id: IMG_0861
+    severity: Complete
+    labels:
+      upper_left: Complete
+      upper_right: Normal
+      mid_left: Complete
+      mid_right: Normal
+      lower_left: Complete
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: true
+    role: Edge case — per-video state-carryover regression case (originally
+      0.7 px landmark error in isolation, 266 px when run as 7th in batch)
+
+  - id: IMG_2259
+    severity: Complete
+    labels:
+      upper_left: Normal
+      upper_right: Complete
+      mid_left: Normal
+      mid_right: Complete
+      lower_left: Normal
+      lower_right: Complete
+    tier0: false
+    in_gold_cpp_reference: false
+    role: Mid Complete right (symmetric counterpart to IMG_0861's left-side)
+
+  - id: 20240903_145723000_iOS
+    severity: Normal
+    labels:
+      upper_left: Partial
+      upper_right: Normal
+      mid_left: Normal
+      mid_right: Normal
+      lower_left: Partial
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: true
+    role: Edge case — paralysis present (Upper/Lower) but Mid Face is Normal;
+      tests zone-independence of Mid model
+
+  - id: IMG_4157
+    severity: Partial
+    labels:
+      upper_left: Complete
+      upper_right: Normal
+      mid_left: Partial
+      mid_right: Normal
+      lower_left: Complete
+      lower_right: Normal
+    tier0: false
+    in_gold_cpp_reference: false
+    role: Multi-zone gradient on left side (Complete -> Partial -> Complete);
+      tests that zone-specific Mid model isn't biased by adjacent-zone severity

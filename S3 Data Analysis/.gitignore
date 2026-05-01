@@ -48,3 +48,9 @@ performance_analysis_results/
 # Test data files (if not essential)
 batch_test.log
 combined_results.csv
+
+# Synkinesis artifacts (untrained / private until publish-ready)
+models/synkinesis/**/*.pkl
+models/synkinesis/**/*.list
+models/synkinesis/**/*.csv
+!models/synkinesis/**/.gitkeep
