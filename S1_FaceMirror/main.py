@@ -21,6 +21,7 @@ import gc
 import psutil
 import time
 import torch
+config.apply_cuda_determinism()
 import threading
 import config_paths
 from splash_screen import SplashScreen
@@ -87,15 +88,21 @@ def setup_logging():
         return None
 
 
-# CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
-# This prevents splash screen and file dialogs from appearing in child processes
-# Must be done before any multiprocessing operations
+# Set multiprocessing start method:
+#   - macOS / Linux: 'fork' avoids re-importing the main module (which would
+#     otherwise re-show splash + file dialogs in every worker).
+#   - Windows: 'fork' is unavailable. We must use 'spawn' (the default), and
+#     freeze_support() is required for PyInstaller-frozen apps to keep worker
+#     processes from re-running the GUI bootstrap.
 if __name__ == "__main__":
-    try:
-        multiprocessing.set_start_method('fork', force=True)
-    except RuntimeError:
-        # Already set, ignore
-        pass
+    if sys.platform == 'win32':
+        multiprocessing.freeze_support()
+    else:
+        try:
+            multiprocessing.set_start_method('fork', force=True)
+        except (RuntimeError, ValueError):
+            # Already set, or fork unavailable on this platform.
+            pass
 
 
 def auto_detect_device():

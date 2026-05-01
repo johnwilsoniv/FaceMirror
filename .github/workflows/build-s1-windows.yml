@@ -1,0 +1,104 @@
+name: Build S1 Windows (CUDA 12.1)
+
+# Smoke build only — GitHub-hosted Windows runners do NOT have a CUDA-capable
+# GPU. We verify that the dependency stack installs and PyInstaller produces a
+# bundle. CUDA-correctness validation runs locally via the tier1 Windows-CUDA
+# parity test (see test_tier1_windows_cuda_parity.py).
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_installer:
+        description: 'Compile Inno Setup installer (slow; needs Inno Setup install step)'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches:
+      - 'claude/windows-cuda-conversion-**'
+    paths:
+      - 'S1_FaceMirror/**'
+      - '.github/workflows/build-s1-windows.yml'
+
+jobs:
+  build:
+    name: PyInstaller smoke build (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: ${{ runner.os }}-pip-s1-windows-cuda-${{ hashFiles('S1_FaceMirror/requirements-windows-cuda.txt') }}
+
+      - name: Install dependencies
+        working-directory: S1_FaceMirror
+        run: |
+          python -m pip install --upgrade pip
+          # Note: torch resolves to a CUDA wheel via the --extra-index-url at
+          # the top of the requirements file. The wheel installs fine without
+          # an actual CUDA GPU on the runner — torch.cuda.is_available()
+          # just returns False at runtime.
+          pip install -r requirements-windows-cuda.txt
+
+      - name: Verify imports
+        working-directory: S1_FaceMirror
+        run: |
+          python -c "import torch; print('torch:', torch.__version__, 'cuda:', torch.cuda.is_available())"
+          python -c "import onnxruntime as ort; print('ort:', ort.__version__, 'providers:', ort.get_available_providers())"
+          python -c "import pyfaceau, pyclnf, pymtcnn, pyfhog; print('deps OK')"
+
+      - name: PyInstaller bundle
+        working-directory: S1_FaceMirror
+        run: |
+          pyinstaller --clean --noconfirm Face_Mirror.spec
+
+      - name: Verify bundle layout
+        working-directory: S1_FaceMirror
+        shell: pwsh
+        run: |
+          $exe = "dist\S1 Face Mirror\S1 Face Mirror.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "Expected $exe not found"
+            exit 1
+          }
+          $size = (Get-Item $exe).Length
+          Write-Host "Bundle exe: $exe ($([math]::Round($size/1MB,1)) MB)"
+          Get-ChildItem "dist\S1 Face Mirror" | Measure-Object -Property Length -Sum | ForEach-Object {
+            Write-Host "Total bundle size: $([math]::Round($_.Sum/1MB,1)) MB across $($_.Count) top-level entries"
+          }
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: s1-face-mirror-windows-cuda121
+          path: S1_FaceMirror/dist/S1 Face Mirror/
+          retention-days: 7
+
+      - name: Install Inno Setup
+        if: ${{ inputs.build_installer == true }}
+        run: |
+          choco install innosetup -y --no-progress
+
+      - name: Compile installer
+        if: ${{ inputs.build_installer == true }}
+        shell: pwsh
+        run: |
+          .\build_windows.ps1 -SkipBuild
+
+      - name: Upload installer artifact
+        if: ${{ inputs.build_installer == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: s1-face-mirror-installer
+          path: installer_output/*.exe
+          retention-days: 30
