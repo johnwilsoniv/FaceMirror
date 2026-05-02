@@ -9,7 +9,7 @@
         2. Inno Setup ISCC to compile a single-file .exe installer
 
 .PARAMETER Version
-    Installer version string. Default: 1.0.0.
+    Installer version string. Default: 1.1.0.
 
 .PARAMETER SkipBuild
     Skip the PyInstaller step (useful when iterating on the .iss script).
@@ -33,7 +33,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Version = '1.0.0',
+    [string]$Version = '1.1.0',
     [switch]$SkipBuild,
     [string]$InnoSetupPath = ''
 )

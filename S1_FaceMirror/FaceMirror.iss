@@ -1,12 +1,12 @@
 ; Inno Setup script for S1 Face Mirror (Windows + CUDA 12.8)
 ;
 ; Compile via:
-;     iscc /DAppVersion=1.0.0 /OC:\path\to\output FaceMirror.iss
+;     iscc /DAppVersion=1.1.0 /OC:\path\to\output FaceMirror.iss
 ;
 ; Or use ..\build_windows.ps1 which wires this together with PyInstaller.
 
 #ifndef AppVersion
-#define AppVersion "1.0.0"
+#define AppVersion "1.1.0"
 #endif
 
 #define AppName       "S1 Face Mirror"
@@ -38,6 +38,17 @@ OutputBaseFilename=FaceMirror-S1-{#AppVersion}-win64-cuda128
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern
+
+; --- Disk spanning to fit GitHub free-tier 2 GB asset limit -----------------
+; Single-file installer was 2.835 GB which exceeds GH free-tier release-asset
+; size (2 GB per file). DiskSpanning splits the install payload into numbered
+; .bin slices that the bootstrap .exe loads at install time. End user
+; downloads ALL parts (the .exe and all .bin slices) into the same folder
+; before running -- this is documented in the release notes.
+DiskSpanning=yes
+DiskSliceSize=1700000000
+DiskClusterSize=4096
+SlicesPerDisk=1
 
 ; 64-bit only — CUDA wheels are x64-only and we ship a 64-bit Python.
 ArchitecturesAllowed=x64
