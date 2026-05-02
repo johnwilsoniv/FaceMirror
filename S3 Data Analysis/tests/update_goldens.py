@@ -145,6 +145,64 @@ def stage_aus(args: argparse.Namespace) -> list[Path]:
     return written
 
 
+def _windows_cuda_aus_s1_weights() -> Path:
+    """Returns the S1 bundled weights dir, which has the full 17-AU OpenFace
+    2.2 SVR set. The PyPI auto-downloaded bundle at ~/.pyfaceau/weights/ only
+    ships 13 AUs (no AU05/09/14/20), so passing this explicitly is required
+    for column-schema parity with the macOS goldens."""
+    return S3_ROOT.parent / "S1_FaceMirror" / "weights"
+
+
+def _windows_cuda_aus_extract_one(canary: 'Canary', side: str, weights_dir: Path) -> tuple['Canary', str, Path | None, str]:
+    """Extract one (canary, side) pyfaceau_windows_cuda.parquet. Returns
+    (canary, side, out_path_or_None, message). Used both serially and from
+    the multiprocessing worker pool."""
+    from pyfaceau.processor import OpenFaceProcessor
+    video = canary.video(side)
+    if not video.exists():
+        return (canary, side, None, f"SKIP: video missing at {video}")
+    try:
+        # Fresh Pipeline per video so state can't carry over between canaries
+        # (matches the pattern test_pyfaceau_run_to_run_determinism enforces).
+        proc = OpenFaceProcessor(weights_dir=str(weights_dir), verbose=False)
+        t0 = time.perf_counter()
+        df = proc.pipeline.process_video(str(video), output_csv=None)
+        elapsed = time.perf_counter() - t0
+        if "frame" not in df.columns:
+            df = df.reset_index().rename(columns={"index": "frame"})
+        sub = GOLDEN_ROOT / "aus" / f"{canary.id}_{side}"
+        sub.mkdir(parents=True, exist_ok=True)
+        out_path = sub / "pyfaceau_windows_cuda.parquet"
+        stable_dataframe(df).to_parquet(out_path, index=False, compression="zstd")
+        return (canary, side, out_path, f"{len(df)} frames in {elapsed:.1f}s")
+    except Exception as e:
+        return (canary, side, None, f"ERROR: {type(e).__name__}: {e}")
+
+
+# Multiprocessing worker bookkeeping. The init runs once per worker on pool
+# start; the task runs once per (canary, side). spawn (the Windows default)
+# means each worker re-imports torch + pyfaceau + loads CUDA models from
+# scratch -- ~10-30s init cost per worker, amortized over its share of videos.
+def _windows_cuda_aus_worker_init():
+    import torch
+    from pyfaceau.config import CLNF_CONFIG
+    if not torch.cuda.is_available():
+        # Surface this loudly: each worker needs CUDA. If it's not available
+        # in the worker process the whole pool is doomed.
+        raise RuntimeError(f"torch.cuda.is_available()=False in worker pid={os.getpid()}")
+    CLNF_CONFIG["use_gpu"] = True
+
+
+def _windows_cuda_aus_worker_task(task: tuple) -> tuple[str, str, str | None, str]:
+    """Worker entrypoint. Returns (canary_id, side, out_path_str_or_None, message)
+    so the parent process can re-collect Path objects without pickling Canary
+    dataclasses across the boundary (which would require importing conftest in
+    the worker)."""
+    canary, side, weights_dir = task
+    _, _, out_path, msg = _windows_cuda_aus_extract_one(canary, side, weights_dir)
+    return (canary.id, side, str(out_path) if out_path else None, msg)
+
+
 def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
     """Run pyfaceau LIVE on each canary video using onnxruntime-gpu +
     pyclnf use_gpu=True, and snapshot the per-frame AU output as
@@ -156,20 +214,25 @@ def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
     test_tier1_windows_cuda_parity.py compares against the macOS pyfaceau
     golden and the C++ OpenFace 2.2 ground truth.
 
-    NOT in the default 'all' order — slow (~20-60s per video × 20 videos),
+    NOT in the default 'all' order -- slow (~20-60s per video x 20 videos),
     only relevant after a fresh CUDA install on Windows, and requires the
     canary corpus mounted at SPLITFACE_BASE.
 
+    Pass --workers N>1 to fan out across N pyfaceau processes. Each worker
+    holds its own CUDA context (~340 MB on top of the model loads), so on
+    an 8 GB GPU 2-3 workers is the sweet spot; --workers 4+ risks OOM. With
+    --workers 2 the 20-canary run typically halves wall time.
+
     Run explicitly:
-        $env:SPLITFACE_BASE = "$env:USERPROFILE\\iCloudDrive\\Documents\\SplitFace"
-        python tests/update_goldens.py --stage windows_cuda_aus --reason "fresh CUDA install"
+        $env:SPLITFACE_BASE = "$env:USERPROFILE\\Documents\\SplitFace"
+        python tests/update_goldens.py --stage windows_cuda_aus \\
+            --reason "fresh CUDA install" --workers 2
     """
     written: list[Path] = []
     out_dir = GOLDEN_ROOT / "aus"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     import torch  # heavy imports -- defer to stage execution
-    from pyfaceau.processor import OpenFaceProcessor
     from pyfaceau.config import CLNF_CONFIG
 
     if not torch.cuda.is_available():
@@ -178,11 +241,7 @@ def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
         return []
     print(f"  CUDA device: {torch.cuda.get_device_name(0)} (sm_{torch.cuda.get_device_capability(0)[0]}{torch.cuda.get_device_capability(0)[1]})")
 
-    # Point pyfaceau at S1's bundled weights, NOT ~/.pyfaceau/weights/. The
-    # PyPI auto-downloaded bundle only ships the 13-AU SVR set; S1's bundled
-    # weights have the full 17-AU OpenFace 2.2 set including AU05/09/14/20.
-    # Without this, output AU columns won't match the macOS production goldens.
-    s1_weights = S3_ROOT.parent / "S1_FaceMirror" / "weights"
+    s1_weights = _windows_cuda_aus_s1_weights()
     if not (s1_weights / "AU_predictors" / "svr_combined" / "AU_5_dynamic_intensity.dat").exists():
         print(f"  ERROR: S1 weights bundle incomplete at {s1_weights}")
         print(f"         Expected AU_5_dynamic_intensity.dat (and 3 other AU05/09/14/20")
@@ -190,34 +249,39 @@ def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
         return []
     print(f"  Using weights: {s1_weights}")
 
-    saved_use_gpu = CLNF_CONFIG.get("use_gpu", False)
-    CLNF_CONFIG["use_gpu"] = True
+    workers = max(1, int(getattr(args, "workers", 1) or 1))
 
-    try:
-        for c in CANARIES:
-            for side in ("left", "right"):
-                video = c.video(side)
-                if not video.exists():
-                    print(f"  SKIP {c.id} {side}: video missing at {video}")
-                    continue
-                # Fresh Pipeline per video so state can't carry over between canaries
-                # (matches the pattern test_pyfaceau_run_to_run_determinism enforces).
-                proc = OpenFaceProcessor(weights_dir=str(s1_weights), verbose=False)
-                t0 = time.perf_counter()
-                df = proc.pipeline.process_video(str(video), output_csv=None)
-                elapsed = time.perf_counter() - t0
+    if workers == 1:
+        # Serial path -- original behavior. Useful for debugging too since stack
+        # traces don't have to come back through the pool.
+        saved_use_gpu = CLNF_CONFIG.get("use_gpu", False)
+        CLNF_CONFIG["use_gpu"] = True
+        try:
+            for c in CANARIES:
+                for side in ("left", "right"):
+                    _, _, out_path, msg = _windows_cuda_aus_extract_one(c, side, s1_weights)
+                    if out_path is not None:
+                        written.append(out_path)
+                    print(f"  {c.id:>22s} {side:5s}: {msg}")
+        finally:
+            CLNF_CONFIG["use_gpu"] = saved_use_gpu
+        return written
 
-                if "frame" not in df.columns:
-                    df = df.reset_index().rename(columns={"index": "frame"})
-
-                sub = out_dir / f"{c.id}_{side}"
-                sub.mkdir(exist_ok=True)
-                out_path = sub / "pyfaceau_windows_cuda.parquet"
-                stable_dataframe(df).to_parquet(out_path, index=False, compression="zstd")
-                written.append(out_path)
-                print(f"  {c.id:>22s} {side:5s}: {len(df):>5d} frames in {elapsed:6.1f}s")
-    finally:
-        CLNF_CONFIG["use_gpu"] = saved_use_gpu
+    # Parallel path: spawn N pyfaceau workers, distribute (canary, side) tasks.
+    import multiprocessing as mp
+    tasks = [(c, side, s1_weights) for c in CANARIES for side in ("left", "right")]
+    print(f"  Spawning {workers} pyfaceau workers over {len(tasks)} videos "
+          f"(each worker init ~10-30s; CUDA contexts share the GPU)")
+    ctx = mp.get_context("spawn")
+    t0 = time.perf_counter()
+    with ctx.Pool(processes=workers, initializer=_windows_cuda_aus_worker_init) as pool:
+        for canary_id, side, out_path_str, msg in pool.imap_unordered(
+            _windows_cuda_aus_worker_task, tasks
+        ):
+            if out_path_str is not None:
+                written.append(Path(out_path_str))
+            wall = time.perf_counter() - t0
+            print(f"  [wall {wall:5.0f}s] {canary_id:>22s} {side:5s}: {msg}")
     return written
 
 
@@ -1097,6 +1161,12 @@ def main() -> int:
         help=f"One of: {sorted(STAGES) + ['all']}",
     )
     parser.add_argument("--reason", required=True, help="Why are we updating? Logged to golden_history.md")
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Parallel pyfaceau workers (currently only used by windows_cuda_aus). "
+             "Default 1 = serial. Recommended 2-3 on an 8 GB GPU; --workers 4+ "
+             "risks CUDA OOM with multiple worker model loads.",
+    )
     args = parser.parse_args()
 
     GOLDEN_ROOT.mkdir(parents=True, exist_ok=True)
