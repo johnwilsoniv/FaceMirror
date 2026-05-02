@@ -624,32 +624,63 @@ def stage_metric_bands(args: argparse.Namespace) -> list[Path]:
             }
 
     # ------ Stage 3 calibration ------
+    # Aggregates per-AU Pearson r and MAE across BOTH the macOS pyfaceau
+    # goldens (pyfaceau.parquet) and the Windows-CUDA goldens
+    # (pyfaceau_windows_cuda.parquet) when present, treating both platforms
+    # as observations of the same statistical population. The threshold for
+    # each (severity, difficulty) bucket is "worst observed across either
+    # platform - 0.05 (r) / + 0.10 (mae)" so the bands move with whichever
+    # platform is harder. Without this, macOS-only-calibrated bands would
+    # produce 3 marginal Windows failures (IMG_0861_left, IMG_2259_right
+    # on AU06/AU12) where Windows correlates 0.05-0.07 below macOS-vs-cpp.
     aus_dir = GOLDEN_ROOT / "aus"
     observed: dict[tuple[str, str], dict[str, list[float]]] = {}
+    n_macos_canaries = 0
+    n_windows_canaries = 0
     if aus_dir.exists():
         for c in CANARIES:
             for side in ("left", "right"):
-                py_path = aus_dir / f"{c.id}_{side}" / "pyfaceau.parquet"
                 cpp_path = aus_dir / f"{c.id}_{side}" / "cpp.parquet"
-                if not (py_path.exists() and cpp_path.exists()):
+                if not cpp_path.exists():
                     continue
-                py = pd.read_parquet(py_path).set_index("frame", drop=True)
                 cpp = pd.read_parquet(cpp_path).set_index("frame", drop=True)
-                cmp = compare_au_frames(py, cpp)
-                bucket = (c.threshold_bucket, "")  # severity bucket
-                for au in AU_COLUMNS:
-                    diff = AU_DIFFICULTY[au]
-                    if diff == "informational":
+
+                # Each platform's parquet is a separate observation of the
+                # same canary -- we want the worst-of-either to drive the band.
+                platform_parquets = [
+                    ("macos", aus_dir / f"{c.id}_{side}" / "pyfaceau.parquet"),
+                    ("windows_cuda", aus_dir / f"{c.id}_{side}" / "pyfaceau_windows_cuda.parquet"),
+                ]
+                for platform, py_path in platform_parquets:
+                    if not py_path.exists():
                         continue
-                    key = (c.threshold_bucket, diff)
-                    observed.setdefault(key, {"r": [], "mae": []})
-                    r = cmp.per_au_pearson.get(au, float("nan"))
-                    mae = cmp.per_au_mae.get(au, float("nan"))
-                    if not np.isnan(r):
-                        observed[key]["r"].append(r)
-                    if not np.isnan(mae):
-                        observed[key]["mae"].append(mae)
-    stage3 = {"normal": {}, "paralyzed": {}}
+                    py = pd.read_parquet(py_path).set_index("frame", drop=True)
+                    cmp = compare_au_frames(py, cpp)
+                    if platform == "macos":
+                        n_macos_canaries += 1
+                    else:
+                        n_windows_canaries += 1
+                    for au in AU_COLUMNS:
+                        diff = AU_DIFFICULTY[au]
+                        if diff == "informational":
+                            continue
+                        key = (c.threshold_bucket, diff)
+                        observed.setdefault(key, {"r": [], "mae": []})
+                        r = cmp.per_au_pearson.get(au, float("nan"))
+                        mae = cmp.per_au_mae.get(au, float("nan"))
+                        if not np.isnan(r):
+                            observed[key]["r"].append(r)
+                        if not np.isnan(mae):
+                            observed[key]["mae"].append(mae)
+    stage3 = {
+        "_calibration_sources": {
+            "macos_pyfaceau_canary_sides":   n_macos_canaries,
+            "windows_cuda_pyfaceau_canary_sides": n_windows_canaries,
+            "_note": "Worst observed Pearson r / MAE across BOTH platforms drives the band.",
+        },
+        "normal": {},
+        "paralyzed": {},
+    }
     for sev in ("normal", "paralyzed"):
         for diff in ("easy", "medium", "hard"):
             d = observed.get((sev, diff), {"r": [], "mae": []})

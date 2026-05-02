@@ -121,3 +121,10 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `68e13498d25b31da1a2dff225fcfedcc37ad6b319e771688b4fa819903576c02`
 - **Files written:** 20
 
+## 2026-05-02T20:03:13+00:00
+- **Stage(s):** metric_bands
+- **Reason:** include Windows-CUDA observations alongside macOS in stage3 band calibration
+- **Git SHA:** `1558c80852100d184cf71c539a17db6df195b767`
+- **pip-freeze SHA256:** `68e13498d25b31da1a2dff225fcfedcc37ad6b319e771688b4fa819903576c02`
+- **Files written:** 1
+

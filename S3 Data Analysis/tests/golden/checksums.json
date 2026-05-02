@@ -103,7 +103,7 @@
   "landmarks/IMG_4923_left/pyfaceau.parquet": "a50dda897a46170707aa8f40ead7f0510b11b92baabe1176322217e2215bf287",
   "landmarks/IMG_4923_right/cpp.parquet": "320107c0cc1e4625aaf754ab2e7f69e4f319f66b5808c63829871e131b362f85",
   "landmarks/IMG_4923_right/pyfaceau.parquet": "973ca49ad387b2df518b1f81d18ef1ff332d2ed8819f7cf25fed75098d1fe2c7",
-  "metric_bands.yaml": "96ea9f7abd13b59373e5a809e8697e607878aac301592b72a67e0e30a6dd2047",
+  "metric_bands.yaml": "87783d8b11e4c28be6694a8807f92b5aec6bc42136ad436a03ea87e0bd7931b7",
   "peak_frames.json": "9df0d10dcd3e3f120e854a132ee4beb8a68e95487c445111c42c5c7125703c28",
   "predictions_cpp.json": "65d91d97e5def6f8a9ddba6d66e63fae02be88831b5012efbbdfbcf22ace9c1a",
   "predictions_pyfaceau.json": "0af54275a933a77c7f2aa7376dc22195dadf2ef29abc2e2fe5c8ef17a4ce8106",
