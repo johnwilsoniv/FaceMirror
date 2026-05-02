@@ -1,43 +1,73 @@
-# S1 FaceMirror — Windows + CUDA 12.1 install requirements
+# S1 FaceMirror -- Windows + CUDA 12.8 install requirements
 #
 # Install with:
 #   python -m pip install --upgrade pip
 #   pip install -r requirements-windows-cuda.txt
+#   # MANDATORY post-install fix -- see "onnxruntime gotcha" below:
+#   pip uninstall -y onnxruntime
+#   pip install --force-reinstall --no-deps onnxruntime-gpu
 #
-# The --extra-index-url at the top routes torch to PyTorch's CUDA 12.1 wheels.
+# The --extra-index-url at the top routes torch to PyTorch's CUDA 12.8 wheels.
+# CUDA 12.8 is required for Blackwell GPUs (sm_100/sm_120 -- RTX PRO 2000/4000/
+# 5000 Blackwell, RTX 50-series). Older Ampere/Ada/Hopper cards keep working.
 # All other packages resolve from PyPI as normal.
 #
 # Prerequisites on the build/runtime machine:
 #   - Python 3.10 (matches the macOS lockfile; pyfaceau requires >=3.10)
-#   - NVIDIA driver supporting CUDA 12.1 (driver R530+ recommended)
-#   - Microsoft Visual C++ Build Tools 2022 (only required for installing
-#     pyfaceau from sdist; not needed at runtime once the PyInstaller bundle
-#     is built)
+#   - NVIDIA driver R570+ (CUDA 12.8 requires R570; older R530 driver only
+#     supports CUDA 12.1)
+#   - Microsoft Visual C++ Build Tools 2022 (REQUIRED for installing pyfaceau
+#     from sdist -- the "falls back to pure Python" claim in upstream README
+#     is wrong: setuptools errors at find-compiler step before any fallback
+#     can run. Only needed at install time; not at runtime once the
+#     PyInstaller bundle is built)
+#
+# onnxruntime gotcha:
+#   pyfaceau transitively requires `onnxruntime>=1.10.0` (CPU). pip resolves
+#   this independently of `onnxruntime-gpu` even though they share the same
+#   Python module name (`onnxruntime`). Whichever is installed last "wins",
+#   and pip's install order tends to put pyfaceau (and its CPU dep) last,
+#   shadowing the GPU package. The post-install fix above forces
+#   onnxruntime-gpu back. If `ort.get_available_providers()` does not include
+#   `CUDAExecutionProvider` after install, you skipped the fix.
 #
 # Versions are intentionally loose. Lock with `pip freeze` on a known-good
 # Windows machine and commit as requirements-windows-cuda.lock when ready.
 
---extra-index-url https://download.pytorch.org/whl/cu121
+--extra-index-url https://download.pytorch.org/whl/cu128
 
 # --- Core CUDA-aware stack ---------------------------------------------------
-# torch: CUDA 12.1 wheel (filename will be torch-X.Y.Z+cu121-cp310-cp310-win_amd64.whl)
-torch>=2.5.0
+# torch: CUDA 12.8 wheel (filename will be torch-X.Y.Z+cu128-cp310-cp310-win_amd64.whl).
+# torch 2.7.0 is the first release with cu128 wheels and Blackwell sm_120 kernels.
+torch>=2.7.0
 
 # ONNX Runtime with CUDAExecutionProvider. pymtcnn and pyfaceau both pick this
 # up automatically when they detect CUDA is available.
-onnxruntime-gpu>=1.18.0
+# 1.20+ ships CUDA 12.x wheels by default on PyPI; 1.21+ adds Blackwell support.
+onnxruntime-gpu>=1.21.0
 
 # --- FaceMirror dependency stack (PyPI) --------------------------------------
-# All four packages have working Windows installs:
-#   pyfhog   — has cp310-win_amd64 wheels
+# Windows install reality:
+#   pyfhog   — pinned to <0.1.4 because 0.1.3 has cp310-win_amd64 wheels but
+#              0.1.4 is sdist-only and the Windows source build hits a dlib
+#              symbol-resolution error (DLIB_VERSION_MISMATCH_CHECK linker
+#              failure). 0.1.3 vs macOS-reference SHA may differ slightly but
+#              the tier1 tolerance bands cover that.
 #   pyclnf   — pure-Python wheel; uses torch for GPU work
 #   pymtcnn  — pure-Python wheel; lazy-imports onnxruntime CUDA backend
-#   pyfaceau — sdist-only; compiles Cython exts via MSVC, falls back to pure
-#              Python if MSVC unavailable (slower but functional)
-pyfhog>=0.1.4
-pyclnf>=0.3.3
+#   pyfaceau — sdist-only; compiles its Cython exts via MSVC. MSVC Build Tools
+#              2022 is REQUIRED on Windows (the "falls back to pure Python"
+#              claim in earlier docs was incorrect — setuptools errors out at
+#              the find-compiler step before any fallback can run).
+pyfhog>=0.1.3,<0.1.4
+# pyclnf and pyfaceau are pinned to the EXACT macOS reference versions from
+# requirements.lock. Earlier looser pins (>=0.3.3 / >=1.3.11) picked up 0.3.4
+# and 1.3.12 which ship a different AU classifier model -- the Windows-CUDA
+# output became uncorrelated with the macOS goldens (AU04 r=-0.02, AU23
+# r=-0.22). Pinning here prevents pip from drifting forward when 1.3.13 lands.
+pyclnf==0.3.3
 pymtcnn>=1.1.5
-pyfaceau>=1.3.11
+pyfaceau==1.3.11
 
 # --- Vision / numerics -------------------------------------------------------
 opencv-python>=4.8.0
@@ -56,3 +86,8 @@ cython>=3.0.0     # ditto
 # --- Diagnostics -------------------------------------------------------------
 psutil>=5.9.0
 tqdm>=4.65.0
+
+# --- Goldens / parquet I/O ---------------------------------------------------
+# pandas .to_parquet needs an engine. Required by S3's update_goldens.py
+# (windows_cuda_aus stage and others); not needed by the S1 GUI itself.
+pyarrow>=15.0.0

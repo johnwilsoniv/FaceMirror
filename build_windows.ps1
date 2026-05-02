@@ -4,7 +4,7 @@
     Build Windows installer for S1 Face Mirror.
 
 .DESCRIPTION
-    Parallels build_dmg.sh for the Windows + CUDA 12.1 target. Runs:
+    Parallels build_dmg.sh for the Windows + CUDA 12.8 target. Runs:
         1. PyInstaller (--onedir) to assemble dist\S1 Face Mirror\
         2. Inno Setup ISCC to compile a single-file .exe installer
 
@@ -27,7 +27,7 @@
     Requirements on the build machine:
         - Python 3.10 with the requirements-windows-cuda.txt env installed
         - Inno Setup 6.x (https://jrsoftware.org/isdl.php)
-        - NVIDIA driver supporting CUDA 12.1
+        - NVIDIA driver supporting CUDA 12.8
         - Optional: ffmpeg.exe + ffprobe.exe in S1_FaceMirror\bin\
 #>
 
@@ -59,7 +59,8 @@ function Resolve-InnoSetup {
     }
     $candidates = @(
         "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
     )
     foreach ($p in $candidates) {
         if ($p -and (Test-Path $p)) { return $p }
@@ -68,7 +69,7 @@ function Resolve-InnoSetup {
 }
 
 # ----- Sanity checks ---------------------------------------------------------
-Write-Section "Build S1 Face Mirror v$Version (Windows + CUDA 12.1)"
+Write-Section "Build S1 Face Mirror v$Version (Windows + CUDA 12.8)"
 
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     throw 'python not found on PATH. Install Python 3.10 and re-run.'

@@ -145,6 +145,82 @@ def stage_aus(args: argparse.Namespace) -> list[Path]:
     return written
 
 
+def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
+    """Run pyfaceau LIVE on each canary video using onnxruntime-gpu +
+    pyclnf use_gpu=True, and snapshot the per-frame AU output as
+    pyfaceau_windows_cuda.parquet.
+
+    Unlike stage_aus (which mirrors pre-generated CSV outputs from
+    S2O Coded Files/), this stage actually runs the extractor on the source
+    videos using the Windows-CUDA stack. The resulting parquets are what
+    test_tier1_windows_cuda_parity.py compares against the macOS pyfaceau
+    golden and the C++ OpenFace 2.2 ground truth.
+
+    NOT in the default 'all' order — slow (~20-60s per video × 20 videos),
+    only relevant after a fresh CUDA install on Windows, and requires the
+    canary corpus mounted at SPLITFACE_BASE.
+
+    Run explicitly:
+        $env:SPLITFACE_BASE = "$env:USERPROFILE\\iCloudDrive\\Documents\\SplitFace"
+        python tests/update_goldens.py --stage windows_cuda_aus --reason "fresh CUDA install"
+    """
+    written: list[Path] = []
+    out_dir = GOLDEN_ROOT / "aus"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    import torch  # heavy imports -- defer to stage execution
+    from pyfaceau.processor import OpenFaceProcessor
+    from pyfaceau.config import CLNF_CONFIG
+
+    if not torch.cuda.is_available():
+        print("  ERROR: torch.cuda.is_available() is False -- refusing to write a")
+        print("         pyfaceau_windows_cuda.parquet that wasn't actually run on CUDA.")
+        return []
+    print(f"  CUDA device: {torch.cuda.get_device_name(0)} (sm_{torch.cuda.get_device_capability(0)[0]}{torch.cuda.get_device_capability(0)[1]})")
+
+    # Point pyfaceau at S1's bundled weights, NOT ~/.pyfaceau/weights/. The
+    # PyPI auto-downloaded bundle only ships the 13-AU SVR set; S1's bundled
+    # weights have the full 17-AU OpenFace 2.2 set including AU05/09/14/20.
+    # Without this, output AU columns won't match the macOS production goldens.
+    s1_weights = S3_ROOT.parent / "S1_FaceMirror" / "weights"
+    if not (s1_weights / "AU_predictors" / "svr_combined" / "AU_5_dynamic_intensity.dat").exists():
+        print(f"  ERROR: S1 weights bundle incomplete at {s1_weights}")
+        print(f"         Expected AU_5_dynamic_intensity.dat (and 3 other AU05/09/14/20")
+        print(f"         model files) which only S1's bundled weights ship.")
+        return []
+    print(f"  Using weights: {s1_weights}")
+
+    saved_use_gpu = CLNF_CONFIG.get("use_gpu", False)
+    CLNF_CONFIG["use_gpu"] = True
+
+    try:
+        for c in CANARIES:
+            for side in ("left", "right"):
+                video = c.video(side)
+                if not video.exists():
+                    print(f"  SKIP {c.id} {side}: video missing at {video}")
+                    continue
+                # Fresh Pipeline per video so state can't carry over between canaries
+                # (matches the pattern test_pyfaceau_run_to_run_determinism enforces).
+                proc = OpenFaceProcessor(weights_dir=str(s1_weights), verbose=False)
+                t0 = time.perf_counter()
+                df = proc.pipeline.process_video(str(video), output_csv=None)
+                elapsed = time.perf_counter() - t0
+
+                if "frame" not in df.columns:
+                    df = df.reset_index().rename(columns={"index": "frame"})
+
+                sub = out_dir / f"{c.id}_{side}"
+                sub.mkdir(exist_ok=True)
+                out_path = sub / "pyfaceau_windows_cuda.parquet"
+                stable_dataframe(df).to_parquet(out_path, index=False, compression="zstd")
+                written.append(out_path)
+                print(f"  {c.id:>22s} {side:5s}: {len(df):>5d} frames in {elapsed:6.1f}s")
+    finally:
+        CLNF_CONFIG["use_gpu"] = saved_use_gpu
+    return written
+
+
 def stage_landmarks(args: argparse.Namespace) -> list[Path]:
     """Write C++ landmarks per canary × side. The pyfaceau landmark parquet
     is produced by `instrument_pyfaceau.py` (slow, run separately); this
@@ -1000,6 +1076,7 @@ def stage_retrain_bands(args: argparse.Namespace) -> list[Path]:
 
 STAGES: dict[str, callable] = {
     "aus":                    stage_aus,
+    "windows_cuda_aus":       stage_windows_cuda_aus,
     "landmarks":              stage_landmarks,
     "peak_frames":            stage_peak_frames,
     "features":               stage_features,

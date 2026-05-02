@@ -1,4 +1,4 @@
-; Inno Setup script for S1 Face Mirror (Windows + CUDA 12.1)
+; Inno Setup script for S1 Face Mirror (Windows + CUDA 12.8)
 ;
 ; Compile via:
 ;     iscc /DAppVersion=1.0.0 /OC:\path\to\output FaceMirror.iss
@@ -34,7 +34,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=no
 AllowNoIcons=yes
 
-OutputBaseFilename=FaceMirror-S1-{#AppVersion}-win64-cuda121
+OutputBaseFilename=FaceMirror-S1-{#AppVersion}-win64-cuda128
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern
@@ -85,7 +85,7 @@ begin
   begin
     if MsgBox('No NVIDIA driver was detected (nvcuda.dll missing from System32). ' +
               'The app will still install and run on CPU, but CUDA acceleration ' +
-              'requires an NVIDIA driver supporting CUDA 12.1 or later.' + #13#10 + #13#10 +
+              'requires an NVIDIA driver supporting CUDA 12.8 or later.' + #13#10 + #13#10 +
               'Continue installing anyway?', mbConfirmation, MB_YESNO) = IDNO then
       Result := False;
   end;

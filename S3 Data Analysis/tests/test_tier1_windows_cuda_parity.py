@@ -18,17 +18,24 @@ left-hand side.
 
 How to populate the Windows-CUDA goldens
 ----------------------------------------
-On a Windows machine with the canary corpus mounted at ~/Documents/SplitFace
-and CUDA available::
+On a Windows machine with the canary corpus mounted at SPLITFACE_BASE and
+CUDA available::
 
-    set SPLITFACE_BASE=%USERPROFILE%\Documents\SplitFace
+    $env:SPLITFACE_BASE = "$env:USERPROFILE/Documents/SplitFace"
     cd "S3 Data Analysis"
-    python tests\\update_goldens.py --variant windows_cuda
+    python tests/update_goldens.py --stage windows_cuda_aus --reason "fresh CUDA install"
 
-That script (existing scaffolding) writes
-``tests/golden/aus/<id>_<side>/pyfaceau_windows_cuda.parquet``. The tests
-below skip cleanly if those parquets are missing — CI on macOS / Linux runners
-will not produce them.
+(Do NOT point SPLITFACE_BASE at iCloud Drive on Windows -- the Windows
+iCloud client's files-on-demand mode hangs OpenCV's ffmpeg reader on first
+access. Copy the canary subdirs to a non-cloud-synced local path first;
+the repo root has fetch_canaries.ps1 to grab them from a Mac over SMB.)
+
+The ``windows_cuda_aus`` stage (in update_goldens.py) runs pyfaceau LIVE on
+each canary video using onnxruntime-gpu CUDAExecutionProvider + pyclnf
+``use_gpu=True``, and writes
+``tests/golden/aus/<id>_<side>/pyfaceau_windows_cuda.parquet`` for each.
+The tests below skip cleanly if those parquets are missing — CI on
+macOS / Linux runners will not produce them.
 """
 
 from __future__ import annotations

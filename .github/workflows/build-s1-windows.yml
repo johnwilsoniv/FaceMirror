@@ -1,4 +1,4 @@
-name: Build S1 Windows (CUDA 12.1)
+name: Build S1 Windows (CUDA 12.8)
 
 # Smoke build only — GitHub-hosted Windows runners do NOT have a CUDA-capable
 # GPU. We verify that the dependency stack installs and PyInstaller produces a
@@ -80,7 +80,7 @@ jobs:
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: s1-face-mirror-windows-cuda121
+          name: s1-face-mirror-windows-cuda128
           path: S1_FaceMirror/dist/S1 Face Mirror/
           retention-days: 7
 
