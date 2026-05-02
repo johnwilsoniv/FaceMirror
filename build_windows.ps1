@@ -94,7 +94,13 @@ if (-not $SkipBuild) {
     try {
         if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }
         if (Test-Path $DistDir)  { Remove-Item -Recurse -Force $DistDir }
-        pyinstaller --clean --noconfirm Face_Mirror.spec
+        # Run pyinstaller via cmd.exe so PowerShell's strict
+        # ErrorActionPreference='Stop' doesn't raise NativeCommandError on
+        # PyInstaller's INFO log lines (it writes them to stderr; PS 5.1
+        # treats every stderr line under Stop preference as a terminating
+        # error regardless of `2>&1` redirection). cmd.exe runs pyinstaller
+        # without that wrapping; we read its exit code via %ERRORLEVEL%.
+        cmd /c "pyinstaller --clean --noconfirm Face_Mirror.spec 2>&1"
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed with exit code $LASTEXITCODE" }
     } finally {
         Pop-Location

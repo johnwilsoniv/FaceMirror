@@ -56,7 +56,8 @@ local_modules = [
     'logger.py', 'native_dialogs.py', 'openface_integration.py',
     'progress_window.py', 'pyfaceau_detector.py', 'splash_screen.py',
     'video_processor.py', 'video_rotation.py', 'au45_calculator.py',
-    'performance_profiler.py'
+    # performance_profiler.py is dev-only and gitignored; main.py defines
+    # no-op stubs for get_profiler / set_pipeline_context inline.
 ]
 for mod in local_modules:
     if Path(mod).exists():
@@ -115,7 +116,7 @@ hiddenimports = [
     'video_processor',
     'video_rotation',
     'au45_calculator',
-    'performance_profiler',
+    # performance_profiler is dev-only -- see local_modules note above
     # pyfaceau stack
     'pyfaceau',
     'pyfaceau.pipeline',

@@ -28,7 +28,18 @@ from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor  # Now uses PyFaceAU backend
 from progress_window import ProcessingProgressWindow, ProgressUpdate
-from performance_profiler import get_profiler, set_pipeline_context
+# performance_profiler.py is intentionally NOT shipped (it's a dev-only
+# instrumentation tool, gitignored after the Jan 1 production cleanup
+# commit a5d93def). Provide no-op stubs so the call sites below stay valid
+# without dragging the dev module back in. If you need real profiling,
+# restore the file from git and `git add -f` it locally.
+class _NoopProfiler:
+    def export_json(self, *a, **kw): pass
+    def print_report(self, *a, **kw): pass
+def get_profiler():
+    return _NoopProfiler()
+def set_pipeline_context(*a, **kw):
+    pass
 
 
 def safe_print(*args, **kwargs):
