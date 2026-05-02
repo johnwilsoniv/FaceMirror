@@ -114,3 +114,10 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `54d6d5b2d372c1f2d3c99d1bf8ca91dae891cfde25d5486a6ee4bea55b49b2ea`
 - **Files written:** 68
 
+## 2026-05-02T17:43:25+00:00
+- **Stage(s):** windows_cuda_aus
+- **Reason:** patched pyfhog v0.1.4 (HOG indexing fix)
+- **Git SHA:** `a4998fe509852221ef34520dda6738863300e516`
+- **pip-freeze SHA256:** `68e13498d25b31da1a2dff225fcfedcc37ad6b319e771688b4fa819903576c02`
+- **Files written:** 20
+

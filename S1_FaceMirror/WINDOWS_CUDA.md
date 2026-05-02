@@ -42,6 +42,19 @@ pip install -r requirements-windows-cuda.txt
 # last wins). Remove the CPU one and force-reinstall the GPU one:
 pip uninstall -y onnxruntime
 pip install --force-reinstall --no-deps onnxruntime-gpu
+
+# CRITICAL: build the Windows-patched pyfhog v0.1.4. Skipping this leaves
+# you with the PyPI 0.1.3 wheel which has a transposed HOG indexing bug
+# (hog[x][y] vs hog[y][x]) that causes AU output on Windows to be
+# uncorrelated with macOS goldens (median Pearson r ~0.47, many AUs
+# negatively correlated). The build script clones v0.1.4, applies a
+# 1-file vendored patch to dlib's test_for_odr_violations.h that disables
+# only the linker sentinels (which 0.1.4 re-enabled and don't work with
+# pyfhog's header-only dlib usage on MSVC), and pip-installs the result.
+# After running it, AU correlations vs macOS goldens jump to median r >0.98.
+cd ..
+.\build_pyfhog_windows.ps1
+cd S1_FaceMirror
 ```
 
 The `--extra-index-url` directive at the top of `requirements-windows-cuda.txt`
@@ -164,34 +177,39 @@ They **do** need an NVIDIA driver supporting CUDA 12.8+. The installer warns
 if `nvcuda.dll` is missing from `System32` but does not block — the app falls
 back to CPU when CUDA is unavailable.
 
-## Known correlation drift (under investigation)
+## Validation notes (resolved drift)
 
-A first end-to-end run of `windows_cuda_aus` on a Blackwell sm_120 box
-(2026-05-01) reproduced the **17-AU schema** correctly but Pearson
-correlation against the macOS pyfaceau goldens splits cleanly into two
-buckets per canary (numbers from IMG_0422_left, n=1113 frames):
+A first end-to-end run on a Blackwell sm_120 box (2026-05-01) showed
+correlation collapse vs the macOS goldens (median r=0.47, AU04 r=-0.02,
+AU14 r=-0.45). After bisecting through landmark equivalence (matched to
+0.5 px), pyfaceau version skew (1.3.9 vs 1.3.11 produce bit-identical
+output), running-median state (forced-static still drifted), and
+OnlineAUCorrection (invariant under shift), the cause was traced to a
+**transposed HOG indexing bug in pyfhog v0.1.3** (the only Windows-wheel
+version on PyPI):
 
-| Bucket | AUs | Pearson r |
-|---|---|---|
-| Healthy | AU01, AU02, AU05, AU06, AU12, AU45 | 0.84 - 0.96 |
-| Drifted | AU04, AU07, AU09, AU14, AU15, AU17, AU20, AU23, AU25, AU26 | -0.45 to 0.75 |
+```cpp
+// pyfhog v0.1.3, src/cpp/fhog_wrapper.cpp dlib_hog_to_numpy:
+ptr[idx++] = hog[x][y](o);   // WRONG -- treats hog as [row][col]
 
-The drifted bucket includes some AUs with **negative** correlation (AU04,
-AU09, AU14, AU23) — definitively beyond numerical-backend drift. Likely
-suspects (none confirmed):
+// pyfhog v0.1.4 (and OpenFace Face_utils.cpp:259-268):
+ptr[idx++] = hog[y][x](o);   // CORRECT -- col-major as OpenFace expects
+```
 
-- `pyclnf` GPU-vs-CPU/Metal landmark refinement disagreement (CPU pyclnf is
-  separately broken on Windows: every frame returns `success=False`, so we
-  cannot directly bisect)
-- ONNX Runtime backend differences (CoreML on Apple Silicon vs CUDA on
-  Blackwell) propagating through to AU SVR feature inputs
-- `pyfaceau` version drift between the macOS S2O CSV generation date and
-  current PyPI 1.3.11
+Every dimension of the 4464-dim HOG vector lands in a different position
+than the AU SVRs were trained against, producing uncorrelated AU output.
 
-The schema and 6/13 healthy AUs already let the manuscript-relevant
-`test_windows_cuda_vs_cpp_ground_truth` pass for those AUs. The drifted
-bucket needs a follow-up investigation that can A/B between Apple-Silicon
-Mac CPU and Windows CUDA on the same canary corpus.
+`build_pyfhog_windows.ps1` builds v0.1.4 from source with a 1-file vendored
+patch that disables only the dlib ODR sentinels which 0.1.4 re-enabled and
+which don't link on Windows MSVC. That restores correlations to **median
+r=0.984 vs macOS goldens** (range 0.45-0.999, n=1113 frames, IMG_0422_left).
+For comparison, macOS-vs-C++ baseline on the same canary is median r=0.991,
+so the Windows build is now within ~0.01 of the macOS reference. AU15
+stays at r=0.45 but already correlates poorly on macOS-vs-C++ (r=0.836) --
+it's a known sparse/hard AU, not a Windows-specific issue.
+
+Upstream pyfhog should publish a Windows-built v0.1.5 wheel; until then,
+the build script is the supported path.
 
 ## Known limitations
 

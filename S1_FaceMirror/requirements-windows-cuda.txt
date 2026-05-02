@@ -48,23 +48,30 @@ onnxruntime-gpu>=1.21.0
 
 # --- FaceMirror dependency stack (PyPI) --------------------------------------
 # Windows install reality:
-#   pyfhog   — pinned to <0.1.4 because 0.1.3 has cp310-win_amd64 wheels but
-#              0.1.4 is sdist-only and the Windows source build hits a dlib
-#              symbol-resolution error (DLIB_VERSION_MISMATCH_CHECK linker
-#              failure). 0.1.3 vs macOS-reference SHA may differ slightly but
-#              the tier1 tolerance bands cover that.
-#   pyclnf   — pure-Python wheel; uses torch for GPU work
-#   pymtcnn  — pure-Python wheel; lazy-imports onnxruntime CUDA backend
-#   pyfaceau — sdist-only; compiles its Cython exts via MSVC. MSVC Build Tools
-#              2022 is REQUIRED on Windows (the "falls back to pure Python"
-#              claim in earlier docs was incorrect — setuptools errors out at
-#              the find-compiler step before any fallback can run).
-pyfhog>=0.1.3,<0.1.4
-# pyclnf and pyfaceau are pinned to the EXACT macOS reference versions from
-# requirements.lock. Earlier looser pins (>=0.3.3 / >=1.3.11) picked up 0.3.4
-# and 1.3.12 which ship a different AU classifier model -- the Windows-CUDA
-# output became uncorrelated with the macOS goldens (AU04 r=-0.02, AU23
-# r=-0.22). Pinning here prevents pip from drifting forward when 1.3.13 lands.
+#   pyfhog   -- NOT INSTALLED FROM PYPI HERE. PyPI 0.1.3 has a transposed
+#               HOG indexing bug in src/cpp/fhog_wrapper.cpp (uses hog[x][y]
+#               instead of hog[y][x] -- doesn't match OpenFace 2.2's
+#               Face_utils.cpp layout). On Windows that means every AU SVR
+#               sees layout-shuffled features and produces output uncorrelated
+#               with the macOS goldens (median r ~ 0.47, several AUs
+#               negatively correlated).
+#               Upstream 0.1.4 fixes the indexing but is sdist-only and won't
+#               link on Windows because the same release re-enabled dlib's
+#               test_for_odr_violations.h sentinels (DLIB_VERSION_MISMATCH_CHECK
+#               et al). Use ../build_pyfhog_windows.ps1 AFTER this
+#               requirements file -- it clones v0.1.4, replaces only that
+#               one header with the vendored Windows-friendly version, and
+#               pip-installs from source. Restores median r > 0.98.
+#   pyclnf   -- pure-Python wheel; uses torch for GPU work
+#   pymtcnn  -- pure-Python wheel; lazy-imports onnxruntime CUDA backend
+#   pyfaceau -- sdist-only; compiles its Cython exts via MSVC. MSVC Build Tools
+#               2022 is REQUIRED on Windows (the "falls back to pure Python"
+#               claim in earlier docs was incorrect -- setuptools errors out
+#               at the find-compiler step before any fallback can run).
+#
+# pyfhog: install via build_pyfhog_windows.ps1 AFTER this file
+# pyclnf and pyfaceau pinned to the EXACT macOS reference versions from
+# requirements.lock to keep AU classifier model schema and code paths aligned.
 pyclnf==0.3.3
 pymtcnn>=1.1.5
 pyfaceau==1.3.11
