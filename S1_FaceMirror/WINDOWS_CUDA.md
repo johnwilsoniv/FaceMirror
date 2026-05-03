@@ -25,7 +25,7 @@ winget install Microsoft.VisualStudio.2022.BuildTools --override `
 
 Wheel availability on PyPI for the FaceMirror dependency stack:
 - `torch` (cu128 wheels), `onnxruntime-gpu`, `pyclnf`, `pymtcnn`, `opencv-python` — wheels available, no compile.
-- `pyfhog` — version `0.1.4` is **sdist-only** and its Windows source build hits a dlib symbol-resolution error (`DLIB_VERSION_MISMATCH_CHECK__EXPECTED_VERSION_19_13_0`). The requirements file pins `<0.1.4` so pip picks `0.1.3` which has a `cp310-win_amd64` wheel.
+- `pyfhog` — `>=0.1.5` ships Windows wheels (cp38-cp313, win_amd64) and includes the HOG indexing fix. Earlier 0.1.3 PyPI wheel had a transposed indexing bug; 0.1.4 fixed it but was sdist-only on Windows because of dlib ODR sentinels that don't link on MSVC. v0.1.5 wraps those sentinels in `#ifndef _MSC_VER` and re-enables Windows wheel publishing.
 - `pyfaceau` — sdist-only, builds from source via MSVC. The "falls back to pure Python without MSVC" pattern in the upstream README does NOT apply: setuptools errors out at the find-compiler step before any fallback can run, so MSVC is genuinely required.
 
 ## One-time environment setup
@@ -42,20 +42,12 @@ pip install -r requirements-windows-cuda.txt
 # last wins). Remove the CPU one and force-reinstall the GPU one:
 pip uninstall -y onnxruntime
 pip install --force-reinstall --no-deps onnxruntime-gpu
-
-# CRITICAL: build the Windows-patched pyfhog v0.1.4. Skipping this leaves
-# you with the PyPI 0.1.3 wheel which has a transposed HOG indexing bug
-# (hog[x][y] vs hog[y][x]) that causes AU output on Windows to be
-# uncorrelated with macOS goldens (median Pearson r ~0.47, many AUs
-# negatively correlated). The build script clones v0.1.4, applies a
-# 1-file vendored patch to dlib's test_for_odr_violations.h that disables
-# only the linker sentinels (which 0.1.4 re-enabled and don't work with
-# pyfhog's header-only dlib usage on MSVC), and pip-installs the result.
-# After running it, AU correlations vs macOS goldens jump to median r >0.98.
-cd ..
-.\build_pyfhog_windows.ps1
-cd S1_FaceMirror
 ```
+
+(In versions before 1.1.0, an extra `..\build_pyfhog_windows.ps1` step was
+required because the only Windows-wheel pyfhog on PyPI was v0.1.3 which
+had a transposed HOG indexing bug. v0.1.5+ fixes both the bug and the
+Windows wheel build, so `pip install -r ...` is now sufficient.)
 
 The `--extra-index-url` directive at the top of `requirements-windows-cuda.txt`
 routes torch to PyTorch's CUDA 12.8 wheel index. Verify CUDA visibility:
@@ -199,10 +191,14 @@ ptr[idx++] = hog[y][x](o);   // CORRECT -- col-major as OpenFace expects
 Every dimension of the 4464-dim HOG vector lands in a different position
 than the AU SVRs were trained against, producing uncorrelated AU output.
 
-`build_pyfhog_windows.ps1` builds v0.1.4 from source with a 1-file vendored
-patch that disables only the dlib ODR sentinels which 0.1.4 re-enabled and
-which don't link on Windows MSVC. That restores correlations to **median
-r=0.984 vs macOS goldens** (range 0.45-0.999, n=1113 frames, IMG_0422_left).
+Upstream pyfhog v0.1.5 (published 2026-05-02) ships Windows wheels with the
+fix and conditionally compiles the dlib ODR sentinels that 0.1.4 re-enabled
+and which don't link on MSVC. With pyfhog v0.1.5+ from PyPI, AU
+correlations land at **median r=0.984 vs macOS goldens** (range 0.45-0.999,
+n=1113 frames, IMG_0422_left). Pre-0.1.5, FaceMirror shipped a
+`build_pyfhog_windows.ps1` helper that built v0.1.4 from source with the
+sentinel patch vendored into the repo; that script and the vendored patch
+were removed in v1.1.x once the fix landed upstream.
 For comparison, macOS-vs-C++ baseline on the same canary is median r=0.991,
 so the Windows build is now within ~0.01 of the macOS reference. AU15
 stays at r=0.45 but already correlates poorly on macOS-vs-C++ (r=0.836) --
@@ -220,15 +216,13 @@ the build script is the supported path.
 - **The CI bundle is unvalidated for CUDA correctness.** GitHub-hosted
   Windows runners have no NVIDIA GPU. CI verifies the stack installs and
   PyInstaller succeeds; clinical validation is local.
-- **`pyfhog`'s upstream CI workflow has Windows builds disabled** ("linking
-  issues noted"). PyPI has cp310-win_amd64 wheels for `pyfhog` versions
-  `0.1.0`-`0.1.3` only; `0.1.4` is sdist-only and currently fails to link on
-  Windows with `DLIB_VERSION_MISMATCH_CHECK__EXPECTED_VERSION_19_13_0` /
-  `USER_ERROR__inconsistent_build_configuration` unresolved external symbols.
-  The requirements file pins `<0.1.4` to use the wheel; lift the pin once
-  upstream publishes a fixed wheel for `0.1.5+`. Tier1 tolerance bands cover
-  the slight version drift vs the macOS-reference git SHA (which uses dlib
-  built natively for macOS where the symbol resolution rules differ).
+- **pyfhog Windows wheels:** `>=0.1.5` is the minimum for Windows. Earlier
+  PyPI wheels (`0.1.0`-`0.1.3`) had a transposed HOG indexing bug that
+  silently produced wrong AU output when fed to OpenFace 2.2 SVRs;
+  `0.1.4` fixed the bug but was sdist-only on Windows due to dlib ODR
+  sentinels that don't link on MSVC. v0.1.5 (published 2026-05-02 via
+  johnwilsoniv/pyfhog#1) wraps those sentinels in `#ifndef _MSC_VER` and
+  re-enables the Windows wheel CI matrix.
 - **iCloud Drive on Windows is NOT a viable canary corpus location.** The
   Windows iCloud client's "files-on-demand" mode hangs OpenCV's ffmpeg
   reader on first access (60s timeout < typical iCloud download time for a
