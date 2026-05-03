@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 # Version information
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 APP_NAME = "Face Mirror"
 
 def get_app_dir():

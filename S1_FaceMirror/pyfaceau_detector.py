@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
 def safe_print(*args, **kwargs):
-    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts."""
+    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts.
+
+    PyInstaller --windowed Windows builds set sys.stdout/sys.stderr to None,
+    so builtins.print() raises AttributeError on the underlying .write() call.
+    Catch and silently drop instead of crashing."""
     import builtins
+    import sys as _sys
+    if _sys.stdout is None and _sys.stderr is None:
+        return
     try:
         builtins.print(*args, **kwargs)
-    except (BrokenPipeError, IOError):
-        pass  # Stdout disconnected
+    except (BrokenPipeError, IOError, AttributeError, OSError):
+        pass  # Stdout disconnected, redirected to None, or otherwise unusable
 
 """
 68-point facial landmark detector using GPU-accelerated PyPI packages.

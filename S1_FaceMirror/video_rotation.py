@@ -1,20 +1,51 @@
 import cv2
 
 def safe_print(*args, **kwargs):
-    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts."""
+    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts.
+
+    Also handles AttributeError: in PyInstaller --windowed builds on Windows
+    sys.stdout/sys.stderr are None, so builtins.print() blows up with
+    'NoneType' object has no attribute 'write'. Catch and silently drop.
+    """
     import builtins
+    import sys as _sys
+    if _sys.stdout is None and _sys.stderr is None:
+        return
     try:
         builtins.print(*args, **kwargs)
-    except (BrokenPipeError, IOError):
-        pass  # Stdout disconnected
+    except (BrokenPipeError, IOError, AttributeError, OSError):
+        pass  # Stdout disconnected, redirected to None, or otherwise unusable
 
 import subprocess
 import shutil
 import os
+import sys
 import json
 import re
 import time
 from pathlib import Path
+
+# Windows: hide the console window that pops up on every subprocess call
+# made from a PyInstaller --windowed app. Without CREATE_NO_WINDOW each
+# subprocess.check_output / subprocess.Popen with shell=True spawns a
+# visible cmd.exe window. On non-Windows the flag doesn't exist and we
+# pass 0 (no special creation flags).
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
+
+
+def _check_output(*args, **kwargs):
+    """Wrapper around subprocess.check_output that hides the spawned cmd
+    window on Windows (PyInstaller --windowed builds) by default. Pass
+    creationflags=... explicitly to override."""
+    kwargs.setdefault('creationflags', _NO_WINDOW)
+    return subprocess.check_output(*args, **kwargs)
+
+
+def _Popen(*args, **kwargs):
+    """Wrapper around subprocess.Popen with the same Windows console-hide
+    default as _check_output."""
+    kwargs.setdefault('creationflags', _NO_WINDOW)
+    return subprocess.Popen(*args, **kwargs)
 
 import config_paths
 
@@ -42,11 +73,15 @@ def get_ffprobe():
     if _FFPROBE_PATH is None:
         ffmpeg = get_ffmpeg()
         ffmpeg_dir = os.path.dirname(ffmpeg)
-        ffprobe = os.path.join(ffmpeg_dir, 'ffprobe')
+        # On Windows the binary is ffprobe.exe -- without the extension
+        # os.path.isfile() returns False even when the binary is right
+        # there next to ffmpeg.exe in the bundled bin/.
+        ffprobe_name = 'ffprobe.exe' if sys.platform == 'win32' else 'ffprobe'
+        ffprobe = os.path.join(ffmpeg_dir, ffprobe_name)
         if os.path.isfile(ffprobe):
             _FFPROBE_PATH = ffprobe
         else:
-            # Try system ffprobe
+            # Try system ffprobe (shutil.which auto-handles PATHEXT on Windows).
             _FFPROBE_PATH = shutil.which('ffprobe')
             if _FFPROBE_PATH is None:
                 # Fallback to common locations
@@ -72,13 +107,13 @@ def get_video_frame_count(input_path):
     ffprobe = get_ffprobe()
     try:
         cmd = f'"{ffprobe}" -v error -select_streams v:0 -count_packets -show_entries stream=nb_read_packets -of csv=p=0 "{input_path}"'
-        output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+        output = _check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         return int(output)
     except (subprocess.CalledProcessError, ValueError):
         # Fallback: try using nb_frames
         try:
             cmd = f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream=nb_frames -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
-            output = subprocess.check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+            output = _check_output(cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
             return int(output)
         except (subprocess.CalledProcessError, ValueError):
             return 0
@@ -100,7 +135,7 @@ def get_video_rotation(input_path):
 
     for command in commands:
         try:
-            output = subprocess.check_output(command, shell=True, universal_newlines=True).strip()
+            output = _check_output(command, shell=True, universal_newlines=True).strip()
 
             # For JSON metadata, parse and extract rotation
             if command.endswith('json'):
@@ -146,7 +181,7 @@ def get_video_rotation(input_path):
     try:
         # Use MediaInfo for additional metadata detection if available
         media_info_cmd = f'mediainfo --Inform="Video;%Rotation%" "{input_path}"'
-        media_info_output = subprocess.check_output(media_info_cmd, shell=True, universal_newlines=True).strip()
+        media_info_output = _check_output(media_info_cmd, shell=True, universal_newlines=True).strip()
 
         try:
             rotation = int(media_info_output)
@@ -160,7 +195,7 @@ def get_video_rotation(input_path):
     # Check for portrait video dimensions as a fallback
     try:
         dim_cmd = f'"{ffprobe}" -v quiet -select_streams v:0 -show_entries stream=width,height -of json "{input_path}"'
-        dim_output = subprocess.check_output(dim_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+        dim_output = _check_output(dim_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         dim_data = json.loads(dim_output)
         
         if dim_data.get('streams'):
@@ -239,7 +274,7 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
     ffprobe = get_ffprobe()
     codec_cmd = f'"{ffprobe}" -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "{input_path}"'
     try:
-        codec = subprocess.check_output(codec_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
+        codec = _check_output(codec_cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL).strip()
         safe_print(f"Original video codec: {codec}")
         
         # Choose video codec based on input file
@@ -280,12 +315,18 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
 
     safe_print(f"Executing FFmpeg command with progress tracking...")
     try:
-        # Use Popen to capture output in real-time
-        process = subprocess.Popen(
+        # Use Popen to capture output in real-time.
+        # CRITICAL: merge stderr into stdout. Reading only one of the two
+        # captured pipes deadlocks once the unread one fills its buffer
+        # (~64 KB on Windows). FFmpeg writes nontrivial stderr volume during
+        # HEVC->H.264 transcoding of iOS clips (PTS warnings, encoder stats),
+        # which used to hang this loop on long Paralysis Cohort videos
+        # without ever printing a single progress update.
+        process = _Popen(
             cmd,
             shell=True,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             universal_newlines=True,
             bufsize=1  # Line buffered
         )
@@ -296,10 +337,32 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
         ffmpeg_start_time = time.time()
         last_progress_time = ffmpeg_start_time
 
+        # Tail of FFmpeg log lines (non-progress lines) -- kept for error
+        # reporting on failure. With stderr merged into stdout above, this
+        # is now the only place ffmpeg's diagnostic output survives.
+        ffmpeg_log_tail: list = []
+        FFMPEG_LOG_TAIL_MAX = 50
+
+        # Prefixes emitted by `-progress pipe:1`. Lines starting with these
+        # are progress data, not log noise.
+        _PROGRESS_PREFIXES = (
+            'frame=', 'fps=', 'progress=',
+            'out_time=', 'out_time_us=', 'out_time_ms=',
+            'total_size=', 'bitrate=', 'speed=',
+            'stream_', 'dup_frames=', 'drop_frames=',
+        )
+
         # Parse FFmpeg progress output
         # FFmpeg writes to stdout when using -progress pipe:1
         for line in process.stdout:
             line = line.strip()
+
+            # Capture ffmpeg's diagnostic log lines (banner, codec warnings,
+            # PTS errors) into a bounded ring buffer for error reporting.
+            if line and not line.startswith(_PROGRESS_PREFIXES):
+                ffmpeg_log_tail.append(line)
+                if len(ffmpeg_log_tail) > FFMPEG_LOG_TAIL_MAX:
+                    ffmpeg_log_tail.pop(0)
 
             # FFmpeg outputs "frame=N" to show progress
             if line.startswith('frame='):
@@ -352,10 +415,14 @@ def auto_rotate_video(input_path, output_path, progress_callback=None):
                 safe_print(f"  Average FPS: {avg_fps:.1f} frames/sec")
             return output_path
         else:
-            # Get error output
-            stderr_output = process.stderr.read()
+            # stderr was merged into stdout (see Popen call above); the
+            # tail of ffmpeg's log lines was accumulated as we drained the
+            # combined stream.
             safe_print(f"Error during auto-rotation (return code {return_code})")
-            safe_print(f"FFmpeg error: {stderr_output}")
+            if ffmpeg_log_tail:
+                safe_print("FFmpeg log tail:")
+                for log_line in ffmpeg_log_tail[-20:]:
+                    safe_print(f"  {log_line}")
             safe_print("Unable to rotate video. Using original file.")
             return input_path
 
