@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                            QListWidget, QListWidgetItem, QRadioButton,
                            QButtonGroup, QCheckBox, QTableWidget, QTableWidgetItem,
                            QHeaderView, QAbstractItemView, QGridLayout, # Removed QStackedWidget
-                           QSpacerItem, QAction) # Added QAction for shortcuts
+                           QSpacerItem, QAction, QShortcut) # Added QAction + QShortcut
 from PyQt5.QtCore import Qt, pyqtSignal, QTimer, pyqtSlot, QEvent, QUrl
 from PyQt5.QtGui import QPixmap, QFont, QKeySequence # Keep QFont, Add QKeySequence
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -77,6 +77,14 @@ class MainWindow(QMainWindow):
          playback_controls_group = QGroupBox("Playback Controls"); playback_controls_group.setStyleSheet(config.GROUP_BOX_STYLE)
          controls_layout = QHBoxLayout(playback_controls_group); controls_layout.setContentsMargins(5, 8, 5, 8); controls_layout.setSpacing(config.STANDARD_SPACING)
          self.play_pause_btn = QPushButton("Play"); self.play_pause_btn.setFixedWidth(60); self.play_pause_btn.clicked.connect(self.toggle_play_pause); self.play_pause_btn.setStyleSheet(config.STANDARD_BUTTON_STYLE); controls_layout.addWidget(self.play_pause_btn)
+         # Application-wide spacebar shortcut for play/pause. The MainWindow's
+         # keyPressEvent below ALSO handles Space, but only when focus is on
+         # the main window itself; once the user clicks into the QVideoWidget
+         # or the timeline the keyPressEvent never fires. QShortcut with
+         # Qt.ApplicationShortcut context fires regardless of focused widget.
+         self._play_pause_shortcut = QShortcut(QKeySequence(Qt.Key_Space), self)
+         self._play_pause_shortcut.setContext(Qt.ApplicationShortcut)
+         self._play_pause_shortcut.activated.connect(self.toggle_play_pause)
          self.frame_slider = QSlider(Qt.Horizontal); self.frame_slider.setTickPosition(QSlider.TicksBelow); self.frame_slider.valueChanged.connect(self.slider_changed); self.frame_slider.setStyleSheet(config.SLIDER_STYLE); controls_layout.addWidget(self.frame_slider, 1)
          self.frame_label = QLabel("Frame: 0/0"); self.frame_label.setFixedWidth(100); controls_layout.addWidget(self.frame_label)
          right_panel_layout.addWidget(playback_controls_group); right_panel_layout.addStretch(1); top_section_layout.addWidget(right_panel_widget, 1)

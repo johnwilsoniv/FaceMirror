@@ -76,19 +76,32 @@ class ApplicationController(QObject):
         self._whisper_debounce_timer.setInterval(500)  # 500ms delay
         self._whisper_debounce_timer.timeout.connect(self._on_whisper_debounce_timeout)
         self._pending_whisper_video_path = None
+        # Create + show the main window BEFORE running the startup sequence so
+        # the file dialog and any native_dialogs message boxes have a real
+        # parent and don't end up off-screen / behind everything on Windows.
+        # The window is empty at this point (UIManager hasn't run); managers
+        # populate it in _initialize_managers below. This is fine -- Qt apps
+        # routinely show a placeholder shell while modal startup workflows run.
+        self.window = MainWindow()
+        self.window.show()
+        self.window.raise_()
+        self.window.activateWindow()
         if not self._run_startup_sequence():
-            if self.window: self.window.close()
+            self.window.close()
             sys.exit(0)
         self._initialize_managers()
         integrate_qt_player(self.window, self.video_player)
         self._connect_signals()
         self.load_first_file()
+        # Keep this -- needed in case any startup step minimised or hid us.
         self.window.show()
         self.window.activateWindow()
 
     # (_run_startup_sequence, _initialize_managers, _connect_signals - unchanged)
-    def _run_startup_sequence(self): # (Unchanged)
-        file_dialog=QFileDialog(None,"Select Video Files or a Directory"); file_dialog.setFileMode(QFileDialog.ExistingFiles); file_dialog.setOption(QFileDialog.DontUseNativeDialog,False); file_dialog.setNameFilter("Video Files (*.mp4 *.avi *.mov *.mkv)")
+    def _run_startup_sequence(self):
+        # Parent the file dialog to the main window so it inherits its screen
+        # and stays in front instead of floating off behind other apps.
+        file_dialog=QFileDialog(self.window,"Select Video Files or a Directory"); file_dialog.setFileMode(QFileDialog.ExistingFiles); file_dialog.setOption(QFileDialog.DontUseNativeDialog,False); file_dialog.setNameFilter("Video Files (*.mp4 *.avi *.mov *.mkv)")
         # Set default directory to S1 output folder
         default_dir = config_paths.get_s1_processed_dir()
         if default_dir.exists():
@@ -205,7 +218,9 @@ class ApplicationController(QObject):
         else:
             print(f"DEBUG: Skipping redundant confirmation dialog (user already confirmed via output detection)")
 
-        self.window=MainWindow(); return True
+        # MainWindow is now created in __init__ before this method runs, so
+        # we just signal success here.
+        return True
     def _initialize_managers(self): # (Unchanged)
         if not self.window: raise RuntimeError("Cannot initialize managers without a MainWindow.")
         print("Controller: Initializing UIManager...")
@@ -274,6 +289,13 @@ class ApplicationController(QObject):
         print(f"Controller: Loading file set: {file_set.get('base_id', 'N/A')}");
         self.current_file_set = file_set;
         self.processing_manager.stop_whisper_processing(); self.processing_manager.cleanup_previous_whisper_files()
+        # Force a GC pass between videos so the deleteLater'd whisper /
+        # save thread Python wrappers and the prior video's transient
+        # numpy/pandas state actually get reclaimed instead of waiting
+        # for the next generational cycle. Cheap (sub-100 ms typically)
+        # and keeps memory growth bounded across long batches.
+        try: gc.collect()
+        except Exception: pass
         if self.playback_manager.is_playing: self.playback_manager.pause()
         self.action_tracker.clear_actions(); self.history_manager.clear();
         self.whisper_processed = False; self.final_timeline_events = []; self.generated_action_ranges = [];

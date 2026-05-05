@@ -1,7 +1,59 @@
 
 import sys
 import os
-from splash_screen import SplashScreen
+
+# ---------------------------------------------------------------------------
+# Windows-only: deconflict Intel OpenMP runtimes BEFORE any heavy import.
+#
+# Both `torch` and `ctranslate2` ship their OWN copies of libiomp5md.dll inside
+# their site-packages dirs. When we run from a venv, Python imports both
+# packages, each does a per-package DLL load, and we end up with TWO Intel
+# OpenMP runtimes in the same process -- which segfaults faster-whisper's
+# WhisperModel init somewhere down the call chain (we hit this in
+# `whisper_handler.run()` -> `WhisperModel(...)` even when the splash-time
+# preload appeared to succeed). The PyInstaller bundle survives by accident:
+# its onedir collector dedupes DLLs to a single copy in `_internal/`.
+#
+# Workaround for the dev tree:
+#   1. point Windows' DLL search at torch/lib first, so dependencies of
+#      ctranslate2.dll (cuDNN, OpenMP) resolve there.
+#   2. shadow ctranslate2's bundled libiomp5md.dll with an empty / renamed
+#      stub if it exists, so ctranslate2's __init__ glob doesn't ctypes.CDLL
+#      a second OpenMP into the process. We DON'T need to delete it -- we
+#      just rename it out of the way the first time S2 starts on this box.
+# ---------------------------------------------------------------------------
+if sys.platform == "win32":
+    try:
+        import importlib.util as _ilu
+        _torch_spec = _ilu.find_spec("torch")
+        if _torch_spec and _torch_spec.submodule_search_locations:
+            _torch_lib = os.path.join(_torch_spec.submodule_search_locations[0], "lib")
+            if os.path.isdir(_torch_lib):
+                os.add_dll_directory(_torch_lib)
+        _ct2_spec = _ilu.find_spec("ctranslate2")
+        if _ct2_spec and _ct2_spec.submodule_search_locations:
+            _ct2_dir = _ct2_spec.submodule_search_locations[0]
+            _dup = os.path.join(_ct2_dir, "libiomp5md.dll")
+            if os.path.isfile(_dup):
+                _disabled = _dup + ".s2_disabled"
+                try:
+                    os.replace(_dup, _disabled)
+                except OSError:
+                    pass  # already renamed by a prior run
+    except Exception:
+        pass
+
+# IMPORT ORDER NOTE (Windows segfault avoidance):
+# Importing PyQt5.QtWidgets BEFORE `import torch` poisons something in the
+# C runtime such that ctranslate2's `models.Whisper(...)` segfaults during
+# construction (faster-whisper transcribe.py:689). Importing torch first,
+# then PyQt5, is fine. We pre-import torch here so the rest of the module
+# can import PyQt5 / etc. in any order without retriggering the bug.
+if sys.platform == "win32":
+    import torch  # noqa: F401  -- intentional ordering hack
+    SplashScreen = None  # not used on Windows; see _NoopSplash below
+else:
+    from splash_screen import SplashScreen  # macOS Tk path
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
 
@@ -262,8 +314,20 @@ if __name__ == "__main__":
     except RuntimeError:
         pass  # Already set
 
-    # Show splash screen with loading stages (ONLY in main process)
-    splash = SplashScreen("Action Coder", "1.0.0")
+    # Show splash screen with loading stages (ONLY in main process).
+    # Windows: skip the Tk-based splash because tk.Tk() initialized in this
+    # process taints the threading model in a way that segfaults
+    # ctranslate2.models.Whisper(...) at line ~447. When the user is on
+    # Windows we use a no-op stub that absorbs all the .update_status calls
+    # below and lets the workflow proceed straight to the Qt main window.
+    if sys.platform == "win32":
+        class _NoopSplash:
+            def show(self): pass
+            def update_status(self, *a, **kw): pass
+            def close(self): pass
+        splash = _NoopSplash()
+    else:
+        splash = SplashScreen("Action Coder", config_paths.VERSION)
     splash.show()
 
     # Stage 1: Loading frameworks

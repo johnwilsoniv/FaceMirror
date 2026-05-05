@@ -104,10 +104,39 @@ class ProcessingManager(QObject):
         self.pending_whisper_video_path = None  # Track pending video to transcribe after current one finishes
 
     def cleanup_previous_whisper_files(self):
-        """Cleans up temp files from the *previous* Whisper run."""
+        """Cleans up temp files AND fully releases the QThread C++ object
+        from the *previous* Whisper run.
+
+        Order matters: Qt's signal/slot connection objects hold a hard ref
+        to the sender, so calling deleteLater() alone isn't enough --
+        connections must be disconnected first or the C++ side never
+        actually frees. Then we wait() to ensure the OS thread has fully
+        joined (otherwise Qt holds it for thread-cleanup purposes), and
+        finally schedule destruction.
+        """
         if self.previous_whisper_handler:
-            print(f"ProcessingManager: Cleaning up previous Whisper handler files: {getattr(self.previous_whisper_handler, 'temp_dir_for_cleanup', 'N/A')}")
-            self.previous_whisper_handler.cleanup()
+            handler = self.previous_whisper_handler
+            print(f"ProcessingManager: Cleaning up previous Whisper handler files: {getattr(handler, 'temp_dir_for_cleanup', 'N/A')}")
+            try: handler.cleanup()
+            except Exception: pass
+            # Explicitly drop signal connections -- these otherwise pin the
+            # sender alive even after deleteLater.
+            try:
+                handler.progress_update.disconnect()
+                handler.processing_error.disconnect()
+                handler.processing_finished.disconnect()
+                handler.finished.disconnect()
+            except (TypeError, RuntimeError):
+                pass  # Already disconnected or already deleted
+            # Wait briefly for the OS thread to fully exit before destroying.
+            try:
+                if handler.isRunning():
+                    handler.quit()
+                    handler.wait(2000)  # 2 s grace
+            except (TypeError, RuntimeError):
+                pass
+            try: handler.deleteLater()
+            except Exception: pass
             self.previous_whisper_handler = None
 
     def _calculate_rms_dbfs(self, audio_path):
@@ -324,6 +353,12 @@ class ProcessingManager(QObject):
     @pyqtSlot()
     def _on_whisper_thread_finished(self):
         print("ProcessingManager: Whisper thread finished.")
+        # Don't deleteLater here -- the same QThread is also referenced by
+        # self.current_whisper_handler / self.previous_whisper_handler, and
+        # cleanup_previous_whisper_files (called when the next video loads)
+        # is the canonical disconnect+deleteLater path. If we destroy here
+        # we may break still-pending signal deliveries from the just-ended
+        # thread (processing_finished is async and might still be in flight).
         self.whisper_thread = None
 
         # If there's a pending video, start transcription for it now
@@ -358,7 +393,26 @@ class ProcessingManager(QObject):
         self.processing_error.emit("save", error_message)
         self.save_complete.emit(False)
     @pyqtSlot()
-    def _on_save_thread_finished(self): # (No change)
+    def _on_save_thread_finished(self):
+        # Same disconnect-then-deleteLater pattern as the whisper path so
+        # signal connections don't pin the C++ thread object alive.
+        if self.save_thread is not None:
+            t = self.save_thread
+            try:
+                t.progress_signal.disconnect()
+                t.finished_signal.disconnect()
+                t.error_signal.disconnect()
+                t.finished.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            try:
+                if t.isRunning():
+                    t.quit()
+                    t.wait(2000)
+            except (TypeError, RuntimeError):
+                pass
+            try: t.deleteLater()
+            except Exception: pass
         print("ProcessingManager: Save thread finished.")
         self.save_thread = None
 

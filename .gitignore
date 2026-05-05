@@ -76,6 +76,10 @@ venv_x86_64/
 installer_output/
 installer_output_s2/
 
+# Bundled redistributables -- fetched at build time, not stored in git.
+# See S2 Action Coder/ActionCoder.iss for the source URL + SHA256.
+S2 Action Coder/installer_redist/*.exe
+
 # Model weights (large files)
 weights/
 

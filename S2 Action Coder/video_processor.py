@@ -51,31 +51,38 @@ class VideoProcessor:
         out = cv2.VideoWriter(output_video, fourcc, self.fps, (self.width, self.height))
 
         frame_index = 0
-        while True:
-            ret, frame = self.cap.read()
-            if not ret:
-                break
+        try:
+            while True:
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
 
-            # Get action for current frame
-            action_code = self.action_tracker.get_action_for_frame(frame_index)
+                # Get action for current frame
+                action_code = self.action_tracker.get_action_for_frame(frame_index)
 
-            # Add overlay if an action is present
-            if action_code:
-                # Use the shared text overlay function
-                frame = add_text_overlay(frame, action_code, position="bottom-center")
+                # Add overlay if an action is present
+                if action_code:
+                    # Use the shared text overlay function
+                    frame = add_text_overlay(frame, action_code, position="bottom-center")
 
-            out.write(frame)
-            # Explicitly delete frame to release memory immediately
-            del frame
-            frame_index += 1
+                out.write(frame)
+                # Explicitly delete frame to release memory immediately
+                del frame
+                frame_index += 1
 
-            # Update progress
-            if progress_callback and frame_index % 10 == 0:
-                progress = int((frame_index / self.total_frames) * 100)
-                progress_callback(progress)
-
-        self.cap.release()
-        out.release()
+                # Update progress
+                if progress_callback and frame_index % 10 == 0:
+                    progress = int((frame_index / self.total_frames) * 100)
+                    progress_callback(progress)
+        finally:
+            # Always release the cv2 handles -- without the try/finally an
+            # exception in the loop would leak both the source VideoCapture
+            # AND the destination VideoWriter (each holds a process-level
+            # ffmpeg pipe + native buffers, and they accumulate per save).
+            try: self.cap.release()
+            except Exception: pass
+            try: out.release()
+            except Exception: pass
 
         print(f"Video processing complete. Output saved to {output_video}")
         return True
