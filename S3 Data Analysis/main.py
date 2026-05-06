@@ -154,7 +154,7 @@ def preload_ml_detectors(splash=None):
 def main():
     """Main entry point."""
     # Show splash screen (ONLY in main process)
-    splash = SplashScreen("Data Analysis", "1.0.0")
+    splash = SplashScreen("Data Analysis", config_paths.VERSION)
     splash.show()
 
     # Stage 1: Loading frameworks
