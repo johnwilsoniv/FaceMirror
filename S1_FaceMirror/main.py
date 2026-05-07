@@ -478,7 +478,12 @@ def process_single_video(args):
                 total_mirrored = len(mirrored_videos)
                 for idx, mirrored_video_path in enumerate(mirrored_videos, 1):
                     # CRITICAL: Reset running median between mirrored videos
-                    # Without this, left_mirrored's running median pollutes right_mirrored
+                    # Without this, left_mirrored's running median pollutes
+                    # right_mirrored. Note: OpenFace3Processor.clear_cache
+                    # ALSO resets pipeline.online_au_correction (which the
+                    # upstream pyfaceau 1.3.11 clear_cache forgets) -- that
+                    # fix is in openface_integration.py, see
+                    # PYFACEAU_ONLINE_AU_CORRECTION_BUG.md for the diagnosis.
                     openface_processor.clear_cache()
 
                     mirrored_video = Path(mirrored_video_path)

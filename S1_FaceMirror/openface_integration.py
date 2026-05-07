@@ -87,6 +87,40 @@ class OpenFace3Processor(PyFaceAUProcessor):
         # The callback will be called on each frame to update GUI
         return super().process_video(video_path, output_csv, progress_callback)
 
+    def clear_cache(self):
+        """
+        Reset all per-video pipeline state. Wraps pyfaceau's clear_cache and
+        ALSO resets `pipeline.online_au_correction`, which the upstream
+        `OpenFaceProcessor.clear_cache` (pyfaceau 1.3.11) misses. Without
+        that extra reset the OnlineAUCorrection histogram accumulates across
+        every video processed by a single processor instance, and after
+        ~40 videos `_recompute_correction()` derives a per-AU offset large
+        enough to clamp every subsequent AU prediction toward zero. The bug
+        affects both the macOS and Windows builds (same library) -- it just
+        wasn't observable until the first 100+-video Windows batch.
+
+        See PYFACEAU_ONLINE_AU_CORRECTION_BUG.md for the full diagnosis.
+        Upstream fix tracked separately; this wrapper override is the
+        S1-side workaround so every existing `clear_cache()` call site
+        (per-mirrored-video, end-of-patient, controller cleanup) gets the
+        correct behavior without per-site edits.
+        """
+        super().clear_cache()
+        try:
+            pl = getattr(self, 'pipeline', None)
+            oac = getattr(pl, 'online_au_correction', None) if pl is not None else None
+            if oac is not None and hasattr(oac, 'reset'):
+                oac.reset()
+        except Exception as e:
+            # Non-fatal -- log via stderr if reachable, never raise out of cleanup
+            try:
+                import sys
+                if sys.stderr is not None:
+                    print(f"OpenFace3Processor.clear_cache: online_au_correction reset failed: {e}",
+                          file=sys.stderr)
+            except Exception:
+                pass
+
 
 def process_videos(directory_path, specific_files=None, output_dir=None, **kwargs):
     """
