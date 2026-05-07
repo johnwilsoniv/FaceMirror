@@ -6,8 +6,6 @@ numpy>=1.20.0
 opencv-python>=4.5.3
 PyQt5>=5.15.0
 PyQt5-stubs>=5.15.0
-PyQt5-multimedia>=5.15.0
-PyQt5-multimediawidgets>=5.15.0
 
 # Audio processing
 faster-whisper>=0.9.0
