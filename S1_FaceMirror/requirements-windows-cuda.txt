@@ -69,7 +69,7 @@ onnxruntime-gpu>=1.21.0
 pyfhog>=0.1.5
 pyclnf==0.3.3
 pymtcnn>=1.1.5
-pyfaceau==1.3.11
+pyfaceau>=1.3.13  # 1.3.13 resets OnlineAUCorrection in clear_cache; earlier versions silently zero AU values after ~40 videos in one OpenFaceProcessor instance.
 
 # --- Vision / numerics -------------------------------------------------------
 opencv-python>=4.8.0
