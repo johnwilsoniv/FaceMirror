@@ -11,7 +11,7 @@ import os
 # Application Metadata
 # ============================================================================
 
-VERSION = "1.0.0"
+VERSION = "1.1.2"
 APP_NAME = "S1 Face Mirror"
 
 # ============================================================================
@@ -164,6 +164,18 @@ GC_THRESHOLD_GEN0 = 10000
 GC_THRESHOLD_GEN1 = 10
 GC_THRESHOLD_GEN2 = 10
 
+# ============================================================================
+# CUDA Determinism (Windows + NVIDIA)
+# ============================================================================
+
+# When True, configures PyTorch/cuBLAS/cuDNN to use deterministic kernels so
+# the same canary video produces the same AU outputs on every run on the same
+# machine. Has a small (~5–15%) throughput cost. Required for reproducing the
+# regression-test goldens. Cross-machine determinism is NOT guaranteed even
+# with this enabled — a different GPU model or driver version can still
+# produce slightly different floats.
+CUDA_DETERMINISTIC = True
+
 
 def apply_environment_settings():
     """
@@ -175,6 +187,38 @@ def apply_environment_settings():
     os.environ["OPENBLAS_NUM_THREADS"] = str(OPENBLAS_NUM_THREADS)
     os.environ["VECLIB_MAXIMUM_THREADS"] = str(VECLIB_MAXIMUM_THREADS)
     os.environ["NUMEXPR_NUM_THREADS"] = str(NUMEXPR_NUM_THREADS)
+
+    if CUDA_DETERMINISTIC:
+        # cuBLAS workspace must be set before the first CUDA op; without it,
+        # torch.use_deterministic_algorithms(True) raises at runtime.
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
+
+def apply_cuda_determinism():
+    """
+    Apply CUDA determinism settings to PyTorch + cuDNN. Call this AFTER
+    `import torch` but BEFORE any CUDA operations.
+
+    Safe to call on non-CUDA systems — it's a no-op when CUDA isn't available.
+    """
+    if not CUDA_DETERMINISTIC:
+        return
+    try:
+        import torch
+    except ImportError:
+        return
+    if not torch.cuda.is_available():
+        return
+    try:
+        torch.use_deterministic_algorithms(True, warn_only=True)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        # Match the determinism env used in CI (regression-tests.yml).
+        os.environ.setdefault("PYTHONHASHSEED", "42")
+    except Exception as exc:  # pragma: no cover — best-effort
+        import sys
+        print(f"[config] WARNING: failed to enable CUDA determinism: {exc}",
+              file=sys.stderr)
 
 
 def get_profiling_output_dir():

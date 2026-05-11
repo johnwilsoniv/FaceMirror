@@ -156,7 +156,7 @@ class ProcessingProgressWindow:
         # Version/subtitle
         version_label = tk.Label(
             header_frame,
-            text="Version 1.0",
+            text="Version 1.1.2",
             font=("Helvetica Neue", 9),
             bg=self.colors['primary'],
             fg='#b0c4de',
@@ -432,10 +432,15 @@ class ProcessingProgressWindow:
             self.eta_history.clear()  # Reset ETA history for new video
             self.last_frame_count = 0
 
-        # Update overall progress
-        overall_pct = ((update.video_num - 1) / self.total_videos) * 100
-        if update.stage == 'complete':
-            overall_pct = (update.video_num / self.total_videos) * 100
+        # Update overall progress. Guard against total_videos=0 which can
+        # transiently happen if the progress window is updated before the
+        # file-selection result is wired up.
+        if self.total_videos > 0:
+            overall_pct = ((update.video_num - 1) / self.total_videos) * 100
+            if update.stage == 'complete':
+                overall_pct = (update.video_num / self.total_videos) * 100
+        else:
+            overall_pct = 0
 
         self.overall_progress['value'] = overall_pct
         self.overall_label.config(

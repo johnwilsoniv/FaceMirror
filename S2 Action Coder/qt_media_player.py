@@ -183,6 +183,32 @@ class QTMediaPlayer(QObject):
         try:
             if self.media_player:
                 self.media_player.stop() # Stop existing playback/timer
+                # Windows + LAV Filters / DirectShow leak: reusing the same
+                # QMediaPlayer across many setMedia() calls accumulates
+                # filter-graph state. After ~12 videos the QVideoWidget
+                # surface stops getting frames (audio still plays). The only
+                # reliable cure is to fully destroy the QMediaPlayer and its
+                # filter graph, then build a new one. setVideoOutput(None)
+                # alone is not enough -- the graph manager keeps refs.
+                # Re-creating per video adds ~20 ms of init time, negligible
+                # versus the seconds of CSV / whisper work that follow.
+                old_player = self.media_player
+                try:
+                    old_player.setVideoOutput(None)
+                    old_player.setMedia(QMediaContent())
+                    try: old_player.stateChanged.disconnect()
+                    except (TypeError, RuntimeError): pass
+                    try: old_player.mediaStatusChanged.disconnect()
+                    except (TypeError, RuntimeError): pass
+                    old_player.deleteLater()
+                except Exception as e:
+                    print(f"Player WARN: error tearing down old QMediaPlayer: {e}")
+
+                # Build a fresh QMediaPlayer with the same wiring as __init__.
+                self.media_player = QMediaPlayer()
+                self.media_player.setVideoOutput(self.video_widget)
+                self.media_player.stateChanged.connect(self._on_state_changed)
+                self.media_player.mediaStatusChanged.connect(self._on_media_status_changed)
             if not os.path.exists(video_path):
                 print(f"Player Error: Video file does not exist at {video_path}")
                 return False
@@ -279,7 +305,9 @@ class QTMediaPlayer(QObject):
             self.total_frames = 0; self.fps = 0; self.width = 0; self.height = 0
             self._hw_accel_enabled = False
 
-        # Set Qt media player content
+        # Set Qt media player content. The freshly-built QMediaPlayer above
+        # already has setVideoOutput(self.video_widget) wired, so we just
+        # hand it the new media here.
         try:
             if self.media_player:
                 self.media_player.setMedia(QMediaContent(QUrl.fromLocalFile(os.path.abspath(video_path))))

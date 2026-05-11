@@ -30,8 +30,16 @@ TESTS_ROOT = Path(__file__).resolve().parent
 GOLDEN_ROOT = TESTS_ROOT / "golden"
 CANARY_DATA_ROOT = TESTS_ROOT / "canary_data"
 
-# External data (lives outside the repo on each engineer's machine)
-SPLITFACE_BASE = Path("/Users/johnwilsoniv/Documents/SplitFace")
+# External data (lives outside the repo on each engineer's machine).
+# Resolution order:
+#   1. SPLITFACE_BASE env var (explicit override)
+#   2. ~/Documents/SplitFace (cross-platform default — works on macOS, Windows,
+#      and Linux). On Windows this expands to e.g.
+#      C:\Users\johnwilsoniv\Documents\SplitFace.
+SPLITFACE_BASE = Path(
+    os.environ.get("SPLITFACE_BASE")
+    or (Path.home() / "Documents" / "SplitFace")
+)
 S1O_VIDEOS = SPLITFACE_BASE / "S1O Processed Files" / "Face Mirror 1.0 Output"
 S2O_PYFACEAU = SPLITFACE_BASE / "S2O Coded Files"
 S2O_CPP = SPLITFACE_BASE / "S2O Coded Files OF"
@@ -39,15 +47,12 @@ S3O_RESULTS = SPLITFACE_BASE / "S3O Results"
 PYFACEAU_COMBINED_CSV = S3O_RESULTS / "combined_results.csv"
 CPP_COMBINED_CSV = S3O_RESULTS / "combined_results_OF_v2.csv"
 
-# Saved Jan 1 manuscript model (load with joblib, NOT pickle)
-JAN1_MODEL_DIR = (
-    S3_ROOT
-    / "dist"
-    / "Paralysis Analyzer.app"
-    / "Contents"
-    / "Resources"
-    / "models"
-)
+# Saved Jan 1 manuscript model (load with joblib, NOT pickle).
+# On macOS the model lives inside the .app bundle; on Windows the PyInstaller
+# onedir layout puts Resources directly under dist/<app_name>/. We try both.
+_JAN1_MAC = S3_ROOT / "dist" / "Paralysis Analyzer.app" / "Contents" / "Resources" / "models"
+_JAN1_WIN = S3_ROOT / "dist" / "Paralysis Analyzer" / "Resources" / "models"
+JAN1_MODEL_DIR = _JAN1_MAC if _JAN1_MAC.exists() else _JAN1_WIN
 
 # Optional rich C++ reference (richer than AU-only S2O CSVs)
 GOLD_CPP_REFERENCE = S3_ROOT.parent / "gold_cpp_reference"

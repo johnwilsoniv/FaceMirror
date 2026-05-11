@@ -2,6 +2,27 @@
 S1 Face Mirror - Video processing pipeline with face mirroring and AU extraction
 """
 
+# CRITICAL: PyInstaller --windowed Windows builds set sys.stdout/sys.stderr
+# to None. ANY bare print() call (numba's load banner, torch warnings,
+# pyfaceau status logs, etc.) crashes with
+#     AttributeError: 'NoneType' object has no attribute 'write'
+# We replace None with a no-op writer BEFORE any other import so every
+# print() in the dependency chain just no-ops instead of taking down the app.
+# Has to run before `import config` because config may print at import time.
+import sys as _sys
+if _sys.stdout is None or _sys.stderr is None:
+    class _NullStream:
+        def write(self, *a, **kw): pass
+        def flush(self, *a, **kw): pass
+        def isatty(self): return False
+        def fileno(self): raise OSError("null stream has no fileno")
+        encoding = "utf-8"
+    if _sys.stdout is None:
+        _sys.stdout = _NullStream()
+    if _sys.stderr is None:
+        _sys.stderr = _NullStream()
+del _sys
+
 import config
 config.apply_environment_settings()
 
@@ -21,22 +42,57 @@ import gc
 import psutil
 import time
 import torch
+config.apply_cuda_determinism()
+
+# ONNXRuntime's CUDAExecutionProvider DLL depends on cuBLASLt64_12.dll, which
+# is bundled inside torch/lib/ in both PyInstaller bundles and pip-installed
+# torch wheels. Windows' DLL loader doesn't search torch/lib by default, so
+# without this hint the CUDA EP fails to load and ONNX silently falls back
+# to CPU — making AU extraction ~10x slower on the 111-video reprocessing.
+# Has to run before any pyfaceau / onnxruntime import (which happen via
+# openface_integration below).
+if sys.platform == 'win32':
+    try:
+        _torch_lib = Path(torch.__file__).parent / 'lib'
+        if _torch_lib.is_dir():
+            os.add_dll_directory(str(_torch_lib))
+    except Exception:
+        pass
+
 import threading
 import config_paths
 from splash_screen import SplashScreen
 from face_splitter import StableFaceSplitter
 from openface_integration import OpenFace3Processor  # Now uses PyFaceAU backend
 from progress_window import ProcessingProgressWindow, ProgressUpdate
-from performance_profiler import get_profiler, set_pipeline_context
+# performance_profiler.py is intentionally NOT shipped (it's a dev-only
+# instrumentation tool, gitignored after the Jan 1 production cleanup
+# commit a5d93def). Provide no-op stubs so the call sites below stay valid
+# without dragging the dev module back in. If you need real profiling,
+# restore the file from git and `git add -f` it locally.
+class _NoopProfiler:
+    def export_json(self, *a, **kw): pass
+    def print_report(self, *a, **kw): pass
+def get_profiler():
+    return _NoopProfiler()
+def set_pipeline_context(*a, **kw):
+    pass
 
 
 def safe_print(*args, **kwargs):
-    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts."""
+    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts.
+
+    PyInstaller --windowed Windows builds set sys.stdout/sys.stderr to None,
+    so builtins.print() raises AttributeError on the underlying .write() call.
+    Catch and silently drop instead of crashing the whole pipeline."""
     import builtins
+    import sys as _sys
+    if _sys.stdout is None and _sys.stderr is None:
+        return
     try:
         builtins.print(*args, **kwargs)
-    except (BrokenPipeError, IOError):
-        pass  # Stdout disconnected (e.g., GUI subprocess terminated)
+    except (BrokenPipeError, IOError, AttributeError, OSError):
+        pass  # Stdout disconnected, redirected to None, or otherwise unusable
 
 
 # Global logger
@@ -87,15 +143,21 @@ def setup_logging():
         return None
 
 
-# CRITICAL: Set multiprocessing start method to 'fork' on macOS to prevent re-importing main module
-# This prevents splash screen and file dialogs from appearing in child processes
-# Must be done before any multiprocessing operations
+# Set multiprocessing start method:
+#   - macOS / Linux: 'fork' avoids re-importing the main module (which would
+#     otherwise re-show splash + file dialogs in every worker).
+#   - Windows: 'fork' is unavailable. We must use 'spawn' (the default), and
+#     freeze_support() is required for PyInstaller-frozen apps to keep worker
+#     processes from re-running the GUI bootstrap.
 if __name__ == "__main__":
-    try:
-        multiprocessing.set_start_method('fork', force=True)
-    except RuntimeError:
-        # Already set, ignore
-        pass
+    if sys.platform == 'win32':
+        multiprocessing.freeze_support()
+    else:
+        try:
+            multiprocessing.set_start_method('fork', force=True)
+        except (RuntimeError, ValueError):
+            # Already set, or fork unavailable on this platform.
+            pass
 
 
 def auto_detect_device():
@@ -416,7 +478,12 @@ def process_single_video(args):
                 total_mirrored = len(mirrored_videos)
                 for idx, mirrored_video_path in enumerate(mirrored_videos, 1):
                     # CRITICAL: Reset running median between mirrored videos
-                    # Without this, left_mirrored's running median pollutes right_mirrored
+                    # Without this, left_mirrored's running median pollutes
+                    # right_mirrored. Note: OpenFace3Processor.clear_cache
+                    # ALSO resets pipeline.online_au_correction (which the
+                    # upstream pyfaceau 1.3.11 clear_cache forgets) -- that
+                    # fix is in openface_integration.py, see
+                    # PYFACEAU_ONLINE_AU_CORRECTION_BUG.md for the diagnosis.
                     openface_processor.clear_cache()
 
                     mirrored_video = Path(mirrored_video_path)
@@ -481,6 +548,24 @@ def process_single_video(args):
                             safe_print(f"\nNo frames processed for {mirrored_video.name}", flush=True)
                     except Exception as e:
                         safe_print(f"\n  Warning: PyFaceAU processing failed for {mirrored_video.name}: {e}", flush=True)
+                        # In --windowed builds stdout is a NullStream, so the
+                        # safe_print above goes nowhere. Mirror the failure to
+                        # the file logger and an explicit AU failure log so
+                        # silent skips are detectable post-run.
+                        try:
+                            import logging as _logging, traceback as _tb, config_paths as _cp
+                            _logging.getLogger(__name__).error(
+                                "PyFaceAU failed for %s: %s\n%s",
+                                mirrored_video.name, e, _tb.format_exc()
+                            )
+                            _logs = _cp.get_logs_dir()
+                            with (_logs / "au_failures.log").open("a", encoding="utf-8") as _fh:
+                                _fh.write(
+                                    f"[{datetime.now().isoformat()}] {mirrored_video.name}: "
+                                    f"{type(e).__name__}: {e}\n{_tb.format_exc()}\n---\n"
+                                )
+                        except Exception:
+                            pass
 
                     # Memory cleanup after each mirrored video (important when processing left + right)
                     # OPTIMIZATION: Reduced GC frequency (only every 20 batches in processor)
@@ -830,7 +915,7 @@ def workflow_mirror_openface():
 def main():
     """Main entry point - go straight to full pipeline workflow"""
     # Show splash screen with loading stages (ONLY in main process, not in multiprocessing workers)
-    splash = SplashScreen("Face Mirror", "1.0.0")
+    splash = SplashScreen("Face Mirror", config_paths.VERSION)
     splash.show()
 
     # Stage 1: Loading frameworks

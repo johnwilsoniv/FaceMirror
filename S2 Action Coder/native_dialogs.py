@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """
-Native system dialog utilities for cross-platform UI
+Native system dialog utilities for cross-platform UI.
 
-Provides native OS dialogs instead of Qt dialogs for better system integration.
-Uses osascript on macOS and tkinter as fallback for other platforms.
+macOS: shells out to osascript so we get genuine Aqua sheets.
+Windows / Linux: uses PyQt5's QMessageBox / QInputDialog. The app's
+QApplication is already alive by the time any of these are called
+(see main.py:437), so the dialog plugs into the existing Qt event loop
+instead of spawning a separate Tk top-level. Tk on Windows comes up as
+a full-decorated top-level window that fights with our Qt main window
+for modal focus and feels nothing like a system dialog -- avoid it.
+A Tk path is preserved at the bottom of each function purely as a
+last-resort fallback if Qt isn't importable for some reason.
 """
 
 import sys
@@ -12,18 +19,42 @@ import platform
 
 
 def _is_macos():
-    """Check if running on macOS"""
     return platform.system() == 'Darwin'
 
 
-def show_info(title, message):
-    """
-    Show native info dialog
+def _qt_app():
+    """Return the running QApplication or None. Importing PyQt5 here
+    (not at module top) so this module stays importable in CLI tools
+    that don't pull in Qt."""
+    try:
+        from PyQt5.QtWidgets import QApplication
+        return QApplication.instance()
+    except Exception:
+        return None
 
-    Args:
-        title: Dialog title
-        message: Dialog message
-    """
+
+# ---------------------------------------------------------------------------
+# show_info / show_warning / show_error
+# ---------------------------------------------------------------------------
+
+def _qt_messagebox(icon_name: str, title: str, message: str) -> bool:
+    """Try to show a Qt QMessageBox. Returns True on success."""
+    try:
+        from PyQt5.QtWidgets import QMessageBox
+        if _qt_app() is None:
+            return False
+        box = QMessageBox()
+        box.setIcon(getattr(QMessageBox, icon_name, QMessageBox.Information))
+        box.setWindowTitle(title)
+        box.setText(message)
+        box.setStandardButtons(QMessageBox.Ok)
+        box.exec_()
+        return True
+    except Exception:
+        return False
+
+
+def show_info(title, message):
     if _is_macos():
         try:
             script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon note'
@@ -31,13 +62,13 @@ def show_info(title, message):
             return
         except Exception as e:
             print(f"Warning: Failed to show native dialog: {e}")
-
-    # Fallback to tkinter
+    if _qt_messagebox('Information', title, message):
+        return
+    # Last-resort Tk fallback
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        root = tk.Tk(); root.withdraw()
         messagebox.showinfo(title, message)
         root.destroy()
     except Exception as e:
@@ -46,13 +77,6 @@ def show_info(title, message):
 
 
 def show_warning(title, message):
-    """
-    Show native warning dialog
-
-    Args:
-        title: Dialog title
-        message: Dialog message
-    """
     if _is_macos():
         try:
             script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon caution'
@@ -60,13 +84,12 @@ def show_warning(title, message):
             return
         except Exception as e:
             print(f"Warning: Failed to show native dialog: {e}")
-
-    # Fallback to tkinter
+    if _qt_messagebox('Warning', title, message):
+        return
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        root = tk.Tk(); root.withdraw()
         messagebox.showwarning(title, message)
         root.destroy()
     except Exception as e:
@@ -75,13 +98,6 @@ def show_warning(title, message):
 
 
 def show_error(title, message):
-    """
-    Show native error dialog
-
-    Args:
-        title: Dialog title
-        message: Dialog message
-    """
     if _is_macos():
         try:
             script = f'display dialog "{message}" with title "{title}" buttons {{"OK"}} default button "OK" with icon stop'
@@ -89,13 +105,12 @@ def show_error(title, message):
             return
         except Exception as e:
             print(f"Warning: Failed to show native dialog: {e}")
-
-    # Fallback to tkinter
+    if _qt_messagebox('Critical', title, message):
+        return
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        root = tk.Tk(); root.withdraw()
         messagebox.showerror(title, message)
         root.destroy()
     except Exception as e:
@@ -103,57 +118,47 @@ def show_error(title, message):
         print(f"{title}: {message}")
 
 
+# ---------------------------------------------------------------------------
+# ask_yes_no
+# ---------------------------------------------------------------------------
+
 def ask_yes_no(title, message, default_yes=True):
-    """
-    Show native yes/no question dialog
-
-    Args:
-        title: Dialog title
-        message: Dialog message
-        default_yes: Whether "Yes" is the default button
-
-    Returns:
-        True if Yes, False if No
-    """
     if _is_macos():
         try:
             default_btn = "Yes" if default_yes else "No"
-            # Escape quotes and backslashes in message for AppleScript
             message_escaped = message.replace('\\', '\\\\').replace('"', '\\"')
             title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
-            # Use icon note (1) for question dialogs - AppleScript doesn't have a "question" icon constant
             script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons {{"No", "Yes"}} default button "{default_btn}" with icon note'
             result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
-
-            # Debug output
-            print(f"DEBUG native_dialogs: osascript return code: {result.returncode}")
-            print(f"DEBUG native_dialogs: stdout: '{result.stdout}'")
-            print(f"DEBUG native_dialogs: stderr: '{result.stderr}'")
-
-            # Check return code - 0 means success, non-zero means cancelled or error
             if result.returncode != 0:
-                print(f"DEBUG native_dialogs: User cancelled or error (return code {result.returncode})")
                 return False
-
-            # osascript returns "button returned:Yes" or "button returned:No"
-            is_yes = "Yes" in result.stdout
-            print(f"DEBUG native_dialogs: Parsed result as Yes={is_yes}")
-            return is_yes
+            return "Yes" in result.stdout
         except subprocess.CalledProcessError:
-            # User cancelled or error
-            print(f"DEBUG native_dialogs: CalledProcessError caught")
             return False
         except Exception as e:
             print(f"Warning: Failed to show native dialog: {e}")
             import traceback
             traceback.print_exc()
 
-    # Fallback to tkinter
+    # Qt path
+    try:
+        from PyQt5.QtWidgets import QMessageBox
+        if _qt_app() is not None:
+            box = QMessageBox()
+            box.setIcon(QMessageBox.Question)
+            box.setWindowTitle(title)
+            box.setText(message)
+            box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            box.setDefaultButton(QMessageBox.Yes if default_yes else QMessageBox.No)
+            return box.exec_() == QMessageBox.Yes
+    except Exception:
+        pass
+
+    # Tk last-resort
     try:
         import tkinter as tk
         from tkinter import messagebox
-        root = tk.Tk()
-        root.withdraw()
+        root = tk.Tk(); root.withdraw()
         result = messagebox.askyesno(title, message, default='yes' if default_yes else 'no')
         root.destroy()
         return result
@@ -162,33 +167,19 @@ def ask_yes_no(title, message, default_yes=True):
         return False
 
 
+# ---------------------------------------------------------------------------
+# ask_three_choice
+# ---------------------------------------------------------------------------
+
 def ask_three_choice(title, message, button1, button2, button3, default_button=2):
-    """
-    Show native dialog with three choice buttons
-
-    Args:
-        title: Dialog title
-        message: Dialog message
-        button1: Text for first button (leftmost)
-        button2: Text for second button (middle)
-        button3: Text for third button (rightmost)
-        default_button: Which button is default (1, 2, or 3)
-
-    Returns:
-        1, 2, or 3 corresponding to which button was clicked, or None if cancelled
-    """
+    """Returns 1, 2, or 3 (or None if cancelled)."""
     if _is_macos():
         try:
             default_btn_text = [button1, button2, button3][default_button - 1]
-            # Escape quotes and backslashes in message for AppleScript
             message_escaped = message.replace('\\', '\\\\').replace('"', '\\"')
             title_escaped = title.replace('\\', '\\\\').replace('"', '\\"')
-            # In macOS, buttons appear right-to-left, so we reverse them
-            # Use icon note for question dialogs
             script = f'display dialog "{message_escaped}" with title "{title_escaped}" buttons {{"{button3}", "{button2}", "{button1}"}} default button "{default_btn_text}" with icon note'
             result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
-
-            # Parse which button was clicked
             if f"button returned:{button1}" in result.stdout:
                 return 1
             elif f"button returned:{button2}" in result.stdout:
@@ -197,71 +188,60 @@ def ask_three_choice(title, message, button1, button2, button3, default_button=2
                 return 3
             return None
         except subprocess.CalledProcessError:
-            # User cancelled
             return None
         except Exception as e:
             print(f"Warning: Failed to show native dialog: {e}")
 
-    # Fallback to tkinter (limited to 3 buttons using custom dialog)
+    # Qt path: QMessageBox with three custom buttons
+    try:
+        from PyQt5.QtWidgets import QMessageBox
+        if _qt_app() is not None:
+            box = QMessageBox()
+            box.setIcon(QMessageBox.Question)
+            box.setWindowTitle(title)
+            box.setText(message)
+            b1 = box.addButton(button1, QMessageBox.AcceptRole)
+            b2 = box.addButton(button2, QMessageBox.AcceptRole)
+            b3 = box.addButton(button3, QMessageBox.RejectRole)
+            default_btn = [b1, b2, b3][default_button - 1]
+            box.setDefaultButton(default_btn)
+            box.exec_()
+            clicked = box.clickedButton()
+            if clicked is b1: return 1
+            if clicked is b2: return 2
+            if clicked is b3: return 3
+            return None
+    except Exception:
+        pass
+
+    # Tk last-resort (the original three-button custom dialog)
     try:
         import tkinter as tk
-        from tkinter import messagebox
-
-        root = tk.Tk()
-        root.withdraw()
-
-        # Create custom dialog window
+        root = tk.Tk(); root.withdraw()
         dialog = tk.Toplevel(root)
         dialog.title(title)
         dialog.resizable(False, False)
-
-        # Message label
         msg_label = tk.Label(dialog, text=message, padx=20, pady=20, wraplength=400)
         msg_label.pack()
-
-        # Button frame
         btn_frame = tk.Frame(dialog, padx=10, pady=10)
         btn_frame.pack()
-
-        result = [None]  # Use list to allow modification in nested function
-
+        result = [None]
         def on_button(choice):
-            result[0] = choice
-            dialog.destroy()
-            root.destroy()
-
-        # Create buttons (left to right)
-        btn1 = tk.Button(btn_frame, text=button1, command=lambda: on_button(1), width=15)
-        btn1.pack(side=tk.LEFT, padx=5)
-
-        btn2 = tk.Button(btn_frame, text=button2, command=lambda: on_button(2), width=15)
-        btn2.pack(side=tk.LEFT, padx=5)
-
-        btn3 = tk.Button(btn_frame, text=button3, command=lambda: on_button(3), width=15)
-        btn3.pack(side=tk.LEFT, padx=5)
-
-        # Set default button
-        if default_button == 1:
-            btn1.focus_set()
-        elif default_button == 2:
-            btn2.focus_set()
-        else:
-            btn3.focus_set()
-
-        # Center dialog on screen
+            result[0] = choice; dialog.destroy(); root.destroy()
+        btn1 = tk.Button(btn_frame, text=button1, command=lambda: on_button(1), width=15); btn1.pack(side=tk.LEFT, padx=5)
+        btn2 = tk.Button(btn_frame, text=button2, command=lambda: on_button(2), width=15); btn2.pack(side=tk.LEFT, padx=5)
+        btn3 = tk.Button(btn_frame, text=button3, command=lambda: on_button(3), width=15); btn3.pack(side=tk.LEFT, padx=5)
+        if default_button == 1: btn1.focus_set()
+        elif default_button == 2: btn2.focus_set()
+        else: btn3.focus_set()
         dialog.update_idletasks()
-        width = dialog.winfo_width()
-        height = dialog.winfo_height()
+        width = dialog.winfo_width(); height = dialog.winfo_height()
         x = (dialog.winfo_screenwidth() // 2) - (width // 2)
         y = (dialog.winfo_screenheight() // 2) - (height // 2)
         dialog.geometry(f'+{x}+{y}')
-
-        dialog.transient(root)
-        dialog.grab_set()
+        dialog.transient(root); dialog.grab_set()
         root.wait_window(dialog)
-
         return result[0]
-
     except Exception as e:
         print(f"Error: Could not show dialog: {e}")
         return None
@@ -270,29 +250,12 @@ def ask_three_choice(title, message, button1, button2, button3, default_button=2
 # Test functions
 if __name__ == "__main__":
     print("Testing native dialogs...")
-
-    print("\n1. Testing info dialog...")
     show_info("Test Info", "This is an info message")
-
-    print("\n2. Testing warning dialog...")
     show_warning("Test Warning", "This is a warning message")
-
-    print("\n3. Testing error dialog...")
     show_error("Test Error", "This is an error message")
-
-    print("\n4. Testing yes/no dialog...")
     result = ask_yes_no("Test Question", "Do you want to continue?")
     print(f"   Result: {result}")
-
-    print("\n5. Testing three-choice dialog...")
-    result = ask_three_choice(
-        "Test Three Choice",
-        "What would you like to do?",
-        "Option 1",
-        "Option 2",
-        "Option 3",
-        default_button=2
-    )
+    result = ask_three_choice("Test Three Choice", "What would you like to do?",
+                              "Option 1", "Option 2", "Option 3", default_button=2)
     print(f"   Result: {result}")
-
     print("\nAll tests complete!")

@@ -22,7 +22,7 @@ IS_WINDOWS = sys.platform == 'win32'
 
 # Application info
 app_name = 'S1 Face Mirror'
-app_version = '1.0.0'
+app_version = '1.1.2'
 
 # Collect data files for dependencies
 datas = []
@@ -30,9 +30,25 @@ datas = []
 # Add weights directory (pyfaceau model files)
 datas += [('weights', 'weights')]
 
-# Add FFmpeg and FFprobe binaries
-datas += [('bin/ffmpeg', 'bin')]
-datas += [('bin/ffprobe', 'bin')]
+# Add FFmpeg and FFprobe binaries (platform-specific filenames)
+if IS_WINDOWS:
+    ffmpeg_path = Path('bin/ffmpeg.exe')
+    ffprobe_path = Path('bin/ffprobe.exe')
+else:
+    ffmpeg_path = Path('bin/ffmpeg')
+    ffprobe_path = Path('bin/ffprobe')
+
+if ffmpeg_path.exists():
+    datas += [(str(ffmpeg_path), 'bin')]
+    print(f"INFO: Bundling FFmpeg from {ffmpeg_path}")
+else:
+    print(f"WARNING: FFmpeg not found at {ffmpeg_path}. App will require system FFmpeg.")
+
+if ffprobe_path.exists():
+    datas += [(str(ffprobe_path), 'bin')]
+    print(f"INFO: Bundling FFprobe from {ffprobe_path}")
+else:
+    print(f"WARNING: FFprobe not found at {ffprobe_path}. App will require system FFprobe.")
 
 # Add local Python modules as data files (ensures they're included)
 local_modules = [
@@ -40,7 +56,8 @@ local_modules = [
     'logger.py', 'native_dialogs.py', 'openface_integration.py',
     'progress_window.py', 'pyfaceau_detector.py', 'splash_screen.py',
     'video_processor.py', 'video_rotation.py', 'au45_calculator.py',
-    'performance_profiler.py'
+    # performance_profiler.py is dev-only and gitignored; main.py defines
+    # no-op stubs for get_profiler / set_pipeline_context inline.
 ]
 for mod in local_modules:
     if Path(mod).exists():
@@ -55,10 +72,17 @@ datas += collect_data_files('pyfhog', include_py_files=True)
 # Collect torch data files
 datas += collect_data_files('torch')
 
-# Collect coremltools if available (for Apple Silicon acceleration)
+# Collect coremltools if available (Apple Silicon acceleration only — skip on Windows)
+if IS_MACOS:
+    try:
+        datas += collect_data_files('coremltools')
+    except Exception:
+        pass
+
+# Collect onnxruntime data files (CUDA Execution Provider needs the .dll/.so set)
 try:
-    datas += collect_data_files('coremltools')
-except:
+    datas += collect_data_files('onnxruntime')
+except Exception:
     pass
 
 # Hidden imports that PyInstaller might miss
@@ -92,7 +116,7 @@ hiddenimports = [
     'video_processor',
     'video_rotation',
     'au45_calculator',
-    'performance_profiler',
+    # performance_profiler is dev-only -- see local_modules note above
     # pyfaceau stack
     'pyfaceau',
     'pyfaceau.pipeline',
@@ -102,9 +126,15 @@ hiddenimports = [
     'pyclnf',
     'pymtcnn',
     'pyfhog',
-    # CoreML for Apple Silicon
-    'coremltools',
+    # ONNX Runtime providers (pymtcnn dispatches based on what's importable)
+    'onnxruntime',
+    'onnxruntime.capi',
+    'onnxruntime.capi._pybind_state',
 ]
+
+# CoreML hidden import only on macOS (coremltools is not Windows-installable)
+if IS_MACOS:
+    hiddenimports += ['coremltools']
 
 # Collect all torch submodules
 hiddenimports += collect_submodules('torch')
@@ -143,6 +173,15 @@ a.datas = [d for d in a.datas if 'cpp_warp' not in d[0] or d[0].endswith('.py')]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# UPX compression: enable on macOS where it's been validated. Disable on Windows
+# because UPX-packed torch / cuDNN / cuBLAS DLLs crash at runtime ("VCRUNTIME140
+# load failed" and CUDA init failures are common symptoms).
+USE_UPX = IS_MACOS
+
+# target_arch: only meaningful on macOS (arm64 vs x86_64). On Windows, leaving
+# this unset lets PyInstaller use the host architecture.
+target_arch = 'arm64' if IS_MACOS else None
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -152,11 +191,11 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    console=False,  # GUI application with tkinter windows
+    upx=USE_UPX,
+    console=False,  # GUI application
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch='arm64',
+    target_arch=target_arch,
     codesign_identity=None,
     entitlements_file=None,
 )
@@ -167,8 +206,13 @@ coll = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
-    upx_exclude=[],
+    upx=USE_UPX,
+    upx_exclude=[
+        # Belt-and-suspenders: even if upx is enabled, never compress these.
+        'vcruntime*.dll', 'msvcp*.dll', 'python*.dll',
+        'torch_*.dll', 'cudnn*.dll', 'cublas*.dll', 'cudart*.dll',
+        'onnxruntime*.dll',
+    ],
     name=app_name,
 )
 

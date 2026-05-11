@@ -50,15 +50,19 @@ stage2_landmarks:
     mean_max_px: 4.87
     p95_max_px: 13.67
 stage3_aus:
+  _calibration_sources:
+    _note: Worst observed Pearson r / MAE across BOTH platforms drives the band.
+    macos_pyfaceau_canary_sides: 20
+    windows_cuda_pyfaceau_canary_sides: 20
   normal:
     easy:
-      _n_samples: 32
-      _observed_worst_mae: 0.143
-      _observed_worst_r: 0.911
-      mae_max: 0.243
-      pearson_r_min: 0.861
+      _n_samples: 64
+      _observed_worst_mae: 0.144
+      _observed_worst_r: 0.909
+      mae_max: 0.244
+      pearson_r_min: 0.859
     hard:
-      _n_samples: 56
+      _n_samples: 112
       _observed_worst_mae: 0.963
       _observed_worst_r: 0.425
       mae_max: 1.063
@@ -67,33 +71,33 @@ stage3_aus:
       mae_max: 999.0
       pearson_r_min: -1.0
     medium:
-      _n_samples: 32
-      _observed_worst_mae: 0.2
+      _n_samples: 64
+      _observed_worst_mae: 0.207
       _observed_worst_r: 0.841
-      mae_max: 0.3
+      mae_max: 0.307
       pearson_r_min: 0.791
   paralyzed:
     easy:
-      _n_samples: 46
+      _n_samples: 92
       _observed_worst_mae: 0.128
-      _observed_worst_r: 0.643
+      _observed_worst_r: 0.558
       mae_max: 0.228
-      pearson_r_min: 0.593
+      pearson_r_min: 0.508
     hard:
-      _n_samples: 81
-      _observed_worst_mae: 0.579
+      _n_samples: 162
+      _observed_worst_mae: 0.588
       _observed_worst_r: 0.452
-      mae_max: 0.679
+      mae_max: 0.688
       pearson_r_min: 0.402
     informational:
       mae_max: 999.0
       pearson_r_min: -1.0
     medium:
-      _n_samples: 43
-      _observed_worst_mae: 0.212
-      _observed_worst_r: 0.332
-      mae_max: 0.312
-      pearson_r_min: 0.282
+      _n_samples: 86
+      _observed_worst_mae: 0.275
+      _observed_worst_r: 0.212
+      mae_max: 0.375
+      pearson_r_min: 0.162
 stage4_peak_frames:
   shared:
     _n_canaries_compared: 10

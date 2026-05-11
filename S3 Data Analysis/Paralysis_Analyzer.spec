@@ -22,7 +22,7 @@ IS_WINDOWS = sys.platform == 'win32'
 
 # Application info
 app_name = 'S3 Data Analysis'
-app_version = '1.0.0'
+app_version = '1.1.1'
 
 # Collect data files for dependencies
 datas = []
@@ -124,29 +124,48 @@ hiddenimports = [
     'imblearn.over_sampling',
     # seaborn for visualization
     'seaborn',
-    # PyObjC for macOS app activation
-    'AppKit',
-    'Foundation',
-    'objc',
 ]
+# PyObjC is macOS-only -- including these on Windows produces noisy
+# "hidden import not found" warnings during PyInstaller analysis and adds
+# nothing to the bundle. Append only on Darwin.
+if IS_MACOS:
+    hiddenimports += ['AppKit', 'Foundation', 'objc']
 
 # Collect all sklearn submodules
 hiddenimports += collect_submodules('sklearn')
 
-# Collect all xgboost submodules
-hiddenimports += collect_submodules('xgboost')
+# Collect all xgboost submodules. xgboost.testing imports `hypothesis`
+# which is a build-time-only helper, so we install it in the build venv
+# but don't ship it; the resulting hiddenimports list is filtered to drop
+# the testing submodules below so they don't bloat the bundle.
+_xgb_submods = collect_submodules('xgboost')
+hiddenimports += [m for m in _xgb_submods if '.testing' not in m and not m.endswith('.testing')]
 
 # Collect all imbalanced-learn submodules
 hiddenimports += collect_submodules('imblearn')
 
-# Add XGBoost native library
-import shutil
-xgboost_lib = '/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/xgboost/lib/libxgboost.dylib'
-if Path(xgboost_lib).exists():
-    binaries = [(xgboost_lib, 'xgboost/lib')]
-else:
-    binaries = []
-    print(f"WARNING: XGBoost library not found at {xgboost_lib}")
+# Add the XGBoost native library. Path differs by platform:
+#   Windows: <site-packages>/xgboost/lib/xgboost.dll
+#   macOS:   /Library/Frameworks/Python.framework/.../xgboost/lib/libxgboost.dylib
+# We resolve via importlib so the path tracks whichever venv pyinstaller
+# is invoked from, instead of hardcoding a brittle absolute path.
+binaries = []
+try:
+    import importlib.util
+    _xgb_spec = importlib.util.find_spec('xgboost')
+    if _xgb_spec and _xgb_spec.submodule_search_locations:
+        _xgb_lib_dir = Path(_xgb_spec.submodule_search_locations[0]) / 'lib'
+        if IS_WINDOWS:
+            _xgb_lib = _xgb_lib_dir / 'xgboost.dll'
+        else:
+            _xgb_lib = _xgb_lib_dir / 'libxgboost.dylib'
+        if _xgb_lib.exists():
+            binaries = [(str(_xgb_lib), 'xgboost/lib')]
+            print(f"INFO: bundling XGBoost native lib from {_xgb_lib}")
+        else:
+            print(f"WARNING: XGBoost native lib not found at {_xgb_lib}")
+except Exception as _e:
+    print(f"WARNING: could not resolve xgboost native lib: {_e}")
 
 # Analysis
 a = Analysis(

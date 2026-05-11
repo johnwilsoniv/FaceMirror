@@ -1,0 +1,70 @@
+# S2 Action Coder -- Windows install requirements
+#
+# Install with:
+#   python -m venv .venv
+#   .\.venv\Scripts\Activate.ps1
+#   python -m pip install --upgrade pip
+#   pip install -r requirements-windows.txt
+#
+# Differences from requirements.txt:
+#   - mlx + mlx-whisper REMOVED (Apple Silicon-only; not available on
+#     Windows). All mlx_whisper imports in S2 are wrapped in try/except
+#     and the app falls back to faster-whisper transparently when MLX is
+#     unavailable -- so the Windows build loses the 3-6x Apple Silicon
+#     transcription speedup but no functionality.
+#   - whisperx ADDED here even though it's not in requirements.txt --
+#     S2's PyInstaller spec collects whisperx data + the
+#     patches/alignment.py override expects whisperx installed. The
+#     macOS workflow installs whisperx implicitly via the .app build
+#     pipeline; on Windows we list it explicitly.
+#   - pyinstaller ADDED for the build pipeline (was implicit on macOS
+#     via the .app build script).
+#
+# FFmpeg + FFprobe are NOT pip-installable. The app shells out to
+# ffmpeg.exe via ffmpeg-python; you need ffmpeg.exe on PATH OR placed
+# at S2 Action Coder/bin/ffmpeg.exe before building the installer (the
+# spec auto-detects the latter and bundles it).
+#
+# whisperx pulls in a lot transitively (transformers, torch, ctranslate2,
+# soundfile, librosa, etc.) -- the resolved venv ends up ~6 GB. Most of
+# that is torch + cuDNN; CPU-only torch would be smaller but breaks
+# faster-whisper's CUDA acceleration.
+
+# --- Core ---
+pandas>=1.3.0
+numpy>=1.20.0
+
+# --- GUI ---
+opencv-python>=4.5.3
+PyQt5>=5.15.0
+PyQt5-stubs>=5.15.0
+
+# --- Whisper transcription stack ---
+faster-whisper>=0.9.0
+whisperx>=3.1.0
+silero-vad>=6.0.0
+torchaudio>=2.0.0
+# sentencepiece is referenced via copy_metadata in Action_Coder.spec for
+# the transformers tokenizers Whisper uses. Not pulled in transitively on
+# Windows (it is on macOS via a different dep path), so we list it
+# explicitly.
+sentencepiece>=0.1.99
+# hf_xet speeds up HuggingFace model downloads (faster-whisper, wav2vec2).
+hf_xet>=0.1.0
+
+# --- Audio I/O + VAD ---
+# Imported at the top of processing_manager.py and used by the speech /
+# whisper-handoff path. The macOS venv pulled them in transitively via
+# whisperx; the Windows resolver does NOT, so they have to be listed
+# explicitly (without them the bundled .exe crashes at startup with
+# ModuleNotFoundError: soundfile / webrtcvad / librosa).
+soundfile>=0.12.0
+webrtcvad>=2.0.10
+librosa>=0.10.0
+
+# --- Misc ---
+thefuzz>=0.19.0
+ffmpeg-python>=0.2.0
+
+# --- Build pipeline (only needed when building the installer) ---
+pyinstaller>=6.6.0

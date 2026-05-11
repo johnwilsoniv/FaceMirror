@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 # Version information
-VERSION = "1.0.0"
+VERSION = "1.1.1"
 APP_NAME = "Data Analysis"
 
 def get_app_dir():

@@ -18,11 +18,22 @@ import config_paths
 
 
 def safe_print(*args, **kwargs):
-    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts."""
+    """Print wrapper that handles BrokenPipeError in GUI subprocess contexts.
+
+    PyInstaller --windowed Windows builds set sys.stdout/sys.stderr to None,
+    so the underlying .write() call in print() raises AttributeError. Catch
+    and silently drop instead of crashing."""
+    if sys.stdout is None and sys.stderr is None:
+        return
     try:
         print(*args, **kwargs)
-    except (BrokenPipeError, IOError):
-        pass  # Stdout disconnected (e.g., GUI subprocess terminated)
+    except (BrokenPipeError, IOError, AttributeError, OSError):
+        pass  # Stdout disconnected, redirected to None, or otherwise unusable
+
+
+# Windows: hide the cmd window that pops up on every subprocess call from a
+# PyInstaller --windowed app. On non-Windows the flag doesn't exist.
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
 
 
 # Suppress PyTorch meshgrid warning
@@ -68,6 +79,16 @@ class FFmpegWriter:
         self.height = height
         self.fps = fps
         self.process = None
+        # ffmpeg's libx264 stderr is verbose. With stderr=subprocess.PIPE plus
+        # bufsize=10**8 (which we want for stdin write throughput) Python wraps
+        # the stderr pipe in a 100 MB BufferedReader — a background readline()
+        # thread can sit blocked indefinitely waiting to fill that buffer, so
+        # the OS pipe itself still backs up, ffmpeg blocks at end-of-stream,
+        # release() hits its 30 s wait(), we kill the process, and the .mp4
+        # ends without a moov atom (pyfaceau then sees fps=0 and the AU step
+        # silently skips). Redirecting to a temp file lets the OS write stderr
+        # straight to disk with zero Python buffering — no deadlock possible.
+        self._stderr_file = None
 
         # Get FFmpeg path (bundled or system)
         ffmpeg_path = config_paths.get_ffmpeg_path()
@@ -108,15 +129,31 @@ class FFmpegWriter:
 
         cmd.append(str(output_path))
 
+        import tempfile
+        self._stderr_file = tempfile.TemporaryFile()
         try:
             self.process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=10**8  # Large buffer for smooth writing
+                stderr=self._stderr_file,
+                bufsize=10**8,  # Large buffer for smooth stdin writing
+                creationflags=_NO_WINDOW,  # hide spawned cmd window on Windows --windowed builds
             )
         except FileNotFoundError:
+            self._stderr_file.close(); self._stderr_file = None
             raise RuntimeError("FFmpeg not found! Please install FFmpeg: brew install ffmpeg")
+
+    def _read_stderr_tail(self, max_lines=50):
+        """Read accumulated ffmpeg stderr from the temp file, return last N lines."""
+        if self._stderr_file is None:
+            return ""
+        try:
+            self._stderr_file.seek(0)
+            text = self._stderr_file.read().decode('utf-8', errors='ignore')
+            lines = [l for l in text.splitlines() if l.strip()]
+            return "\n".join(lines[-max_lines:])
+        except Exception:
+            return ""
 
     def _detect_best_encoder(self, ffmpeg_path):
         """
@@ -134,7 +171,8 @@ class FFmpegWriter:
                 [ffmpeg_path, '-encoders'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                creationflags=_NO_WINDOW,  # hide cmd window on Windows --windowed builds
             )
             encoders_output = result.stdout
 
@@ -170,8 +208,8 @@ class FFmpegWriter:
             # Write raw frame data to FFmpeg stdin
             self.process.stdin.write(frame.tobytes())
         except BrokenPipeError:
-            # FFmpeg process died - check for errors
-            stderr = self.process.stderr.read().decode('utf-8', errors='ignore')
+            # FFmpeg process died - read accumulated stderr from temp file
+            stderr = self._read_stderr_tail()
             raise RuntimeError(f"FFmpeg encoder failed: {stderr}")
 
     def release(self):
@@ -194,15 +232,23 @@ class FFmpegWriter:
 
             # Check for errors
             if self.process.returncode != 0:
-                stderr = self.process.stderr.read().decode('utf-8', errors='ignore')
+                stderr = self._read_stderr_tail()
                 safe_print(f"  Warning: FFmpeg encoding finished with errors for {filename}")
                 safe_print(f"  {stderr}")
         except subprocess.TimeoutExpired:
             safe_print(f"  Warning: FFmpeg encoding timeout (30s) for {filename}")
             safe_print(f"    Killing FFmpeg process...")
             self.process.kill()
+            # Surface the tail so we know WHY it timed out next time.
+            tail = self._read_stderr_tail(max_lines=30)
+            if tail:
+                safe_print(f"  ffmpeg stderr tail:\n{tail}")
         finally:
             self.process = None
+            if self._stderr_file is not None:
+                try: self._stderr_file.close()
+                except Exception: pass
+                self._stderr_file = None
 
 
 class VideoProcessor:
@@ -712,16 +758,24 @@ class VideoProcessor:
         safe_print(f"\n{'='*60}")
         safe_print("MIRRORING PERFORMANCE BREAKDOWN")
         safe_print(f"{'='*60}")
-        total_time = total_read_time + total_process_time + total_write_time + total_cleanup_time
-        safe_print(f"Total processing time: {total_time:.2f}s")
-        safe_print(f"  Read frames:    {total_read_time:>8.2f}s ({total_read_time/total_time*100:>5.1f}%)")
-        safe_print(f"  Process frames: {total_process_time:>8.2f}s ({total_process_time/total_time*100:>5.1f}%)")
-        safe_print(f"  Write frames:   {total_write_time:>8.2f}s ({total_write_time/total_time*100:>5.1f}%)")
-        safe_print(f"  Cleanup:        {total_cleanup_time:>8.2f}s ({total_cleanup_time/total_time*100:>5.1f}%)")
-        safe_print(f"\nAverage FPS: {global_frame_count/total_time:.1f} frames/sec")
-        safe_print(f"  Read:    {global_frame_count/total_read_time:.1f} fps")
-        safe_print(f"  Process: {global_frame_count/total_process_time:.1f} fps")
-        safe_print(f"  Write:   {global_frame_count/total_write_time:.1f} fps")
+        # All stats prints below are diagnostic only; guard so a 0 in any
+        # accumulator (e.g. when threads write fast enough that elapsed
+        # rounds to zero) doesn't blow up and skip the AU step downstream.
+        try:
+            total_time = total_read_time + total_process_time + total_write_time + total_cleanup_time
+            def _pct(n, d): return (n / d * 100) if d > 0 else 0.0
+            def _fps(n, d): return (n / d) if d > 0 else 0.0
+            safe_print(f"Total processing time: {total_time:.2f}s")
+            safe_print(f"  Read frames:    {total_read_time:>8.2f}s ({_pct(total_read_time, total_time):>5.1f}%)")
+            safe_print(f"  Process frames: {total_process_time:>8.2f}s ({_pct(total_process_time, total_time):>5.1f}%)")
+            safe_print(f"  Write frames:   {total_write_time:>8.2f}s ({_pct(total_write_time, total_time):>5.1f}%)")
+            safe_print(f"  Cleanup:        {total_cleanup_time:>8.2f}s ({_pct(total_cleanup_time, total_time):>5.1f}%)")
+            safe_print(f"\nAverage FPS: {_fps(global_frame_count, total_time):.1f} frames/sec")
+            safe_print(f"  Read:    {_fps(global_frame_count, total_read_time):.1f} fps")
+            safe_print(f"  Process: {_fps(global_frame_count, total_process_time):.1f} fps")
+            safe_print(f"  Write:   {_fps(global_frame_count, total_write_time):.1f} fps")
+        except Exception as _stats_err:
+            safe_print(f"  (stats print failed: {_stats_err})")
         safe_print(f"{'='*60}\n")
 
         # Determine the list of output files

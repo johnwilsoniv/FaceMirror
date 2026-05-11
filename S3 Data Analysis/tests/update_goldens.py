@@ -145,6 +145,146 @@ def stage_aus(args: argparse.Namespace) -> list[Path]:
     return written
 
 
+def _windows_cuda_aus_s1_weights() -> Path:
+    """Returns the S1 bundled weights dir, which has the full 17-AU OpenFace
+    2.2 SVR set. The PyPI auto-downloaded bundle at ~/.pyfaceau/weights/ only
+    ships 13 AUs (no AU05/09/14/20), so passing this explicitly is required
+    for column-schema parity with the macOS goldens."""
+    return S3_ROOT.parent / "S1_FaceMirror" / "weights"
+
+
+def _windows_cuda_aus_extract_one(canary: 'Canary', side: str, weights_dir: Path) -> tuple['Canary', str, Path | None, str]:
+    """Extract one (canary, side) pyfaceau_windows_cuda.parquet. Returns
+    (canary, side, out_path_or_None, message). Used both serially and from
+    the multiprocessing worker pool."""
+    from pyfaceau.processor import OpenFaceProcessor
+    video = canary.video(side)
+    if not video.exists():
+        return (canary, side, None, f"SKIP: video missing at {video}")
+    try:
+        # Fresh Pipeline per video so state can't carry over between canaries
+        # (matches the pattern test_pyfaceau_run_to_run_determinism enforces).
+        proc = OpenFaceProcessor(weights_dir=str(weights_dir), verbose=False)
+        t0 = time.perf_counter()
+        df = proc.pipeline.process_video(str(video), output_csv=None)
+        elapsed = time.perf_counter() - t0
+        if "frame" not in df.columns:
+            df = df.reset_index().rename(columns={"index": "frame"})
+        sub = GOLDEN_ROOT / "aus" / f"{canary.id}_{side}"
+        sub.mkdir(parents=True, exist_ok=True)
+        out_path = sub / "pyfaceau_windows_cuda.parquet"
+        stable_dataframe(df).to_parquet(out_path, index=False, compression="zstd")
+        return (canary, side, out_path, f"{len(df)} frames in {elapsed:.1f}s")
+    except Exception as e:
+        return (canary, side, None, f"ERROR: {type(e).__name__}: {e}")
+
+
+# Multiprocessing worker bookkeeping. The init runs once per worker on pool
+# start; the task runs once per (canary, side). spawn (the Windows default)
+# means each worker re-imports torch + pyfaceau + loads CUDA models from
+# scratch -- ~10-30s init cost per worker, amortized over its share of videos.
+def _windows_cuda_aus_worker_init():
+    import torch
+    from pyfaceau.config import CLNF_CONFIG
+    if not torch.cuda.is_available():
+        # Surface this loudly: each worker needs CUDA. If it's not available
+        # in the worker process the whole pool is doomed.
+        raise RuntimeError(f"torch.cuda.is_available()=False in worker pid={os.getpid()}")
+    CLNF_CONFIG["use_gpu"] = True
+
+
+def _windows_cuda_aus_worker_task(task: tuple) -> tuple[str, str, str | None, str]:
+    """Worker entrypoint. Returns (canary_id, side, out_path_str_or_None, message)
+    so the parent process can re-collect Path objects without pickling Canary
+    dataclasses across the boundary (which would require importing conftest in
+    the worker)."""
+    canary, side, weights_dir = task
+    _, _, out_path, msg = _windows_cuda_aus_extract_one(canary, side, weights_dir)
+    return (canary.id, side, str(out_path) if out_path else None, msg)
+
+
+def stage_windows_cuda_aus(args: argparse.Namespace) -> list[Path]:
+    """Run pyfaceau LIVE on each canary video using onnxruntime-gpu +
+    pyclnf use_gpu=True, and snapshot the per-frame AU output as
+    pyfaceau_windows_cuda.parquet.
+
+    Unlike stage_aus (which mirrors pre-generated CSV outputs from
+    S2O Coded Files/), this stage actually runs the extractor on the source
+    videos using the Windows-CUDA stack. The resulting parquets are what
+    test_tier1_windows_cuda_parity.py compares against the macOS pyfaceau
+    golden and the C++ OpenFace 2.2 ground truth.
+
+    NOT in the default 'all' order -- slow (~20-60s per video x 20 videos),
+    only relevant after a fresh CUDA install on Windows, and requires the
+    canary corpus mounted at SPLITFACE_BASE.
+
+    Pass --workers N>1 to fan out across N pyfaceau processes. Each worker
+    holds its own CUDA context (~340 MB on top of the model loads), so on
+    an 8 GB GPU 2-3 workers is the sweet spot; --workers 4+ risks OOM. With
+    --workers 2 the 20-canary run typically halves wall time.
+
+    Run explicitly:
+        $env:SPLITFACE_BASE = "$env:USERPROFILE\\Documents\\SplitFace"
+        python tests/update_goldens.py --stage windows_cuda_aus \\
+            --reason "fresh CUDA install" --workers 2
+    """
+    written: list[Path] = []
+    out_dir = GOLDEN_ROOT / "aus"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    import torch  # heavy imports -- defer to stage execution
+    from pyfaceau.config import CLNF_CONFIG
+
+    if not torch.cuda.is_available():
+        print("  ERROR: torch.cuda.is_available() is False -- refusing to write a")
+        print("         pyfaceau_windows_cuda.parquet that wasn't actually run on CUDA.")
+        return []
+    print(f"  CUDA device: {torch.cuda.get_device_name(0)} (sm_{torch.cuda.get_device_capability(0)[0]}{torch.cuda.get_device_capability(0)[1]})")
+
+    s1_weights = _windows_cuda_aus_s1_weights()
+    if not (s1_weights / "AU_predictors" / "svr_combined" / "AU_5_dynamic_intensity.dat").exists():
+        print(f"  ERROR: S1 weights bundle incomplete at {s1_weights}")
+        print(f"         Expected AU_5_dynamic_intensity.dat (and 3 other AU05/09/14/20")
+        print(f"         model files) which only S1's bundled weights ship.")
+        return []
+    print(f"  Using weights: {s1_weights}")
+
+    workers = max(1, int(getattr(args, "workers", 1) or 1))
+
+    if workers == 1:
+        # Serial path -- original behavior. Useful for debugging too since stack
+        # traces don't have to come back through the pool.
+        saved_use_gpu = CLNF_CONFIG.get("use_gpu", False)
+        CLNF_CONFIG["use_gpu"] = True
+        try:
+            for c in CANARIES:
+                for side in ("left", "right"):
+                    _, _, out_path, msg = _windows_cuda_aus_extract_one(c, side, s1_weights)
+                    if out_path is not None:
+                        written.append(out_path)
+                    print(f"  {c.id:>22s} {side:5s}: {msg}")
+        finally:
+            CLNF_CONFIG["use_gpu"] = saved_use_gpu
+        return written
+
+    # Parallel path: spawn N pyfaceau workers, distribute (canary, side) tasks.
+    import multiprocessing as mp
+    tasks = [(c, side, s1_weights) for c in CANARIES for side in ("left", "right")]
+    print(f"  Spawning {workers} pyfaceau workers over {len(tasks)} videos "
+          f"(each worker init ~10-30s; CUDA contexts share the GPU)")
+    ctx = mp.get_context("spawn")
+    t0 = time.perf_counter()
+    with ctx.Pool(processes=workers, initializer=_windows_cuda_aus_worker_init) as pool:
+        for canary_id, side, out_path_str, msg in pool.imap_unordered(
+            _windows_cuda_aus_worker_task, tasks
+        ):
+            if out_path_str is not None:
+                written.append(Path(out_path_str))
+            wall = time.perf_counter() - t0
+            print(f"  [wall {wall:5.0f}s] {canary_id:>22s} {side:5s}: {msg}")
+    return written
+
+
 def stage_landmarks(args: argparse.Namespace) -> list[Path]:
     """Write C++ landmarks per canary × side. The pyfaceau landmark parquet
     is produced by `instrument_pyfaceau.py` (slow, run separately); this
@@ -484,32 +624,63 @@ def stage_metric_bands(args: argparse.Namespace) -> list[Path]:
             }
 
     # ------ Stage 3 calibration ------
+    # Aggregates per-AU Pearson r and MAE across BOTH the macOS pyfaceau
+    # goldens (pyfaceau.parquet) and the Windows-CUDA goldens
+    # (pyfaceau_windows_cuda.parquet) when present, treating both platforms
+    # as observations of the same statistical population. The threshold for
+    # each (severity, difficulty) bucket is "worst observed across either
+    # platform - 0.05 (r) / + 0.10 (mae)" so the bands move with whichever
+    # platform is harder. Without this, macOS-only-calibrated bands would
+    # produce 3 marginal Windows failures (IMG_0861_left, IMG_2259_right
+    # on AU06/AU12) where Windows correlates 0.05-0.07 below macOS-vs-cpp.
     aus_dir = GOLDEN_ROOT / "aus"
     observed: dict[tuple[str, str], dict[str, list[float]]] = {}
+    n_macos_canaries = 0
+    n_windows_canaries = 0
     if aus_dir.exists():
         for c in CANARIES:
             for side in ("left", "right"):
-                py_path = aus_dir / f"{c.id}_{side}" / "pyfaceau.parquet"
                 cpp_path = aus_dir / f"{c.id}_{side}" / "cpp.parquet"
-                if not (py_path.exists() and cpp_path.exists()):
+                if not cpp_path.exists():
                     continue
-                py = pd.read_parquet(py_path).set_index("frame", drop=True)
                 cpp = pd.read_parquet(cpp_path).set_index("frame", drop=True)
-                cmp = compare_au_frames(py, cpp)
-                bucket = (c.threshold_bucket, "")  # severity bucket
-                for au in AU_COLUMNS:
-                    diff = AU_DIFFICULTY[au]
-                    if diff == "informational":
+
+                # Each platform's parquet is a separate observation of the
+                # same canary -- we want the worst-of-either to drive the band.
+                platform_parquets = [
+                    ("macos", aus_dir / f"{c.id}_{side}" / "pyfaceau.parquet"),
+                    ("windows_cuda", aus_dir / f"{c.id}_{side}" / "pyfaceau_windows_cuda.parquet"),
+                ]
+                for platform, py_path in platform_parquets:
+                    if not py_path.exists():
                         continue
-                    key = (c.threshold_bucket, diff)
-                    observed.setdefault(key, {"r": [], "mae": []})
-                    r = cmp.per_au_pearson.get(au, float("nan"))
-                    mae = cmp.per_au_mae.get(au, float("nan"))
-                    if not np.isnan(r):
-                        observed[key]["r"].append(r)
-                    if not np.isnan(mae):
-                        observed[key]["mae"].append(mae)
-    stage3 = {"normal": {}, "paralyzed": {}}
+                    py = pd.read_parquet(py_path).set_index("frame", drop=True)
+                    cmp = compare_au_frames(py, cpp)
+                    if platform == "macos":
+                        n_macos_canaries += 1
+                    else:
+                        n_windows_canaries += 1
+                    for au in AU_COLUMNS:
+                        diff = AU_DIFFICULTY[au]
+                        if diff == "informational":
+                            continue
+                        key = (c.threshold_bucket, diff)
+                        observed.setdefault(key, {"r": [], "mae": []})
+                        r = cmp.per_au_pearson.get(au, float("nan"))
+                        mae = cmp.per_au_mae.get(au, float("nan"))
+                        if not np.isnan(r):
+                            observed[key]["r"].append(r)
+                        if not np.isnan(mae):
+                            observed[key]["mae"].append(mae)
+    stage3 = {
+        "_calibration_sources": {
+            "macos_pyfaceau_canary_sides":   n_macos_canaries,
+            "windows_cuda_pyfaceau_canary_sides": n_windows_canaries,
+            "_note": "Worst observed Pearson r / MAE across BOTH platforms drives the band.",
+        },
+        "normal": {},
+        "paralyzed": {},
+    }
     for sev in ("normal", "paralyzed"):
         for diff in ("easy", "medium", "hard"):
             d = observed.get((sev, diff), {"r": [], "mae": []})
@@ -1000,6 +1171,7 @@ def stage_retrain_bands(args: argparse.Namespace) -> list[Path]:
 
 STAGES: dict[str, callable] = {
     "aus":                    stage_aus,
+    "windows_cuda_aus":       stage_windows_cuda_aus,
     "landmarks":              stage_landmarks,
     "peak_frames":            stage_peak_frames,
     "features":               stage_features,
@@ -1020,6 +1192,12 @@ def main() -> int:
         help=f"One of: {sorted(STAGES) + ['all']}",
     )
     parser.add_argument("--reason", required=True, help="Why are we updating? Logged to golden_history.md")
+    parser.add_argument(
+        "--workers", type=int, default=1,
+        help="Parallel pyfaceau workers (currently only used by windows_cuda_aus). "
+             "Default 1 = serial. Recommended 2-3 on an 8 GB GPU; --workers 4+ "
+             "risks CUDA OOM with multiple worker model loads.",
+    )
     args = parser.parse_args()
 
     GOLDEN_ROOT.mkdir(parents=True, exist_ok=True)

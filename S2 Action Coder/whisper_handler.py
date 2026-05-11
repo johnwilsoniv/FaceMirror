@@ -352,6 +352,19 @@ class WhisperHandler(QThread):
     audio_path = None
     temp_dir_for_cleanup = None
 
+    # ---------------- Class-level alignment model cache --------------------
+    # The wav2vec2 alignment model is ~360 MB on CPU. Loading it fresh every
+    # WhisperHandler instance (= every video transcribed) is the dominant
+    # memory leak across long batches: torch's CPU allocator caches pages
+    # that aren't returned to the OS even after `del model`, so each video
+    # tacks on a chunk of unrecoverable working set. We cache the loaded
+    # model at the class level, keyed by language code, and reuse it across
+    # every instance.  Loaded lazily on first need; never destroyed for the
+    # process lifetime (intentional -- it would be wastefully reloaded).
+    _shared_align_model = None
+    _shared_align_metadata = None
+    _shared_align_language = None
+
     # --- MODIFIED __init__ to accept vad_parameters and pre-loaded model ---
     def __init__(self, audio_path, temp_dir_for_cleanup, vad_parameters, model_name="large-v3", parent=None, debug_keep_audio=False, preloaded_model=None, skip_alignment=False):
         super().__init__(parent)
@@ -606,10 +619,15 @@ class WhisperHandler(QThread):
 
             if self._is_cancelled: raise InterruptedError("Processing cancelled")
 
-            # Memory Cleanup for ASR model
+            # Drop the LOCAL reference to the whisper model -- the actual
+            # WhisperModel object is owned by ProcessingManager
+            # (preloaded_whisper_model) and is shared across every video.
+            # `del self.whisper_model` only removes this handler's reference,
+            # not the underlying object, but we also clear the attribute so
+            # we don't accidentally reuse it after this run.
             try:
-                if hasattr(self, 'whisper_model') and self.whisper_model:
-                    del self.whisper_model; self.whisper_model = None; print("FasterWhisper Thread: Whisper ASR model released.")
+                if hasattr(self, 'whisper_model') and self.whisper_model is not None:
+                    self.whisper_model = None  # NOT del -- preloaded model is shared
                 if TORCH_AVAILABLE and device == 'cuda': import gc; gc.collect(); torch.cuda.empty_cache()
             except Exception: pass
 
@@ -617,13 +635,31 @@ class WhisperHandler(QThread):
             if WHISPERX_ALIGN_AVAILABLE and faster_whisper_segments and not self.skip_alignment:
                 self.emit_progress(80, "Loading alignment model (may download on first run)...")
                 try:
-                    if hasattr(self, 'align_model') and self.align_model:
-                        del self.align_model; del self.align_metadata;
-                        self.align_model = None; self.align_metadata = None
-                        if TORCH_AVAILABLE and device == 'cuda': import gc; gc.collect(); torch.cuda.empty_cache()
-
-                    self.align_model, self.align_metadata = whisperx.load_align_model(language_code=info.language, device=device)
-                    print("WhisperX Thread: Alignment model loaded.")
+                    # Use the class-level cached alignment model when the
+                    # language matches. wav2vec2 alignment models are
+                    # language-specific, so we re-load on language change.
+                    cls = type(self)
+                    if (cls._shared_align_model is not None and
+                            cls._shared_align_language == info.language):
+                        self.align_model = cls._shared_align_model
+                        self.align_metadata = cls._shared_align_metadata
+                        print(f"WhisperX Thread: Reusing cached alignment model for '{info.language}'.")
+                    else:
+                        # Drop the previous language's cached model before
+                        # loading a new one (rare -- only fires on language
+                        # switch). This is the only path where we destroy a
+                        # cached alignment model.
+                        if cls._shared_align_model is not None:
+                            try: del cls._shared_align_model; del cls._shared_align_metadata
+                            except Exception: pass
+                            cls._shared_align_model = None; cls._shared_align_metadata = None
+                            if TORCH_AVAILABLE and device == 'cuda':
+                                import gc; gc.collect(); torch.cuda.empty_cache()
+                        cls._shared_align_model, cls._shared_align_metadata = whisperx.load_align_model(language_code=info.language, device=device)
+                        cls._shared_align_language = info.language
+                        self.align_model = cls._shared_align_model
+                        self.align_metadata = cls._shared_align_metadata
+                        print(f"WhisperX Thread: Alignment model loaded and cached for '{info.language}'.")
                     if self._is_cancelled: raise InterruptedError("Processing cancelled")
 
                     self.emit_progress(85, "Performing alignment...")
@@ -701,13 +737,17 @@ class WhisperHandler(QThread):
             self.processing_error.emit(error_msg)
             self.processing_finished.emit([])
         finally:
-            # Model Cleanup
-            if hasattr(self, 'align_model') and self.align_model:
-                 try: del self.align_model; del self.align_metadata; self.align_model = None; self.align_metadata = None; print("FasterWhisper Thread: Alignment model released.")
-                 except Exception: pass
-            if hasattr(self, 'whisper_model') and self.whisper_model:
-                 try: del self.whisper_model; self.whisper_model = None; print("FasterWhisper Thread: Whisper ASR model released (in finally).")
-                 except Exception: pass
+            # Model Cleanup -- only drop the local references. The actual
+            # model objects are owned by the class-level cache (see
+            # _shared_align_model) and must persist for reuse on the next
+            # video. Calling del on the model itself here would defeat the
+            # whole point of caching.
+            if hasattr(self, 'align_model') and self.align_model is not None:
+                 self.align_model = None; self.align_metadata = None
+                 print("FasterWhisper Thread: Alignment model handle dropped (cached copy retained).")
+            if hasattr(self, 'whisper_model') and self.whisper_model is not None:
+                 # Drop local ref only -- preloaded model is shared.
+                 self.whisper_model = None
             if TORCH_AVAILABLE and device == 'cuda':
                  try: import gc; gc.collect(); torch.cuda.empty_cache(); print("FasterWhisper Thread: Final GPU Memory Cleared.")
                  except Exception: pass
