@@ -87,12 +87,25 @@ class OpenFace3Processor(PyFaceAUProcessor):
         # The callback will be called on each frame to update GUI
         return super().process_video(video_path, output_csv, progress_callback)
 
-    # Note: pyfaceau >= 1.3.13's clear_cache() now also resets
-    # pipeline.online_au_correction, so we no longer need to override here.
-    # See PYFACEAU_ONLINE_AU_CORRECTION_BUG.md for the diagnosis history.
-    # Earlier S1 builds (1.1.1 and prior) pinned pyfaceau==1.3.11 which
-    # silently corrupted AU outputs after ~40 videos in a single batch.
-    # 1.1.2 pins pyfaceau>=1.3.13 to pick up the upstream fix.
+    # Note: pyfaceau >= 1.3.14's clear_cache() now correctly resets BOTH
+    # pipeline.online_au_correction AND pipeline.landmark_detector (CLNF)
+    # temporal state, so we no longer need to override here.
+    #
+    # Bug history:
+    #   - pyfaceau <= 1.3.12: clear_cache() forgot OnlineAUCorrection reset
+    #     (silent AU=0 after ~40 videos). Wrapper override was added at S1
+    #     1.1.2 as a workaround.
+    #   - pyfaceau 1.3.13: upstream OAC fix landed; S1 wrapper override
+    #     removed.
+    #   - pyfaceau 1.3.8..1.3.13: clear_cache()'s CLNF reset block silently
+    #     no-op'd because of a wrong attribute lookup (pipeline.clnf instead
+    #     of pipeline.landmark_detector). CLNF temporal state carried across
+    #     videos, corrupting AU values from the second video onward in any
+    #     sequence. See PYFACEAU_CLNF_RESET_BUG.md for the diagnosis history.
+    #   - pyfaceau 1.3.14: CLNF reset fixed.
+    #
+    # S1 1.1.3 pins pyfaceau>=1.3.14 in requirements.txt to ensure both
+    # fixes are present.
 
 
 def process_videos(directory_path, specific_files=None, output_dir=None, **kwargs):
