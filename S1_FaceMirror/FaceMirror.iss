@@ -1,12 +1,12 @@
 ; Inno Setup script for S1 Face Mirror (Windows + CUDA 12.8)
 ;
 ; Compile via:
-;     iscc /DAppVersion=1.1.2 /OC:\path\to\output FaceMirror.iss
+;     iscc /DAppVersion=1.1.3 /OC:\path\to\output FaceMirror.iss
 ;
 ; Or use ..\build_windows.ps1 which wires this together with PyInstaller.
 
 #ifndef AppVersion
-#define AppVersion "1.1.2"
+#define AppVersion "1.1.3"
 #endif
 
 #define AppName       "S1 Face Mirror"

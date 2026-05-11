@@ -156,7 +156,7 @@ class ProcessingProgressWindow:
         # Version/subtitle
         version_label = tk.Label(
             header_frame,
-            text="Version 1.1.2",
+            text="Version 1.1.3",
             font=("Helvetica Neue", 9),
             bg=self.colors['primary'],
             fg='#b0c4de',
