@@ -33,7 +33,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=no
 AllowNoIcons=yes
 
-OutputBaseFilename=ActionCoder-S2-{#AppVersion}-win64
+OutputBaseFilename=FaceMirror-S2-{#AppVersion}-win64
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern

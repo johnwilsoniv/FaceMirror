@@ -33,7 +33,7 @@ DisableProgramGroupPage=yes
 DisableDirPage=no
 AllowNoIcons=yes
 
-OutputBaseFilename=ParalysisAnalyzer-S3-{#AppVersion}-win64
+OutputBaseFilename=FaceMirror-S3-{#AppVersion}-win64
 Compression=lzma2/ultra
 SolidCompression=yes
 WizardStyle=modern
