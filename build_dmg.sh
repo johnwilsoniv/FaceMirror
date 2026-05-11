@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SCRIPT_DIR/build"
 DIST_DIR="$SCRIPT_DIR/dist"
 DMG_NAME="FaceMirror"
-DMG_VERSION="1.0.0"
+DMG_VERSION="1.1.3"
 DMG_FILENAME="${DMG_NAME}-${DMG_VERSION}.dmg"
 VOLUME_NAME="FaceMirror ${DMG_VERSION}"
 

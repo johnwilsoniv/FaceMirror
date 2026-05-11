@@ -22,7 +22,7 @@ IS_WINDOWS = sys.platform == 'win32'
 
 # Application info
 app_name = 'S1 Face Mirror'
-app_version = '1.1.2'
+app_version = '1.1.3'
 
 # Collect data files for dependencies
 datas = []
