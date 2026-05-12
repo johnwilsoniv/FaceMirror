@@ -54,3 +54,21 @@ models/synkinesis/**/*.pkl
 models/synkinesis/**/*.list
 models/synkinesis/**/*.csv
 !models/synkinesis/**/.gitkeep
+
+# Per-frame AU extraction outputs (production + reruns).
+# Large generated artifacts derived from the mp4 corpus, regenerable from
+# pyfaceau. Keep out of the repo so a stray `git add .` can't pull them in.
+recoded_per_frame/
+recoded_rerun_v1315/
+recoded_combined_results.csv
+hybrid_macS1_winS2_combined_results.csv
+
+# Pilot/ research directory: scripts, PDFs, CSVs, and data dirs are all
+# pre-publication research artifacts. Kept local until paper is published.
+Pilot/
+
+# Synkinesis investigation working dir (research artifacts, not source)
+synkinesis_investigation/
+
+# Cohort data dump (raw video metadata, not source)
+RECODED_DATASET.md
