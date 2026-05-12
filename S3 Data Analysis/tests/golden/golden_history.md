@@ -128,3 +128,17 @@ Append-only log of every `update_goldens.py` run.
 - **pip-freeze SHA256:** `68e13498d25b31da1a2dff225fcfedcc37ad6b319e771688b4fa819903576c02`
 - **Files written:** 1
 
+## 2026-05-11T23:05:25+00:00
+- **Stage(s):** windows_cuda_aus
+- **Reason:** v1.1.3 / pyfaceau 1.3.14 reverify after CLNF reset fix
+- **Git SHA:** `6010daac89d7ae0a71d0d1935e0b23ea85b59c94`
+- **pip-freeze SHA256:** `4bcf65e29261c87511d87597459e81b0d7799555e51779d8bbe5ca07782bcf8b`
+- **Files written:** 20
+
+## 2026-05-12T17:22:49+00:00
+- **Stage(s):** windows_cuda_aus
+- **Reason:** v1.3.16 dual_au_mode reverify
+- **Git SHA:** `30ed4287577692a677d3aaeb2bcf3c1e137e0c71`
+- **pip-freeze SHA256:** `01e1e096f406185d614875dfb9ca8415ce3aadbb2f9bf62bd7ce3f71b2f74bb9`
+- **Files written:** 20
+
