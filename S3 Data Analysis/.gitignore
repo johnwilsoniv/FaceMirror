@@ -60,7 +60,9 @@ models/synkinesis/**/*.csv
 # pyfaceau. Keep out of the repo so a stray `git add .` can't pull them in.
 recoded_per_frame/
 recoded_rerun_v1315/
+recoded_rerun_dual_v1316/
 recoded_combined_results.csv
+recoded_rerun_dual_v1316_combined_results.csv
 hybrid_macS1_winS2_combined_results.csv
 
 # Pilot/ research directory: scripts, PDFs, CSVs, and data dirs are all
