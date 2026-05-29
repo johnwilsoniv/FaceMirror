@@ -51,7 +51,7 @@ Results are saved to `~/Documents/SplitFace/S1O Processed Files/`:
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10-3.12 (3.10 recommended; newer versions lack prebuilt wheels for the AU pipeline packages)
 - See `requirements.txt` for dependencies
 
 Core dependencies:
