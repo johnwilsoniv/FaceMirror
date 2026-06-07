@@ -26,6 +26,11 @@ class TimelineProcessor:
         self.STRICT_MATCH_THRESHOLD = getattr(config_module, 'STRICT_MATCH_THRESHOLD', 95) # For SO_SE config match & standalone 'oh'
         self.MERGE_TIME_THRESHOLD_SECONDS = getattr(config_module, 'MERGE_TIME_THRESHOLD_SECONDS', 0.25)
         self.MERGE_PAIRS = getattr(config_module, 'MERGE_PAIRS', {("SS", "BS"): "BS"})
+        # Shortest useful baseline (frames). If the first action lands within this
+        # many frames of the clip start (first instruction transcribed at frame ~0),
+        # the normal implied-baseline is too short, so we carve a baseline from the
+        # first instruction's end instead. Matches S2.5's BL_MIN_LEN.
+        self.MIN_BL_FRAMES = getattr(config_module, 'MIN_BL_FRAMES', 6)
         self._compile_command_phrase_map()
         self.O_WORDS = {'o', 'oh', 'o.'}
         self.E_WORDS = {'e', 'eee', 'ee', 'e.'}
@@ -321,13 +326,35 @@ class TimelineProcessor:
             return [baseline_range]
 
         range_index_counter = 0; last_range_end_frame = -1
-        first_event_start_frame = events_for_ranges[0].get('start_frame')
-        if first_event_start_frame > 0:
+        first_event = events_for_ranges[0]
+        first_event_start_frame = first_event.get('start_frame') or 0
+        first_event_end_frame = first_event.get('end_frame', first_event_start_frame)
+        if first_event_start_frame >= self.MIN_BL_FRAMES:
+            # NORMAL CASE (unchanged): a real lead-in exists before the first action,
+            # so the implied baseline is everything before it.
             initial_baseline_end_frame = first_event_start_frame - 1
             bl_end_time = initial_baseline_end_frame / fps if fps > 0 else 0.0
             baseline = { 'action_code': 'BL', 'start_time': 0.0, 'end_time': bl_end_time, 'start_frame': 0, 'end_frame': initial_baseline_end_frame, 'trigger_phrase': 'Implied Baseline Start', 'trigger_start': 0.0, 'trigger_end': 0.0, 'trigger_start_frame': 0, 'trigger_end_frame': 0, 'confidence_score': 101, 'index': range_index_counter, 'status': None, 'matched_words': None }
             generated_action_ranges.append(baseline);
             range_index_counter += 1; last_range_end_frame = initial_baseline_end_frame
+        elif first_event_end_frame >= 2 * self.MIN_BL_FRAMES:
+            # TARGETED FIX: the first action lands at/near frame 0 (the first spoken
+            # instruction was transcribed at the clip start), so the normal path would
+            # yield no usable baseline. Carve BL = [0, end of the first instruction
+            # phrase], clamped so the baseline AND the first action each keep at least
+            # MIN_BL_FRAMES. The main loop then starts the first action after the
+            # baseline (it clamps start to last_range_end_frame + 1).
+            instr_end = first_event.get('trigger_end_frame')
+            if instr_end is None:
+                instr_end = self.MIN_BL_FRAMES - 1
+            instr_end = max(self.MIN_BL_FRAMES - 1,
+                            min(int(instr_end), first_event_end_frame - self.MIN_BL_FRAMES))
+            bl_end_time = instr_end / fps if fps > 0 else 0.0
+            baseline = { 'action_code': 'BL', 'start_time': 0.0, 'end_time': bl_end_time, 'start_frame': 0, 'end_frame': instr_end, 'trigger_phrase': 'Implied Baseline (instruction-end)', 'trigger_start': 0.0, 'trigger_end': 0.0, 'trigger_start_frame': 0, 'trigger_end_frame': 0, 'confidence_score': 101, 'index': range_index_counter, 'status': None, 'matched_words': None }
+            generated_action_ranges.append(baseline);
+            range_index_counter += 1; last_range_end_frame = instr_end
+        # else: first action too short to split safely -> emit no baseline; the S2.5
+        # eyes-open recovery remains the safety net.
 
         for i, current_event in enumerate(events_for_ranges):
             event_type = current_event.get('type'); event_start_frame = current_event.get('start_frame'); event_min_end_frame = current_event.get('end_frame', event_start_frame)

@@ -19,6 +19,7 @@ class MainWindow(QMainWindow):
     frame_changed_signal = pyqtSignal(int); play_pause_signal = pyqtSignal(bool); save_signal = pyqtSignal(); progress_update_signal = pyqtSignal(int)
     next_file_signal = pyqtSignal(); previous_file_signal = pyqtSignal()
     clear_manual_annotations_signal = pyqtSignal()
+    abort_rescore_signal = pyqtSignal()   # S2.5 handoff: cancel re-score, return
     main_action_button_clicked = pyqtSignal(str)
     delete_selected_range_signal = pyqtSignal()
 
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
         self.prev_file_btn=None; self.next_file_btn=None; self.batch_status_label=None
         self.batch_completed_label=None  # New: shows completed count
         self.save_btn=None; self.progress_bar=None; self.shared_action_display_label=None
+        self.abort_rescore_btn=None   # created in bottom bar; shown only in handoff
         # --- REMOVED INTERACTION STACK & PANELS ---
         self.timeline_widget = None; self.snippet_player = QMediaPlayer(); self._default_label_palette = None
         self.action_buttons_panel = None; self.main_action_buttons = {}
@@ -98,9 +100,23 @@ class MainWindow(QMainWindow):
          main_layout.addStretch(1)
          bottom_bar_layout = QHBoxLayout(); bottom_bar_layout.setContentsMargins(0, config.STANDARD_MARGIN // 2, 0, 0)
          self.progress_bar = QProgressBar(); self.progress_bar.setRange(0, 100); self.progress_bar.setValue(0); self.progress_bar.setVisible(False); self.progress_bar.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-         bottom_bar_layout.addWidget(self.progress_bar, 1)
          self.save_btn = QPushButton("Generate Output Files"); self.save_btn.setMinimumHeight(35); self.save_btn.setStyleSheet(config.PRIMARY_BUTTON_STYLE); self.save_btn.clicked.connect(self.save_outputs)
-         bottom_bar_layout.addWidget(self.save_btn)
+         # Abort re-score: far LEFT of the bottom bar (Save sits far right). Only
+         # shown in S2.5 re-score handoff mode (toggled by UIManager). Uses the SAME
+         # geometry as Save (padding / min-height) with red colors, so the two
+         # buttons render at the same height.
+         _abort_style = ("QPushButton { background-color: #d9534f; color: white; "
+                         "border: 1px solid #d43f3a; border-radius: 3px; "
+                         "padding: 4px 10px; min-height: 30px; font-weight: bold; } "
+                         "QPushButton:hover { background-color: #c9302c; } "
+                         "QPushButton:pressed { background-color: #ac2925; }")
+         self.abort_rescore_btn = QPushButton("Abort re-score"); self.abort_rescore_btn.setMinimumHeight(35)
+         self.abort_rescore_btn.setStyleSheet(_abort_style)
+         self.abort_rescore_btn.setVisible(False)
+         self.abort_rescore_btn.clicked.connect(self.abort_rescore)
+         bottom_bar_layout.addWidget(self.abort_rescore_btn)   # far left
+         bottom_bar_layout.addWidget(self.progress_bar, 1)     # stretch (middle)
+         bottom_bar_layout.addWidget(self.save_btn)            # far right
          main_layout.addLayout(bottom_bar_layout, 0)
          self.setCentralWidget(central_widget)
 
@@ -288,6 +304,8 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(v); self.progress_bar.setValue(0)
     def save_outputs(self): # (Unchanged)
         self.save_signal.emit()
+    def abort_rescore(self):
+        self.abort_rescore_signal.emit()
     def load_next_file(self): # (Unchanged)
         self.next_file_signal.emit()
     def load_previous_file(self): # (Unchanged)
