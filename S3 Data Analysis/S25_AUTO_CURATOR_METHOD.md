@@ -1,73 +1,104 @@
 # S25 Auto-Curator — method & validation (as deployed)
 
-Reverse-engineered from the curating clinician's hand selections on the 10-patient
-diverse ground-truth set (95 status=done patient×action instances, 8121 frames).
-All numbers are **leave-one-patient-out cross-validation F0.5** (precision-leaning,
-per the "purer phenotype" objective). Honest held-out scores, not fit scores.
+Reverse-engineered from the curating clinician's hand selections in the S2.5 Frame
+Curator. Re-fit on the **30-patient** ground-truth set: **277 status=done
+patient×action instances** (after excluding `not_performed`; see below). All scores
+are **leave-one-patient-out cross-validation F0.5** (precision-leaning, per the
+"purer phenotype" objective) — honest held-out, not fit scores.
 
 ## Clinician's principles (the model we are encoding)
 1. Keep frames where the REQUESTED action is at/near maximal expression.
 2. Skip delayed onset (subject doesn't start immediately).
 3. Stop at early relaxation / re-do (don't keep the dip between two attempts).
 4. Reject blinks (AU45) — EXCEPT eye-closure tasks (ES/ET/BK) where closure is the target.
-NOT encoded: rejecting "contaminant" AUs (e.g. AU17 during BS) — that was a
-spurious correlation, not the clinician's reasoning.
+NOT encoded: rejecting "contaminant" AUs (e.g. AU17 during BS) — spurious
+correlation, not the clinician's reasoning.
+
+## Flag handling (ground-truth hygiene)
+- **`not_performed` → EXCLUDED** from fit and eval. The action wasn't done, so its
+  kept set is leftover auto/whole-range or empty — not a representative-frame
+  selection. Non-performance is a separate compliance gate, not a frame-selection
+  target. (Excluded 8 instances; worst was ET, 6 of 24.)
+- **`abnormal` → KEPT** (20 instances). The action WAS performed, just abnormally;
+  the kept frames are valid, and training on them teaches the curator to handle
+  abnormal performances.
 
 ## Rule archetypes
-- REST (BL): keep quiet frames (low total AU) + no blink.
+- REST (BL): keep quiet eyes-open frames (low total AU) + no blink.
 - EXPRESSION, frac-of-peak + position: keep task-signal >= frac*peak AND
-  position >= pos (held portion), minus blinks. Used by RE, ES, ET, SE, SO.
+  position >= pos (held portion), minus blinks. Used by RE, ES, ET, SE, SO, WN,
+  FR, BK, **BC**.
 - EXPRESSION, plateau: smooth the task signal, keep the LONGEST contiguous run
   held >= rel*peak (encodes onset-skip + early-stop), minus blinks. Used by BS, SS.
-- POSITION-only: no panel AU for the task -> keep position >= pos. Used by PL/BC/LT.
+- POSITION-only: no panel AU and no CV-confirmed proxy -> keep position >= pos.
+  Used by PL, LT.
 
-## Key findings
-- **Focused AU dyads beat the full in-set sum** for the smile complex (your
-  hypothesis). Summing all 7 BS AUs diluted the signal.
-    - BS task signal = AU10+AU25  (0.62 -> 0.86)
-    - SS task signal = AU12+AU23  (0.70 -> 0.75 grid-selected; ~0.84 achievable)
-- **Stronger-side reading** (higher key-AU-peak hemiface) for BK/BS/SS: ~40% of
-  patients are right-dominant, so always-left read the weaker side. Applied only
-  where CV proved it (NOT RE, which was already near-perfect on default side).
-- **The 6 no-in-set actions** (BK/WN/PL/BC/LT/FR) went from keep-all (F0.5 .31-.52)
-  to genuinely good (.73-.95) via single defining AU (WN->AU09, BK->AU45) or
-  position (PL/BC/LT).
+## Task signals (which AUs define "the action is happening")
+Default = the FACS in-set sum. Overridden by a CV-confirmed focused subset
+(`signal_aus`) where one tracks the expression more cleanly:
+- **BS = AU10+AU25**, **SS = AU12+AU23** — focused smile dyads beat the full
+  7-AU sum (dilution).
+- **SO = AU17+AU25+AU26** — orbicularis oris (AU18) is OFF-PANEL; this triad is
+  the open-"O" articulation proxy (jaw-drop + lips-part + chin). CV 0.59→0.84.
+- **BC = AU12+AU17** — cheek puff (AU33/34) is OFF-PANEL; CV-confirmed proxy dyad.
+  BC therefore moved OUT of the position-only fallback into frac-of-peak.
+- **LT** stays position-only: DLI/AU16 is off-panel and AU15/DAO (which we DO have)
+  did not beat position under CV.
 
-## Deployed CV F0.5 (vs original plateau selector)
-| action | orig | final |  rule |
-|--------|------|-------|-------|
-| BL | .97 | .98 | rest |
-| RE | .99 | .98 | frac+pos |
-| ES | .91 | .90 | frac+pos (no blink filter; eye task) |
-| ET | .91 | .93 | frac+pos (eye task) |
-| BS | .62 | .86 | plateau + AU10+AU25 + stronger-side |
-| SS | .70 | .75 | plateau + AU12+AU23 + stronger-side |
-| SE | .90 | .90 | frac+pos |
-| SO | .61 | .69 | frac+pos (n=5) |
-| WN | .39 | .90 | AU09 |
-| FR | -   | n=1 | AU04 (insufficient data) |
-| BK | .31 | .80 | AU45 + stronger-side |
-| PL | .52 | .95 | position |
-| BC | .51 | .80 | position |
-| LT | .49 | .73 | position |
+## Stronger-side reading
+Read the higher-key-AU-peak hemiface (≈40% of patients are right-dominant) for
+**BK, BS, SS** — proven under CV; NOT applied to RE (already near-perfect on the
+default side). Side selection uses the full in-set; only the keep-signal is focused.
+
+## Deployed held-out CV F0.5 (30-patient re-fit)
+| action | n | CV F0.5 | rule |
+|--------|---|---------|------|
+| BL | 30 | 0.96 | rest (eyes-open, no movement gate) |
+| RE | 30 | 0.91 | frac 0.60 |
+| ES | 24 | 0.86 | frac 0.55 + pos (eye task) |
+| ET | 18 | 0.90 | frac 0.75 (eye task) |
+| BS | 30 | 0.86 | plateau rel .65 + AU10+AU25 + stronger-side |
+| SS | 29 | 0.92 | plateau rel .80 + AU12+AU23 + stronger-side |
+| SE | 12 | 0.92 | frac 0.70 + pos |
+| SO | 12 | 0.84 | frac 0.60 + pos + AU17+AU25+AU26 |
+| WN | 17 | 0.93 | frac 0.50 + AU09 |
+| FR |  7 | 0.67 | frac 0.65 + AU04  — see limitations |
+| BK | 15 | 0.84 | frac 0.70 + AU45 + stronger-side |
+| PL | 18 | 0.93 | position |
+| BC | 18 | 0.83 | frac 0.60 + pos + AU12+AU17 |
+| LT | 17 | 0.82 | position |
+
+Macro held-out CV ≈ **0.87** (vs the prior 10-patient deployment's in-sample 0.835).
+In-sample on the same 277 pairs: macro 0.890; 11/14 actions improved, 0 regressed.
+
+## Fit == Deploy parity (production invariant)
+The fit-time rule (`s25_auto_curator.predict_keep`) and the deploy-time rule
+(`data_manager.auto_keep_frames`) are separate code. They are verified to produce
+**byte-identical picks across all 285 curated instances (0 mismatches)** with the
+deployed params — so deployed behavior == validated behavior. Config constants
+(EYE_TASKS, NO_PANEL, STRONGER_SIDE, FACS_TASK_AUS) are mirrored between the harness
+and `config.py` and checked equal.
 
 ## Honest limitations
-- BS/SS/SO/LT (0.69-0.86) are the hardest + smallest-n actions. SS grid is
-  sensitive on n=10 (0.75 vs 0.84 across grid variants); we shipped the honest
-  grid-selected 0.75 rather than hand-pick the optimum. FR is n=1 (no CV).
-- SO/LT dyad candidates (combo search) looked strong but were NOT adopted (n=5,
-  overfit risk) — they stay on full-sum until the +30 expansion confirms.
-- The right lever for the weak actions is MORE DATA (the +30 patients), not
-  cleverer rules on n=10.
+- **FR is fit on n=7** and overfits: CV 0.67 vs in-sample 0.90 (gap 0.23). It is the
+  only action below 0.80 held-out. `frac=0.65` still beats the prior `frac=0.95`
+  (~0.46 on these patients), so it ships as the better default — but flagged
+  low-confidence. RE-FIT once >7 patients have FR curated. Most patients have no FR.
+- BS/BK/SO (0.84–0.86) remain the harder/smaller-n actions; the lever is more data.
+- SO/BC proxies are off-panel surrogates (AU18/AU33-34 absent), validated by CV, not
+  direct measurements of the target muscle.
 
 ## Files
-- s25_auto_curator.py     — fit + leave-one-patient-out CV harness
-- s25_au_combo_search.py  — dyad/triad search (diagnostic)
+- s25_auto_curator.py     — fit + leave-one-patient-out CV harness (ground-truth
+  loader excludes `not_performed`)
+- s25_au_combo_search.py  — dyad/triad proxy search for off-panel actions (diagnostic)
 - s25_auto_review.py      — human vs new-auto vs old-auto comparison sheets
 - s25_auto_params.json    — DEPLOYED per-action rule params (curator reads at startup)
 - data_manager.auto_keep_frames() — applies the rules; _legacy_auto_keep() fallback
 
 ## Re-fit after curating more patients
-Run:  python3 s25_auto_curator.py   (writes /tmp/s25_auto_params.json)
-then copy to S3 Data Analysis/s25_auto_params.json. Existing hand-curation is
-never modified — new params only change the auto baseline for uncurated actions.
+Run:  `python3 s25_auto_curator.py`  (writes /tmp/s25_auto_params.json; prints the
+held-out CV table). Then copy to `S3 Data Analysis/s25_auto_params.json`. Existing
+hand-curation is never modified — new params only change the auto baseline for
+uncurated actions and re-score resets. After deploying, re-run the parity check
+(predict_keep == auto_keep_frames) before treating it as production.
