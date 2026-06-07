@@ -1,0 +1,92 @@
+{
+  "BL": {
+    "blink": 0.5,
+    "rest_move": 1000000000.0
+  },
+  "RE": {
+    "frac": 0.6,
+    "blink": 1000000000.0,
+    "pos": 0.0
+  },
+  "ES": {
+    "frac": 0.55,
+    "blink": 1000000000.0,
+    "pos": 0.3
+  },
+  "ET": {
+    "frac": 0.75,
+    "blink": 1000000000.0,
+    "pos": 0.1
+  },
+  "BS": {
+    "mode": "plateau",
+    "rel": 0.65,
+    "smooth": 5,
+    "abs_floor": 0.0,
+    "rel_strict": 0.65,
+    "blink": 1.5,
+    "signal_aus": [
+      "AU10",
+      "AU25"
+    ]
+  },
+  "SS": {
+    "mode": "plateau",
+    "rel": 0.8,
+    "smooth": 3,
+    "abs_floor": 0.0,
+    "rel_strict": 0.8,
+    "blink": 1.5,
+    "signal_aus": [
+      "AU12",
+      "AU23"
+    ]
+  },
+  "SE": {
+    "frac": 0.7,
+    "blink": 0.8,
+    "pos": 0.1
+  },
+  "SO": {
+    "frac": 0.6,
+    "blink": 1.0,
+    "pos": 0.4,
+    "signal_aus": [
+      "AU17",
+      "AU25",
+      "AU26"
+    ]
+  },
+  "WN": {
+    "frac": 0.5,
+    "blink": 1.5,
+    "pos": 0.1
+  },
+  "FR": {
+    "frac": 0.65,
+    "blink": 2.0,
+    "pos": 0.3
+  },
+  "BK": {
+    "frac": 0.7,
+    "blink": 1000000000.0,
+    "pos": 0.0
+  },
+  "PL": {
+    "pos": 0.6,
+    "blink": 0.5
+  },
+  "BC": {
+    "frac": 0.6,
+    "blink": 1.0,
+    "pos": 0.4,
+    "signal_aus": [
+      "AU12",
+      "AU17"
+    ]
+  },
+  "LT": {
+    "pos": 0.6,
+    "blink": 0.8
+  }
+}

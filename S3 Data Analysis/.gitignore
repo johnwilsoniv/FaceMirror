@@ -74,3 +74,10 @@ synkinesis_investigation/
 
 # Cohort data dump (raw video metadata, not source)
 RECODED_DATASET.md
+
+# S2.5 Frame Curator outputs (curation provenance, pre-publication)
+s2_5_curation.json
+s2_5_curated_frames.csv
+recoded_window_combined_results.csv
+pilot15_window_frame_indices.csv
+pilot15_inset_aus.csv
