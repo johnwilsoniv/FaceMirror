@@ -66,6 +66,29 @@ the **min over its in-set** sum — tight closure recruits more than AU45 alone,
 AU45-only collapsed ET's signal. Implemented once in
 `DataManager.task_signal(..., closure='min_both')` and shared by fit and deploy.
 
+## Baseline WINDOW selection (`DataManager.choose_baseline`)
+Separate from frame-KEEP: this picks WHICH frames are the BL action for a patient
+(the auto-curator then keeps the least-smiling eyes-open frames within). The
+baseline is the patient at REST; `tone` = total AU minus AU45 (eye-closure can't
+look quiet). Tunable via config `BL_*`.
+- **OPENING (default).** The quietest eyes-open window in the opening rest — frames
+  before the FIRST task's *real onset*. Onset = where that task's defining AU signal
+  ramps (`BL_ONSET_FRAC=0.3` of its peak), so leading frames the S2 coder
+  mis-labelled as the first task (patient still at rest) are **reclaimed** into the
+  baseline (e.g. IMG_2814: RE coded 1–50 but the brow-raise starts at 24, so 0–23 is
+  reclaimed rest; that task node re-curates on its corrected extent).
+- **LATER (exception).** Only when the opening is *unusable* — smiling
+  (`BL_CONTAM_SMILE=2.5`) or active (`BL_CONTAM_TONE=9`) — AND a materially quieter
+  later window exists (tone lower by `BL_SWITCH_MARGIN=3`, not more smiling) does it
+  switch to that window (the heavy-smiler-at-the-start case, e.g. IMG_4036: opening
+  smile 4.8/tone 11 → later 293–308 at tone 7.5). Later candidates are eyes-open,
+  brow-quiet, uncoded-or-BL.
+- **Scoring.** Each window is scored on its quietest `BL_SEED_WIN=8`-frame seed and
+  widened only across frames within `BL_EXTEND_TONE` of it, so a wider coded window
+  can never inflate the score (a greedy widen had pulled windows into higher-tone
+  neighbours). `apply_baseline` writes it hash-verified, reclaiming only the named
+  first-task frames (never steals another action), with cross-hemiface consistency.
+
 ## Deployed held-out CV F0.5 (30-patient re-fit)
 | action | n | CV F0.5 | rule |
 |--------|---|---------|------|
