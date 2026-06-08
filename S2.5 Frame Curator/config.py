@@ -84,6 +84,12 @@ BL_CONTAM_TONE  = 9.0              # ... or its tone >= this
 BL_SWITCH_MARGIN = 3.0             # switch to a later window only if its tone is >= this lower
 BL_ONSET_FRAC   = 0.3              # first-task real onset = signal crosses this frac of peak
 BL_ONSET_SEARCH = 80               # frames past the first task's coded start to search for onset
+# Off-panel-target tasks: their muscle is NOT on the AU panel (cheek puff AU33/34,
+# pucker AU18, platysma, lower-lip AU16), so RESIDUAL activity after them (still-
+# puffed cheeks, pursed lips, tensed neck) is INVISIBLE to tone — a post-off-panel
+# window can look quiet while the patient is not at rest. A later baseline window is
+# never taken from frames following an off-panel task (until the next on-panel task).
+BL_OFFPANEL_ACTIONS = {'PL', 'LT', 'BC', 'SO'}
 NO_PANEL_ACTIONS = {'PL', 'LT'}           # no measurable task AU -> position rule
 # (BC left this set: its CV-confirmed AU12+AU17 proxy beats position-only, so it
 #  routes through the frac-of-peak branch using signal_aus from the fitted params.)

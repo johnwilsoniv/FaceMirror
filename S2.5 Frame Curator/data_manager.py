@@ -768,6 +768,16 @@ class DataManager:
         lm = eo & (brow < config.BL_BROW_MAX) \
             & np.array([a in ('nan', '', 'BL') for a in acts])
         lm[:onset] = False
+        # Off-panel guard: residual cheek-puff/pucker/platysma/lip activity after an
+        # off-panel-target task is invisible to tone, so a window there can look quiet
+        # while the patient isn't at rest. Drop every frame from an off-panel task
+        # onward until the next ON-panel task re-establishes a tone-visible reference.
+        last = None
+        for i, a in enumerate(acts):
+            if a not in ('BL', 'nan', ''):
+                last = a
+            if last in config.BL_OFFPANEL_ACTIONS:
+                lm[i] = False
         lb = best_run(lm)
 
         ot, osm = ob[2], ob[3]
