@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QMessageBox)
 from PyQt5.QtCore import Qt, QSize, pyqtSignal, QThread, QTimer
 from PyQt5.QtGui import (QColor, QKeySequence, QPainter, QBrush, QFont,
-                         QPixmap, QIcon, QPen)
+                         QPixmap, QIcon, QPen, QFontMetrics)
 
 import os
 import subprocess
@@ -334,11 +334,16 @@ class CuratorWindow(QMainWindow):
             f"font-size:22px; font-weight:bold; color:{T['text']}; "
             "border:none; background:transparent;")
         self.meta = QLabel()
-        # Word-wrap so a long status line (e.g. a baseline-quality flag) wraps to a
-        # second line instead of reporting its full text width as the layout's
-        # MINIMUM — which would force the whole window wider than the screen and
-        # make it un-shrinkable.
+        # Word-wrap so a long status line (e.g. a baseline-quality flag) never
+        # reports its full text width as the layout's MINIMUM (which would force the
+        # window wider than the screen and make it un-shrinkable). But LOCK the label
+        # to a single line's height so that — when the window is narrow enough that
+        # the text would wrap — the overflow CLIPS instead of growing the header. A
+        # baseline flag must never change the header height.
         self.meta.setWordWrap(True)
+        _mf = QFont(); _mf.setPixelSize(12)
+        self.meta.setFont(_mf)
+        self.meta.setFixedHeight(QFontMetrics(_mf).lineSpacing() + 2)
         self.meta.setStyleSheet(
             f"font-size:12px; color:{T['text_muted']}; "
             "border:none; background:transparent;")
