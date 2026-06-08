@@ -75,14 +75,23 @@ BL_SMILE_TOL = 1.0       # smile-throughout fallback: keep frames within this of
 # exists (the heavy-smiler-at-the-start case). 'tone' = total AU minus AU45.
 BL_BROW_AUS    = ['AU01', 'AU02']  # frontalis: a baseline must be brow-quiet too
 BL_BROW_MAX    = 1.5               # later-window candidates must have brow below this
+BL_ORAL_AUS    = ['AU17', 'AU23']  # chin-raiser + lip-tightener = oral "press"
+BL_ORAL_MAX    = 1.5               # later candidates must be oral-quiet too: an off-
+                                   # panel oral action (tongue protrusion, lip press,
+                                   # pucker) is invisible to tone but shadows here, so
+                                   # a window with elevated AU17+AU23 is not rest
 BL_OPEN_EYE    = 0.7               # AU45 below this = eyes open (a BL frame must be)
 BL_SEED_WIN    = 8                 # seed window length scored for the quietest run
 BL_MIN_LEN     = 6                 # shortest acceptable baseline (brief pre-task rest)
 BL_EXTEND_TONE = 2.0               # widen the coded window across frames within this of seed tone
 BL_EXTEND_CAP  = 20                # max baseline window length
-BL_CONTAM_SMILE = 2.5              # opening "contaminated" if its smile >= this ...
+BL_CONTAM_SMILE = 2.5              # opening is "contaminated" if its smile >= this ...
 BL_CONTAM_TONE  = 9.0              # ... or its tone >= this
-BL_SWITCH_MARGIN = 3.0             # switch to a later window only if its tone is >= this lower
+BL_SWITCH_MARGIN = 3.0             # a later window must be >= this much lower-tone to qualify
+BL_SWITCH_SMILE_DROP = 1.8         # and to LEAVE the opening the later window must be CLEAN:
+                                   # either neutral (smile < BL_SMILE_GATE) or at least this
+                                   # much less smiling than an egregious opening (4036
+                                   # 4.8->2.2 switches; a marginal 8270 3.9->2.7 does not)
 BL_ONSET_FRAC   = 0.3              # first-task real onset = signal crosses this frac of peak
 BL_ONSET_SEARCH = 80               # frames past the first task's coded start to search for onset
 # Off-panel-target tasks: their muscle is NOT on the AU panel (cheek puff AU33/34,

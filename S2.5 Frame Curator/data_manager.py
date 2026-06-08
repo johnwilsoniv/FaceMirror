@@ -710,6 +710,7 @@ class DataManager:
         tone = df[aucols].sum(axis=1).values - au45     # exclude blink from 'activity'
         smile = self._aus_sum(df, config.BL_SMILE_AUS)
         brow = self._aus_sum(df, config.BL_BROW_AUS)
+        oral = self._aus_sum(df, config.BL_ORAL_AUS)
         acts = df['action'].values
         eo = au45 < config.BL_OPEN_EYE
 
@@ -764,8 +765,10 @@ class DataManager:
         om[onset:] = False
         ob = best_run(om) or best_run(om, config.BL_MIN_LEN) \
             or best_run(eo & (acts == 'BL'))
-        # ---- later candidate (eyes-open, brow-quiet, uncoded-or-BL, at/after onset)
-        lm = eo & (brow < config.BL_BROW_MAX) \
+        # ---- later candidate (eyes-open, brow-quiet, ORAL-quiet, uncoded-or-BL,
+        # at/after onset). The oral gate rejects off-panel oral actions (tongue/lip-
+        # press/pucker) that tone can't see but that shadow in AU17+AU23.
+        lm = eo & (brow < config.BL_BROW_MAX) & (oral < config.BL_ORAL_MAX) \
             & np.array([a in ('nan', '', 'BL') for a in acts])
         lm[:onset] = False
         # Off-panel guard: residual cheek-puff/pucker/platysma/lip activity after an
@@ -789,10 +792,21 @@ class DataManager:
             win, decision = lb, 'later'
         else:
             ot, osm = ob[2], ob[3]
+            # The opening is the default. Switch to a later window only if the opening
+            # is contaminated (smiling or active) AND a later window is materially
+            # quieter AND that later window is CLEAN — either a neutral rest (smile <
+            # gate) or much less smiling than an egregiously-smiling opening. The clean
+            # test stops a switch to a still-smiling later (8270 -> 906-916, smile 2.7)
+            # while allowing 4036 (4.8 -> 2.2) and neutral laters (20250225 -> 80-87).
             contaminated = (osm >= config.BL_CONTAM_SMILE) or (ot >= config.BL_CONTAM_TONE)
             much_quieter = lb is not None and lb[2] <= ot - config.BL_SWITCH_MARGIN \
                 and lb[3] <= osm + 0.3
-            win, decision = (lb, 'later') if (contaminated and much_quieter) else (ob, 'opening')
+            later_clean = lb is not None and (
+                lb[3] < config.BL_SMILE_GATE
+                or (osm >= config.BL_CONTAM_SMILE
+                    and lb[3] <= osm - config.BL_SWITCH_SMILE_DROP))
+            win, decision = (lb, 'later') if (contaminated and much_quieter and later_clean) \
+                else (ob, 'opening')
         lo, hi, seed_tone, win_smile = win
         bl_frames = [int(f) for f in fr[lo:hi]]
         reclaim = sorted(set(acts[lo:hi]) - {'BL', 'nan', ''})
