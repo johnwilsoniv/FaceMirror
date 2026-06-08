@@ -82,7 +82,12 @@ look quiet). Tunable via config `BL_*`.
   later window exists (tone lower by `BL_SWITCH_MARGIN=3`, not more smiling) does it
   switch to that window (the heavy-smiler-at-the-start case, e.g. IMG_4036: opening
   smile 4.8/tone 11 → later 293–308 at tone 7.5). Later candidates are eyes-open,
-  brow-quiet, uncoded-or-BL.
+  brow-quiet, uncoded-or-BL, and **not following an off-panel-target task**
+  (`BL_OFFPANEL_ACTIONS` = BC/SO/PL/LT): residual cheek-puff/pucker/platysma/lip
+  activity is invisible to tone, so a post-off-panel window would look quiet while
+  the patient is still puffed/pursed (e.g. 20250225: a post-BC window read tone 4.8
+  with cheeks still puffed → guarded → moved to 80–87, a tone-trustworthy post-RE
+  rest). The guard clears at the next on-panel task.
 - **Scoring.** Each window is scored on its quietest `BL_SEED_WIN=8`-frame seed and
   widened only across frames within `BL_EXTEND_TONE` of it, so a wider coded window
   can never inflate the score (a greedy widen had pulled windows into higher-tone
