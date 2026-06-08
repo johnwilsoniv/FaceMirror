@@ -674,128 +674,177 @@ class DataManager:
     def _control_bl_gate(self):
         return getattr(self, '_bl_gate_cache', self.BL_NEUTRAL_GATE)
 
-    def recover_baseline(self, pid):
-        """Every patient must have a BL. If none is coded, synthesize one from the
-        patient's quietest EYES-OPEN sustained window. A BL frame must be eyes-open
-        (AU45 < BL_AU45_OPEN) — a blink/eye-squeeze is NOT rest — and 'tone' for
-        ranking excludes AU45 so eye-closure can't masquerade as quiet. Tiers:
-          T1 clip start (head of clip; MAY reclaim leading frames S2 mis-coded as
-             the first task when the patient was actually at rest),
-          T2 uncoded inter-task gaps,
-          T3 any uncoded eyes-open window (last resort).
-        Tag bl_quality 'neutral' if the window passes the control rest gate, else
-        'elevated' (quietest available, but carries resting tone -> a finding).
-        Returns dict(frames, start, end, quality, tier, reclaim_from, ...) or None."""
-        if 'BL' in self.actions_for_patient(pid):
-            return None
+    def _aus_sum(self, df, aus):
+        cols = [f'{a}_r' for a in aus if f'{a}_r' in df.columns]
+        return df[cols].sum(axis=1).values if cols else np.zeros(len(df))
+
+    def choose_baseline(self, pid):
+        """Pick the resting-baseline window (the permanent baseline selector; tuned
+        by config BL_* constants). The baseline is the patient at REST:
+
+          1. OPENING (default): the quietest eyes-open window in the opening rest —
+             frames before the FIRST task's real onset. Onset = where that task's
+             defining AU signal actually ramps (BL_ONSET_FRAC of its peak), so
+             leading frames the coder mis-labelled as the first task (patient still
+             at rest) are reclaimed into the baseline.
+          2. LATER (exception): if the opening is contaminated — smiling
+             (>= BL_CONTAM_SMILE) or active (tone >= BL_CONTAM_TONE) — AND a
+             materially quieter later window exists (tone lower by >= BL_SWITCH_MARGIN
+             and not more smiling), use that instead (the heavy-smiler-at-the-start
+             case). Later candidates are eyes-open, brow-quiet, uncoded-or-BL.
+
+        Windows are SCORED on their quietest BL_SEED_WIN-frame run, then widened only
+        across frames within BL_EXTEND_TONE of that seed (so a wider coded window can
+        never inflate the score). 'tone' excludes AU45 so eye-closure can't look
+        quiet. Returns dict(frames, start, end, tone_excl_blink, quality, decision,
+        reclaim_from) or None. quality: 'smiling' (window smiles >= gate) else
+        'neutral'/'elevated' by the control rest gate."""
         df = self.get_frame_df(pid)
         if df is None or df.empty:
             return None
         df = df.sort_values('frame').reset_index(drop=True)
         df['action'] = df['action'].astype(str).str.strip()
-        aucols = [f'{au}_r' for au in config.AU_ORDER if f'{au}_r' in df.columns]
-        total = df[aucols].sum(axis=1).values
+        aucols = [f'{a}_r' for a in config.AU_ORDER if f'{a}_r' in df.columns]
+        fr = df['frame'].astype(int).values
         au45 = df['AU45_r'].values if 'AU45_r' in df.columns else np.zeros(len(df))
-        # "tone" for ranking EXCLUDES eye-closure: a blink/squeeze is not 'quiet'.
-        tone = total - au45
-        eyes_open = au45 < self.BL_AU45_OPEN     # a BL frame MUST be eyes-open
-        scols = [f'{a}_r' for a in config.BL_SMILE_AUS if f'{a}_r' in df.columns]
-        smile = df[scols].sum(axis=1).values if scols else np.zeros(len(df))
-        neutral = smile < config.BL_SMILE_GATE   # a BL frame must be NON-SMILING
-        frames = df['frame'].astype(int).values
+        tone = df[aucols].sum(axis=1).values - au45     # exclude blink from 'activity'
+        smile = self._aus_sum(df, config.BL_SMILE_AUS)
+        brow = self._aus_sum(df, config.BL_BROW_AUS)
         acts = df['action'].values
+        eo = au45 < config.BL_OPEN_EYE
+        L = config.BL_SEED_WIN
 
-        first_coded = next((i for i, a in enumerate(acts) if a != 'nan'), None)
-
-        def best_window(lo, hi, allow_coded, prefer_earliest=False, require_neutral=True):
-            """Eyes-open window (len>=BL_MIN_LEN) in [lo,hi).
-            allow_coded=False -> uncoded frames only; True -> any frames (used
-            only at the clip START, to reclaim leading frames S2 mis-coded as an
-            action when the patient was actually at rest).
-            prefer_earliest=True (clip-start tier) -> return the EARLIEST eyes-open
-            window whose mean tone is within BL_TONE_TOL of the quietest window, so
-            the baseline sits at the true start of the clip ('the first few frames')
-            rather than a marginally-quieter window slightly later. Only a window
-            that is MEANINGFULLY quieter (tone lower by > BL_TONE_TOL) pulls the
-            baseline later — e.g. when the patient was still settling at frame 0.
-            Otherwise -> the lowest-tone window. Returns (i0,i1,mean) or None."""
-            L = self.BL_MIN_LEN
-            cands = []
-            s = lo
-            while s + L <= hi:
-                ok = eyes_open[s:s + L].all()
-                if ok and require_neutral:
-                    ok = neutral[s:s + L].all()          # reject social-smile frames
-                if ok and not allow_coded:
-                    ok = all(a == 'nan' for a in acts[s:s + L])
-                if ok:
-                    cands.append((s, s + L, float(tone[s:s + L].mean())))
-                s += 1
-            if not cands:
-                return None
-            if prefer_earliest:
-                floor = min(c[2] for c in cands) + self.BL_TONE_TOL
-                for c in cands:                  # cands are in time order -> earliest
-                    if c[2] <= floor:
-                        return c
-            return min(cands, key=lambda c: c[2])
-
-        # PREFER CLIP START. The opening of the clip is the true pre-task rest, so
-        # search the head first and ALLOW reclaiming mis-coded leading frames
-        # (eyes-open only). Only if the head has no eyes-open window do we fall
-        # back to uncoded inter-task gaps, then any uncoded eyes-open window.
-        head_hi = (first_coded + self.BL_HEAD_SEARCH) if first_coded is not None \
-            else min(len(acts), self.BL_HEAD_SEARCH)
-        head_hi = min(head_hi, len(acts))
-        chosen, tier, donors = None, None, set()
-        w = best_window(0, head_hi, allow_coded=True, prefer_earliest=True)
-        if w:
-            chosen, tier = w, 1
-            donors = set(a for a in acts[w[0]:w[1]] if a != 'nan')
-        if chosen is None:
-            # T2: uncoded inter-task gaps
+        def best_run(mask):
+            """Lowest-tone eyes-open run in `mask`. Score = the quietest L-window
+            (seed); widen only across frames within BL_EXTEND_TONE of it so a wider
+            coded window never inflates the score. Returns (lo, hi, seed, smile)."""
             best = None
-            i = 0
-            while i < len(acts):
-                if acts[i] == 'nan':
-                    j = i
-                    while j < len(acts) and acts[j] == 'nan':
-                        j += 1
-                    ww = best_window(i, j, allow_coded=False)
-                    if ww and (best is None or ww[2] < best[2]):
-                        best = ww
-                    i = j
-                else:
-                    i += 1
-            if best:
-                chosen, tier = best, 2
-        if chosen is None:
-            # T3: any uncoded eyes-open window anywhere
-            w = best_window(0, len(acts), allow_coded=False)
-            if w:
-                chosen, tier = w, 3
-        smiling = False
-        if chosen is None:
-            # NO non-smiling window exists -> the patient smiles throughout. Keep the
-            # clip-start window anyway and flag 'smiling'; the BL auto-keep then keeps
-            # the LEAST-smiling frames within it (a caveated baseline).
-            w = best_window(0, head_hi, allow_coded=True, prefer_earliest=True,
-                            require_neutral=False)
-            if w:
-                chosen, tier, smiling = w, 1, True
-                donors = set(a for a in acts[w[0]:w[1]] if a != 'nan')
-        if chosen is None:
+            for s in range(0, len(tone) - L + 1):
+                if mask[s:s + L].all():
+                    m = float(tone[s:s + L].mean())
+                    if best is None or m < best[0]:
+                        best = (m, s)
+            if best is None:
+                return None
+            seed, s = best
+            lo, hi = s, s + L
+            while lo > 0 and mask[lo - 1] and tone[lo - 1] <= seed + config.BL_EXTEND_TONE \
+                    and (hi - lo) < config.BL_EXTEND_CAP:
+                lo -= 1
+            while hi < len(tone) and mask[hi] and tone[hi] <= seed + config.BL_EXTEND_TONE \
+                    and (hi - lo) < config.BL_EXTEND_CAP:
+                hi += 1
+            return lo, hi, seed, float(smile[lo:hi].mean())
+
+        # ---- first task's REAL onset = the opening-rest boundary (reclaim before it)
+        first_idx = {}
+        for i, a in enumerate(acts):
+            if a not in ('BL', 'nan', ''):
+                first_idx.setdefault(a, i)
+        onset = len(fr)
+        if first_idx:
+            ft = min(first_idx, key=lambda a: first_idx[a])
+            fs = first_idx[ft]
+            fe = max(i for i, a in enumerate(acts) if a == ft)
+            sa = [f'{x}_r' for x in config.FACS_TASK_AUS.get(ft, []) if f'{x}_r' in df.columns]
+            sig = df[sa].sum(axis=1).values if sa else tone
+            hi = min(fe, fs + config.BL_ONSET_SEARCH)
+            peak = sig[fs:hi + 1].max() if hi >= fs else 0.0
+            onset = fs
+            if peak > 0.5:
+                thr = config.BL_ONSET_FRAC * peak
+                for i in range(fs, hi + 1):
+                    if sig[i] >= thr and (i + 1 > hi or sig[i + 1] >= thr):
+                        onset = i
+                        break
+
+        # ---- opening candidate (before onset); fall back to the current BL region
+        om = eo.copy()
+        om[onset:] = False
+        ob = best_run(om) or best_run(eo & (acts == 'BL'))
+        if ob is None:
             return None
-        i0, i1, mean = chosen
-        bl_frames = [int(f) for f in frames[i0:i1]]
-        if smiling:
+        # ---- later candidate (eyes-open, brow-quiet, uncoded-or-BL, at/after onset)
+        lm = eo & (brow < config.BL_BROW_MAX) \
+            & np.array([a in ('nan', '', 'BL') for a in acts])
+        lm[:onset] = False
+        lb = best_run(lm)
+
+        ot, osm = ob[2], ob[3]
+        contaminated = (osm >= config.BL_CONTAM_SMILE) or (ot >= config.BL_CONTAM_TONE)
+        much_quieter = lb is not None and lb[2] <= ot - config.BL_SWITCH_MARGIN \
+            and lb[3] <= osm + 0.3
+        win, decision = (lb, 'later') if (contaminated and much_quieter) else (ob, 'opening')
+        lo, hi, seed_tone, win_smile = win
+        bl_frames = [int(f) for f in fr[lo:hi]]
+        reclaim = sorted(set(acts[lo:hi]) - {'BL', 'nan', ''})
+        if win_smile >= config.BL_SMILE_GATE:
             quality = 'smiling'
         else:
-            quality = 'neutral' if mean <= self._control_bl_gate() else 'elevated'
+            quality = 'neutral' if seed_tone <= self._control_bl_gate() else 'elevated'
         return {'frames': bl_frames, 'start': bl_frames[0], 'end': bl_frames[-1],
-                'mean_total_au': round(float(total[i0:i1].mean()), 2),
-                'tone_excl_blink': round(mean, 2), 'quality': quality,
-                'tier': tier, 'reclaim_from': sorted(donors)}
+                'tone_excl_blink': round(float(seed_tone), 2), 'quality': quality,
+                'decision': decision, 'reclaim_from': reclaim}
+
+    def recover_baseline(self, pid):
+        """Reconcile entry point: synthesize a baseline ONLY when none is coded yet
+        (the every-patient-must-have-a-BL rule). Delegates to choose_baseline."""
+        if 'BL' in self.actions_for_patient(pid):
+            return None
+        return self.choose_baseline(pid)
+
+    def apply_baseline(self, pid, choice):
+        """Persist a chosen baseline into BOTH hemiface CSVs: un-code the current BL,
+        code the chosen window (reclaiming ONLY the mis-coded first-task frames named
+        in choice['reclaim_from'] — never steals any other action), then reset the BL
+        node and each reclaimed-task node for re-curation. AU columns are hash-verified
+        unchanged; a one-time .prebaseline backup is taken. Returns True on success."""
+        if not choice:
+            return False
+        frames = set(choice['frames'])
+        reclaim = {str(a).strip() for a in (choice.get('reclaim_from') or ())}
+        allowed = {'nan'} | reclaim
+        side_bl = {}
+        wrote = False
+        for side in ('left', 'right'):
+            csv = config.PER_FRAME_DIR / f'{pid}_{side}_mirrored_coded.csv'
+            if not csv.exists():
+                continue
+            df = pd.read_csv(csv)
+            if 'action' not in df.columns:
+                continue
+            aucols = [c for c in df.columns
+                      if c.endswith('_r') or c.endswith('_r_static')]
+            pre = hashlib.md5(pd.util.hash_pandas_object(
+                df[aucols], index=True).values.tobytes()).hexdigest()
+            bk = config.PER_FRAME_DIR / f'{pid}_{side}_mirrored_coded.csv.prebaseline'
+            if not bk.exists():
+                df.to_csv(bk, index=False)
+            act = df['action'].astype(str).str.strip()
+            df.loc[act == 'BL', 'action'] = np.nan                 # un-code old BL
+            act2 = df['action'].astype(str).str.strip()
+            mask = df['frame'].isin(frames) & act2.isin(allowed)   # code new (never steals)
+            df.loc[mask, 'action'] = 'BL'
+            post = hashlib.md5(pd.util.hash_pandas_object(
+                df[aucols], index=True).values.tobytes()).hexdigest()
+            assert pre == post, f"AU columns changed writing BL for {pid}/{side}!"
+            df.to_csv(csv, index=False)
+            side_bl[side] = set(int(f) for f in
+                                df.loc[df['action'].astype(str).str.strip() == 'BL', 'frame'])
+            wrote = True
+        if not wrote:
+            return False
+        if len(side_bl) == 2:
+            assert side_bl['left'] == side_bl['right'], \
+                f"hemiface BL mismatch for {pid}: {side_bl}"
+        with self._cache_lock:
+            self._frame_cache.pop(pid, None)
+        self.curation.setdefault('bl_quality', {})[pid] = choice['quality']
+        self.reset_action_to_auto(pid, 'BL')
+        for a in reclaim:                       # reclaimed task shrank -> re-curate
+            if a in self.actions_for_patient(pid):
+                self.reset_action_to_auto(pid, a)
+        return True
 
     def write_baseline(self, pid, bl_frames, quality, reclaim_from=None):
         """Persist a synthesized BL into BOTH hemiface v1316 CSVs: set action='BL'

@@ -66,6 +66,24 @@ EYE_TASKS = {'ES', 'ET', 'BK'}            # high AU45 is the TARGET, not a blink
 BL_SMILE_AUS = ['AU06', 'AU12']
 BL_SMILE_GATE = 1.5      # AU06+AU12 below this = non-smiling (neutral)
 BL_SMILE_TOL = 1.0       # smile-throughout fallback: keep frames within this of the min
+
+# --- Baseline window selection (DataManager.choose_baseline) ---
+# Rule: the baseline is the patient at REST. Prefer the quietest eyes-open window in
+# the OPENING rest (before the first task's real onset, reclaiming frames the coder
+# mis-labelled as the first task). Switch to a quieter LATER window ONLY when the
+# opening is contaminated (smiling/active) AND a materially quieter later window
+# exists (the heavy-smiler-at-the-start case). 'tone' = total AU minus AU45.
+BL_BROW_AUS    = ['AU01', 'AU02']  # frontalis: a baseline must be brow-quiet too
+BL_BROW_MAX    = 1.5               # later-window candidates must have brow below this
+BL_OPEN_EYE    = 0.7               # AU45 below this = eyes open (a BL frame must be)
+BL_SEED_WIN    = 8                 # seed window length scored for the quietest run
+BL_EXTEND_TONE = 2.0               # widen the coded window across frames within this of seed tone
+BL_EXTEND_CAP  = 20                # max baseline window length
+BL_CONTAM_SMILE = 2.5              # opening "contaminated" if its smile >= this ...
+BL_CONTAM_TONE  = 9.0              # ... or its tone >= this
+BL_SWITCH_MARGIN = 3.0             # switch to a later window only if its tone is >= this lower
+BL_ONSET_FRAC   = 0.3              # first-task real onset = signal crosses this frac of peak
+BL_ONSET_SEARCH = 80               # frames past the first task's coded start to search for onset
 NO_PANEL_ACTIONS = {'PL', 'LT'}           # no measurable task AU -> position rule
 # (BC left this set: its CV-confirmed AU12+AU17 proxy beats position-only, so it
 #  routes through the frac-of-peak branch using signal_aus from the fitted params.)
