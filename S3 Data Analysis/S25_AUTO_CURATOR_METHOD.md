@@ -77,17 +77,22 @@ look quiet). Tunable via config `BL_*`.
   mis-labelled as the first task (patient still at rest) are **reclaimed** into the
   baseline (e.g. IMG_2814: RE coded 1–50 but the brow-raise starts at 24, so 0–23 is
   reclaimed rest; that task node re-curates on its corrected extent).
-- **LATER (exception).** Only when the opening is *unusable* — smiling
-  (`BL_CONTAM_SMILE=2.5`) or active (`BL_CONTAM_TONE=9`) — AND a materially quieter
-  later window exists (tone lower by `BL_SWITCH_MARGIN=3`, not more smiling) does it
-  switch to that window (the heavy-smiler-at-the-start case, e.g. IMG_4036: opening
-  smile 4.8/tone 11 → later 293–308 at tone 7.5). Later candidates are eyes-open,
-  brow-quiet, uncoded-or-BL, and **not following an off-panel-target task**
-  (`BL_OFFPANEL_ACTIONS` = BC/SO/PL/LT): residual cheek-puff/pucker/platysma/lip
-  activity is invisible to tone, so a post-off-panel window would look quiet while
-  the patient is still puffed/pursed (e.g. 20250225: a post-BC window read tone 4.8
-  with cheeks still puffed → guarded → moved to 80–87, a tone-trustworthy post-RE
-  rest). The guard clears at the next on-panel task.
+- **LATER (exception).** Switch off the opening only when it is contaminated —
+  smiling (`BL_CONTAM_SMILE=2.5`) or active (`BL_CONTAM_TONE=9`) — AND a materially
+  quieter later window exists (tone lower by `BL_SWITCH_MARGIN=3`) AND that later
+  window is **clean**: either a neutral rest (smile < gate) or at least
+  `BL_SWITCH_SMILE_DROP=1.8` less smiling than an egregiously-smiling opening. The
+  clean test stops a switch to a still-smiling later (IMG_8270 opening 3.9 →
+  906–916 smile 2.7 is only a 1.2 drop → keep the beginning) while allowing the
+  heavy-smiler case (IMG_4036 opening 4.8 → later 2.2) and neutral laters (20250225
+  → 80–87). Later candidates are eyes-open, brow-quiet, **oral-quiet** (AU17+AU23 <
+  `BL_ORAL_MAX`), uncoded-or-BL, and **not following an off-panel-target task**
+  (`BL_OFFPANEL_ACTIONS` = BC/SO/PL/LT). Two off-panel traps, both invisible to tone:
+  residual cheek-puff/pucker/platysma/lip activity after a coded off-panel task (the
+  guard drops it until the next on-panel task — e.g. 20250225's post-BC window read
+  tone 4.8 with cheeks still puffed); and an *uncoded* oral action like a tongue
+  protrusion, which casts no tone but shadows in the lip/chin "press" AUs AU17+AU23
+  (IMG_8270's 815–825 read tone 6 with the tongue out → oral-gated → beginning).
 - **Scoring.** Each window is scored on its quietest `BL_SEED_WIN=8`-frame seed and
   widened only across frames within `BL_EXTEND_TONE` of it, so a wider coded window
   can never inflate the score (a greedy widen had pulled windows into higher-tone
