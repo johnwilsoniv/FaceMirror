@@ -987,32 +987,42 @@ class DataManager:
             elif o.endswith('_right_mirrored_coded.csv'):
                 src['right'] = Path(o)
         s2o_dir = getattr(config, 'S2O_DIR', None) or getattr(config, 'SOURCE_VIDEO_DIR', None)
+        for side in ('left', 'right'):
+            if src.get(side) is None and s2o_dir is not None:
+                src[side] = Path(s2o_dir) / f'{pid}_{side}_mirrored_coded.csv'
+        # Action coding is per-VIDEO — identical across hemifaces by design — so use a
+        # SINGLE canonical action column for BOTH sides, taken from the most-recently
+        # written S2 output. S2 sometimes re-saves only the side that was on screen, so
+        # merging each side from its own file can split-brain (one v1316 side keeps
+        # stale coding; the curator reads the stale side). Picking the newest output
+        # and applying it to both sides makes that impossible.
+        avail = [p for p in src.values() if p is not None and Path(p).exists()]
+        if not avail:
+            return False, "S2 output missing for both sides"
+        canon = max(avail, key=lambda p: Path(p).stat().st_mtime)
+        dfc = pd.read_csv(canon)
+        canon_frames = list(dfc['frame'].astype(int))
+        canon_act = dfc['action'].values                  # raw (preserves NaN repr)
+        canon_norm = dfc['action'].astype(str).str.strip().values
         changed_total, sides = 0, []
         for side in ('left', 'right'):
             v3 = config.PER_FRAME_DIR / f'{pid}_{side}_mirrored_coded.csv'
-            s2 = src.get(side)
-            if s2 is None and s2o_dir is not None:
-                s2 = Path(s2o_dir) / f'{pid}_{side}_mirrored_coded.csv'
             if not v3.exists():
                 return False, f"v1316 file missing for {side}"
-            if s2 is None or not Path(s2).exists():
-                return False, f"S2 output missing for {side}"
             dfv = pd.read_csv(v3)
-            dfs = pd.read_csv(s2)
-            if list(dfv['frame'].astype(int)) != list(dfs['frame'].astype(int)):
+            if list(dfv['frame'].astype(int)) != canon_frames:
                 return False, (f"frame mismatch on {side} "
-                               f"(v1316 {len(dfv)} vs S2 {len(dfs)}) — not merged")
+                               f"(v1316 {len(dfv)} vs S2 {len(canon_frames)}) — not merged")
             aucols = [c for c in dfv.columns
                       if c.endswith('_r') or c.endswith('_r_static')]
             pre = hashlib.md5(pd.util.hash_pandas_object(
                 dfv[aucols], index=True).values.tobytes()).hexdigest()
-            new_act = dfs['action'].astype(str).str.strip().values
             old_act = dfv['action'].astype(str).str.strip().values
-            changed_total += int((new_act != old_act).sum())
+            changed_total += int((canon_norm != old_act).sum())
             bk = v3.with_suffix('.csv.premerge')
             if not bk.exists():
                 dfv.to_csv(bk, index=False)
-            dfv['action'] = dfs['action'].values          # raw (preserves NaN repr)
+            dfv['action'] = canon_act                     # same coding to BOTH sides
             post = hashlib.md5(pd.util.hash_pandas_object(
                 dfv[aucols], index=True).values.tobytes()).hexdigest()
             assert pre == post, f"AU columns changed merging actions for {pid}/{side}!"
@@ -1020,7 +1030,7 @@ class DataManager:
             sides.append(side)
         with self._cache_lock:
             self._frame_cache.pop(pid, None)   # force reload of merged data
-        return True, f"{changed_total} action cells across {len(sides)} side(s)"
+        return True, f"{changed_total} action cells -> both sides from {canon.name}"
 
     def reconcile_patient(self, pid):
         """PRODUCTION rule: any action whose coded frame set has changed since it
