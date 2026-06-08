@@ -124,6 +124,12 @@ def load_ground_truth(dm, use_stronger_side=True):
                        if df is not None else None)
             if sub is None or sub.empty:
                 continue
+            # precompute the task signal through the SHARED DataManager.task_signal so
+            # the fit uses the exact same signal (incl. cross-side 'min_both' closure)
+            # that auto_keep_frames deploys.
+            sig = SIGNAL_AUS.get(action) or FACS_TASK_AUS.get(action, [])
+            sub = sub.copy()
+            sub['_task'] = dm.task_signal(pid, action, sub, sig, CLOSURE.get(action))
             kept = set(st.get('kept', []))
             rows.append((pid, action, sub, kept))
     return rows
@@ -138,15 +144,29 @@ SIGNAL_AUS = {
     'SO': ['AU17', 'AU25', 'AU26'],  # orbicularis oris (AU18) absent -> open-"O" articulation
                                      # proxy: jaw-drop+lips-part+chin (CV 0.82, +0.23 vs in-set)
     'BC': ['AU12', 'AU17'],    # cheek puff (AU33/34) absent -> CV-confirmed proxy dyad (+0.06)
+    'ES': ['AU45'],            # soft eye closure -> AU45 (see CLOSURE: min of both eyes)
 }
+
+# Cross-hemiface aggregation for the signal. 'min_both' = element-wise min of the
+# per-side signal sums, so a frame scores high only when BOTH eyes close. Fixes the
+# auto-curator keeping eye-closure frames where one eye is still partly open. ES uses
+# min(AU45); ET uses min(in-set sum) because tight closure is carried by AU07/04/09,
+# not AU45 (which saturates once shut). BK left single-side (a blink is brief/asymmetric;
+# min hurts it).
+CLOSURE = {'ES': 'min_both', 'ET': 'min_both'}
 
 
 def frame_features(sub, action):
     """Return arrays: task_activation, au45, pos, total_activity (per frame)."""
-    aus = [au for au in (SIGNAL_AUS.get(action) or FACS_TASK_AUS.get(action, []))
-           if f'{au}_r' in sub.columns]
-    cols = [f'{au}_r' for au in aus]
-    task = sub[cols].sum(axis=1).values if cols else np.zeros(len(sub))
+    if '_task' in sub.columns:
+        # precomputed via DataManager.task_signal in load_ground_truth (handles the
+        # cross-side 'min_both' closure aggregation; keeps fit == deploy).
+        task = sub['_task'].values
+    else:
+        aus = [au for au in (SIGNAL_AUS.get(action) or FACS_TASK_AUS.get(action, []))
+               if f'{au}_r' in sub.columns]
+        cols = [f'{au}_r' for au in aus]
+        task = sub[cols].sum(axis=1).values if cols else np.zeros(len(sub))
     au45 = sub['AU45_r'].values if 'AU45_r' in sub.columns else np.zeros(len(sub))
     n = len(sub)
     pos = np.linspace(0, 1, n) if n > 1 else np.array([1.0])
@@ -184,8 +204,17 @@ def predict_keep(sub, action, params):
     task, au45, pos, total = frame_features(sub, action)
     n = len(sub)
     if action == REST:
-        # rest: keep quiet frames (low overall activity) and no blink
-        return (au45 <= params['blink']) & (total <= params['rest_move'])
+        # rest: eyes-open, no blink, and NON-SMILING (a social smile is not rest).
+        # Mirrors DataManager.auto_keep_frames BL branch -> keeps fit == deploy.
+        keep = (au45 <= params['blink']) & (total <= params['rest_move'])
+        scols = [f'{a}_r' for a in config.BL_SMILE_AUS if f'{a}_r' in sub.columns]
+        smile = sub[scols].sum(axis=1).values if scols else np.zeros(n)
+        neutral = smile < config.BL_SMILE_GATE
+        if neutral.any():
+            keep = keep & neutral
+        elif smile.size:
+            keep = keep & (smile <= smile.min() + config.BL_SMILE_TOL)
+        return keep
     if action in NO_PANEL:
         # no measurable task AU -> held-expression position proxy
         keep = pos >= params['pos']
@@ -388,6 +417,9 @@ def main():
     for a, aus in SIGNAL_AUS.items():           # record the focused signal
         if a in out:
             out[a]['signal_aus'] = aus
+    for a, mode in CLOSURE.items():             # record cross-side closure aggregation
+        if a in out:
+            out[a]['closure'] = mode
     Path('/tmp/s25_auto_params.json').write_text(json.dumps(out, indent=2))
     print("\nfitted params -> /tmp/s25_auto_params.json")
     return results

@@ -11,6 +11,10 @@ are **leave-one-patient-out cross-validation F0.5** (precision-leaning, per the
 2. Skip delayed onset (subject doesn't start immediately).
 3. Stop at early relaxation / re-do (don't keep the dip between two attempts).
 4. Reject blinks (AU45) — EXCEPT eye-closure tasks (ES/ET/BK) where closure is the target.
+5. A baseline is REST: reject frames where the patient is smiling (AU06+AU12) — a
+   resting baseline contaminated by expression is not a resting baseline.
+6. For eye-closure tasks BOTH eyes must be closed; read closure as the minimum
+   across hemifaces so a frame with one eye still open does not count as held.
 NOT encoded: rejecting "contaminant" AUs (e.g. AU17 during BS) — spurious
 correlation, not the clinician's reasoning.
 
@@ -24,7 +28,10 @@ correlation, not the clinician's reasoning.
   abnormal performances.
 
 ## Rule archetypes
-- REST (BL): keep quiet eyes-open frames (low total AU) + no blink.
+- REST (BL): keep quiet eyes-open frames (low total AU) + no blink + NON-SMILING
+  (AU06+AU12 < gate). If the entire clip is smiling, keep the least-smiling frames
+  and flag the baseline `smiling`; recovered baselines prefer a neutral window and
+  fall back to a flagged smiling window only when none exists.
 - EXPRESSION, frac-of-peak + position: keep task-signal >= frac*peak AND
   position >= pos (held portion), minus blinks. Used by RE, ES, ET, SE, SO, WN,
   FR, BK, **BC**.
@@ -50,13 +57,22 @@ Read the higher-key-AU-peak hemiface (≈40% of patients are right-dominant) for
 **BK, BS, SS** — proven under CV; NOT applied to RE (already near-perfect on the
 default side). Side selection uses the full in-set; only the keep-signal is focused.
 
+## Eye-closure: both eyes must close (`closure='min_both'`)
+For **ES** and **ET** the closure signal is the **element-wise minimum across the
+two hemifaces**, so a frame counts as a held closure only when BOTH eyes are
+closed. This rejects the one-eye-open frames a single-side reading kept (a weak or
+synkinetic lid lags on one side). ES reads AU45 (`signal_aus=['AU45']`); ET reads
+the **min over its in-set** sum — tight closure recruits more than AU45 alone, and
+AU45-only collapsed ET's signal. Implemented once in
+`DataManager.task_signal(..., closure='min_both')` and shared by fit and deploy.
+
 ## Deployed held-out CV F0.5 (30-patient re-fit)
 | action | n | CV F0.5 | rule |
 |--------|---|---------|------|
-| BL | 30 | 0.96 | rest (eyes-open, no movement gate) |
+| BL | 30 | 0.96 | rest (eyes-open + non-smiling, no movement gate) |
 | RE | 30 | 0.91 | frac 0.60 |
-| ES | 24 | 0.86 | frac 0.55 + pos (eye task) |
-| ET | 18 | 0.90 | frac 0.75 (eye task) |
+| ES | 24 | 0.86 | frac 0.55 + pos + both-eyes (AU45 min) |
+| ET | 18 | 0.90 | frac 0.75 + both-eyes (in-set min) |
 | BS | 30 | 0.86 | plateau rel .65 + AU10+AU25 + stronger-side |
 | SS | 29 | 0.92 | plateau rel .80 + AU12+AU23 + stronger-side |
 | SE | 12 | 0.92 | frac 0.70 + pos |
@@ -74,10 +90,13 @@ In-sample on the same 277 pairs: macro 0.890; 11/14 actions improved, 0 regresse
 ## Fit == Deploy parity (production invariant)
 The fit-time rule (`s25_auto_curator.predict_keep`) and the deploy-time rule
 (`data_manager.auto_keep_frames`) are separate code. They are verified to produce
-**byte-identical picks across all 285 curated instances (0 mismatches)** with the
-deployed params — so deployed behavior == validated behavior. Config constants
-(EYE_TASKS, NO_PANEL, STRONGER_SIDE, FACS_TASK_AUS) are mirrored between the harness
-and `config.py` and checked equal.
+**byte-identical picks across every patient×action instance in the corpus
+(currently 805 checks, incl. 95 BL; 0 mismatches)** with the deployed params — so deployed
+behavior == validated behavior. The cross-hemiface closure aggregation
+(`min_both`) and the baseline smile gate both live in shared `DataManager` helpers
+(`task_signal`, `auto_keep_frames`) that the harness imports, so the two paths
+cannot drift. Config constants (EYE_TASKS, NO_PANEL, STRONGER_SIDE, FACS_TASK_AUS)
+are mirrored between the harness and `config.py` and checked equal.
 
 ## Honest limitations
 - **FR is fit on n=7** and overfits: CV 0.67 vs in-sample 0.90 (gap 0.23). It is the

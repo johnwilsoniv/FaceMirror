@@ -11,12 +11,17 @@
   "ES": {
     "frac": 0.55,
     "blink": 1000000000.0,
-    "pos": 0.3
+    "pos": 0.3,
+    "signal_aus": [
+      "AU45"
+    ],
+    "closure": "min_both"
   },
   "ET": {
     "frac": 0.75,
     "blink": 1000000000.0,
-    "pos": 0.1
+    "pos": 0.4,
+    "closure": "min_both"
   },
   "BS": {
     "mode": "plateau",
