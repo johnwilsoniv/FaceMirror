@@ -93,6 +93,11 @@ look quiet). Tunable via config `BL_*`.
   can never inflate the score (a greedy widen had pulled windows into higher-tone
   neighbours). `apply_baseline` writes it hash-verified, reclaiming only the named
   first-task frames (never steals another action), with cross-hemiface consistency.
+- **Every patient gets a baseline.** A brief pre-task rest is still usable (the seed
+  shrinks to `BL_MIN_LEN=6` when the opening is short — e.g. a clip that opens
+  straight into RE with only ~7 rest frames before the brow-raise), and if there is
+  no usable opening at all the selector falls back to the best later window rather
+  than leaving the patient with no BL.
 
 ## Deployed held-out CV F0.5 (30-patient re-fit)
 | action | n | CV F0.5 | rule |
