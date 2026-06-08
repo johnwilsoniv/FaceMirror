@@ -50,12 +50,8 @@ class DataManager:
         pids |= set(
             c.name.replace('_right_mirrored_coded.csv', '')
             for c in config.PER_FRAME_DIR.glob('*_right_mirrored_coded.csv'))
-        # Batch filter: if configured, show ONLY those patients, in that order
-        # (skipping any without data, so a typo can't blank the list silently).
-        batch = getattr(config, 'BATCH_PIDS', None)
-        if batch:
-            return [p for p in batch if p in pids]
-        # otherwise: full roster, cases first (sorted), controls last
+        # Distribution: load EVERY patient found in the chosen data folder (the
+        # sidebar is the per-patient selector). Cases first (sorted), controls last.
         pids = sorted(pids)
         cases = [p for p in pids if p not in self.controls]
         ctrls = [p for p in pids if p in self.controls]
@@ -300,6 +296,34 @@ class DataManager:
                 i += 1
         return best
 
+    def task_signal(self, pid, action, sub, signal_aus, closure=None):
+        """Per-frame task signal aligned to `sub` (the reading side). Default = sum of
+        signal_aus on `sub`. closure='min_both' = element-wise MIN of the per-side
+        signal sums, so a frame scores high only when BOTH hemifaces show it — used
+        for eye-closure tasks (ES/ET) so a frame with one eye still open scores low.
+        The SAME method is called by the fit harness and by auto_keep_frames, so the
+        fitted and deployed signals stay byte-identical."""
+        def side_sum(df):
+            c = [f'{a}_r' for a in signal_aus if f'{a}_r' in df.columns]
+            return df[c].sum(axis=1).values if c else np.zeros(len(df))
+        if closure == 'min_both':
+            frames = list(sub['frame'].astype(int).values)
+            per_side = []
+            for side in ('left', 'right'):
+                p = config.PER_FRAME_DIR / f'{pid}_{side}_mirrored_coded.csv'
+                if not p.exists():
+                    continue
+                d = pd.read_csv(p)
+                d['action'] = d['action'].astype(str).str.strip()
+                s = d[d['action'] == action].sort_values('frame')
+                if list(s['frame'].astype(int).values) != frames:
+                    s = s.set_index('frame').reindex(frames).reset_index().fillna(0.0)
+                per_side.append(side_sum(s))
+            if len(per_side) == 2:
+                return np.minimum(per_side[0], per_side[1])
+            return per_side[0] if per_side else np.zeros(len(sub))
+        return side_sum(sub)
+
     def auto_keep_frames(self, pid, action):
         """Validated auto-curator: apply the per-action rule fit by
         s25_auto_curator.py (leave-one-patient-out CV). Encodes the clinician's
@@ -321,8 +345,7 @@ class DataManager:
         # more cleanly (e.g. BS->AU10+AU25, SS->AU12+AU23). Side selection above
         # still uses the full set; only the keep-signal is focused.
         task_aus = params.get('signal_aus') or config.FACS_TASK_AUS.get(action, [])
-        cols = [f'{a}_r' for a in task_aus if f'{a}_r' in sub.columns]
-        task = sub[cols].sum(axis=1).values if cols else np.zeros(len(sub))
+        task = self.task_signal(pid, action, sub, task_aus, params.get('closure'))
         au45 = sub['AU45_r'].values if 'AU45_r' in sub.columns else np.zeros(len(sub))
         n = len(sub)
         pos = np.linspace(0, 1, n) if n > 1 else np.array([1.0])
@@ -330,8 +353,16 @@ class DataManager:
         total = sub[allcols].sum(axis=1).values
         eye = action in config.EYE_TASKS
 
-        if action == 'BL':                       # rest: quiet + no blink
+        if action == 'BL':                       # rest: eyes-open, no blink, NON-SMILING
             keep = (au45 <= params['blink']) & (total <= params['rest_move'])
+            scols = [f'{a}_r' for a in config.BL_SMILE_AUS if f'{a}_r' in sub.columns]
+            smile = sub[scols].sum(axis=1).values if scols else np.zeros(n)
+            neutral = smile < config.BL_SMILE_GATE
+            if neutral.any():
+                keep &= neutral                  # drop voluntary-smile frames
+            elif smile.size:
+                # smiles throughout -> keep the LEAST-smiling frames (caveated BL)
+                keep &= (smile <= smile.min() + config.BL_SMILE_TOL)
         elif action in config.NO_PANEL_ACTIONS:  # position proxy
             keep = pos >= params['pos']
             if not eye:
@@ -668,12 +699,15 @@ class DataManager:
         # "tone" for ranking EXCLUDES eye-closure: a blink/squeeze is not 'quiet'.
         tone = total - au45
         eyes_open = au45 < self.BL_AU45_OPEN     # a BL frame MUST be eyes-open
+        scols = [f'{a}_r' for a in config.BL_SMILE_AUS if f'{a}_r' in df.columns]
+        smile = df[scols].sum(axis=1).values if scols else np.zeros(len(df))
+        neutral = smile < config.BL_SMILE_GATE   # a BL frame must be NON-SMILING
         frames = df['frame'].astype(int).values
         acts = df['action'].values
 
         first_coded = next((i for i, a in enumerate(acts) if a != 'nan'), None)
 
-        def best_window(lo, hi, allow_coded, prefer_earliest=False):
+        def best_window(lo, hi, allow_coded, prefer_earliest=False, require_neutral=True):
             """Eyes-open window (len>=BL_MIN_LEN) in [lo,hi).
             allow_coded=False -> uncoded frames only; True -> any frames (used
             only at the clip START, to reclaim leading frames S2 mis-coded as an
@@ -690,6 +724,8 @@ class DataManager:
             s = lo
             while s + L <= hi:
                 ok = eyes_open[s:s + L].all()
+                if ok and require_neutral:
+                    ok = neutral[s:s + L].all()          # reject social-smile frames
                 if ok and not allow_coded:
                     ok = all(a == 'nan' for a in acts[s:s + L])
                 if ok:
@@ -738,11 +774,24 @@ class DataManager:
             w = best_window(0, len(acts), allow_coded=False)
             if w:
                 chosen, tier = w, 3
+        smiling = False
+        if chosen is None:
+            # NO non-smiling window exists -> the patient smiles throughout. Keep the
+            # clip-start window anyway and flag 'smiling'; the BL auto-keep then keeps
+            # the LEAST-smiling frames within it (a caveated baseline).
+            w = best_window(0, head_hi, allow_coded=True, prefer_earliest=True,
+                            require_neutral=False)
+            if w:
+                chosen, tier, smiling = w, 1, True
+                donors = set(a for a in acts[w[0]:w[1]] if a != 'nan')
         if chosen is None:
             return None
         i0, i1, mean = chosen
         bl_frames = [int(f) for f in frames[i0:i1]]
-        quality = 'neutral' if mean <= self._control_bl_gate() else 'elevated'
+        if smiling:
+            quality = 'smiling'
+        else:
+            quality = 'neutral' if mean <= self._control_bl_gate() else 'elevated'
         return {'frames': bl_frames, 'start': bl_frames[0], 'end': bl_frames[-1],
                 'mean_total_au': round(float(total[i0:i1].mean()), 2),
                 'tone_excl_blink': round(mean, 2), 'quality': quality,
@@ -820,6 +869,40 @@ class DataManager:
 
     def needs_merge(self, pid):
         return pid in self._needs_merge_set()
+
+    # S1 mirrored-CSV schema (what S2 consumes): a strict subset of v1316's columns.
+    _S1_MIRRORED_COLS = ['frame', 'timestamp', 'success',
+        'AU01_r', 'AU02_r', 'AU04_r', 'AU05_r', 'AU06_r', 'AU07_r', 'AU09_r',
+        'AU10_r', 'AU12_r', 'AU14_r', 'AU15_r', 'AU17_r', 'AU20_r', 'AU23_r',
+        'AU25_r', 'AU26_r', 'AU45_r']
+
+    def ensure_mirrored_csvs(self, pid):
+        """S2 needs {pid}_{side}_mirrored.csv (S1 AU format) in Combined Data to load
+        a patient for re-scoring. If absent, DERIVE them on demand from the v1316
+        per-frame data (the 20-col S1 schema is a strict subset of v1316), so any
+        patient is re-scorable without pre-generating all of them. Never overwrites
+        an existing file. The derived AUs are v1316 values — consistent, since the
+        re-score merge keeps v1316 AUs. Returns True if the CSVs now exist, False if
+        there's no v1316 data to derive from."""
+        cd = config.S1_COMBINED_DIR
+        if (cd / f"{pid}_left_mirrored.csv").exists() or \
+           (cd / f"{pid}_right_mirrored.csv").exists():
+            return True
+        for side in ('left', 'right'):
+            src = config.PER_FRAME_DIR / f'{pid}_{side}_mirrored_coded.csv'
+            dst = cd / f'{pid}_{side}_mirrored.csv'
+            if dst.exists() or not src.exists():
+                continue
+            try:
+                df = pd.read_csv(src)
+            except Exception:
+                continue
+            if any(c not in df.columns for c in self._S1_MIRRORED_COLS):
+                continue
+            df[self._S1_MIRRORED_COLS].to_csv(dst, index=False)
+            print(f"[re-score] derived {dst.name} from v1316 (AUs = v1316 values)")
+        return (cd / f"{pid}_left_mirrored.csv").exists() or \
+               (cd / f"{pid}_right_mirrored.csv").exists()
 
     def import_rescored_actions(self, pid, s2_outputs=None):
         """PRODUCTION re-score merge. Copy the re-scored ACTION column from S2's
@@ -1024,6 +1107,21 @@ class DataManager:
         st['status'] = snap.get('status', 'todo')
         st['flags'] = list(snap.get('flags', []))
         st['note'] = snap.get('note', '')
+
+    def reset_action_to_auto(self, pid, action):
+        """Reset ONE action's curation back to the auto-curator output: kept=auto,
+        status=todo, confirmed cleared, curated_at dropped. Flags + note are
+        PRESERVED (clinical observations). Returns the auto keep set. Used by the
+        'reset curation' button (caller snapshots for undo first)."""
+        st = self.get_action_state(pid, action)
+        auto = self.auto_keep_frames(pid, action)
+        st['kept'] = sorted(auto)
+        st['auto_kept'] = list(auto)
+        st['confirmed'] = []
+        st['status'] = 'todo'
+        st['frame_sig'] = self.frame_signature(pid, action)
+        st.pop('curated_at', None)
+        return auto
 
     def mark_status(self, pid, action, status):
         st = self.get_action_state(pid, action)

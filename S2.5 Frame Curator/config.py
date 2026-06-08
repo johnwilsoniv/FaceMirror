@@ -10,6 +10,8 @@ not populated; the real per-frame CSVs + videos live in the main tree).
 """
 from pathlib import Path
 
+VERSION = "1.0.0"
+
 # --- Data locations (absolute, main checkout) ---
 S3_DATA = Path("/Users/johnwilsoniv/Documents/SplitFace Open3/S3 Data Analysis")
 PER_FRAME_DIR = S3_DATA / "recoded_rerun_dual_v1316"
@@ -57,6 +59,13 @@ FACS_TASK_AUS = {
     'PL': [], 'BC': [], 'LT': [],
 }
 EYE_TASKS = {'ES', 'ET', 'BK'}            # high AU45 is the TARGET, not a blink
+# Baseline must be NEUTRAL: a social smile (AU06+AU12) is a voluntary expression,
+# not rest, and corrupts the resting-tone reference. The BL rule rejects smiling
+# frames; if a window is smiling throughout, it keeps the LEAST-smiling frames
+# (flagged 'smiling'). High resting TONE is still allowed (that's a finding).
+BL_SMILE_AUS = ['AU06', 'AU12']
+BL_SMILE_GATE = 1.5      # AU06+AU12 below this = non-smiling (neutral)
+BL_SMILE_TOL = 1.0       # smile-throughout fallback: keep frames within this of the min
 NO_PANEL_ACTIONS = {'PL', 'LT'}           # no measurable task AU -> position rule
 # (BC left this set: its CV-confirmed AU12+AU17 proxy beats position-only, so it
 #  routes through the frac-of-peak branch using signal_aus from the fitted params.)

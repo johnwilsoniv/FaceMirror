@@ -62,7 +62,7 @@ class ClipTimeline(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(24)
+        self.setFixedHeight(26)   # a little headroom so the active window can grow taller
         self.setCursor(Qt.PointingHandCursor)
         self.span = (0.0, 1.0)
         self.ranges = []
@@ -93,7 +93,7 @@ class ClipTimeline(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
         w = self.width()
-        ty, th = 2, 20
+        ty, th = 3, 20   # normal block row (active window grows above/below this)
         PAD = 2
         self._hit = []
         p.setPen(Qt.NoPen)
@@ -159,11 +159,14 @@ class ClipTimeline(QWidget):
             is_cur = it['idx'] in active
             x0 = int(round(x))
             bwi = max(2, int(round(it['w'])))
+            # the active window grows slightly TALLER (extends above & below the row)
+            # so its size also emphasizes it; other windows keep the normal height.
+            ty_b, th_b = (ty - 2, th + 4) if is_cur else (ty, th)
             act_col = config.ACTION_COLORS.get(b['action'], '#90a4ae')
             frames = b.get('frames') or []
             nf = len(frames)
             p.save()
-            p.setClipRect(x0, ty, bwi + 1, th)
+            p.setClipRect(x0, ty_b, bwi + 1, th_b)
             if nf:
                 for j, f in enumerate(frames):
                     sx = x0 + (j / nf) * bwi
@@ -176,18 +179,22 @@ class ClipTimeline(QWidget):
                         col = config.DEFRAG_REJECT
                     p.setPen(Qt.NoPen)
                     p.setBrush(QBrush(QColor(col)))
-                    p.drawRect(int(sx), ty, int(sw), th)
+                    p.drawRect(int(sx), ty_b, int(sw), th_b)
             else:
                 p.setPen(Qt.NoPen); p.setBrush(QBrush(QColor(act_col)))
-                p.drawRect(x0, ty, bwi, th)
+                p.drawRect(x0, ty_b, bwi, th_b)
             p.restore()
 
+            p.setBrush(Qt.NoBrush)
             if is_cur:
-                p.setPen(QPen(QColor(config.ACTIVE_GOLD), 1))
+                # 2px gold outline drawn flush (NOT inset) so it pops out over the
+                # adjacent windows; with the extra height the active window stands out
+                # clearly without being as heavy as the 3px stroke.
+                p.setPen(QPen(QColor(config.ACTIVE_GOLD), 2))
+                p.drawRoundedRect(x0, ty_b, bwi, th_b, 3, 3)
             else:
                 p.setPen(QPen(QColor('#b4b0a6'), 1))
-            p.setBrush(Qt.NoBrush)
-            p.drawRoundedRect(x0, ty, bwi, th, 3, 3)
+                p.drawRoundedRect(x0, ty, bwi, th, 3, 3)
 
             if is_cur or bwi >= 20:
                 p.setPen(QColor(contrast_text(act_col)))
@@ -275,7 +282,10 @@ class CuratorWindow(QMainWindow):
         self._save_revert.setInterval(1200)
         self._save_revert.timeout.connect(self._save_idle)
         self.setWindowTitle("S2.5 Frame Curator")
-        self.resize(1560, 980)
+        # Open at our preferred size but never larger than the screen (logical
+        # points), so it fits laptops at default scaling (e.g. 1440x900).
+        _av = QApplication.primaryScreen().availableGeometry()
+        self.resize(min(1560, _av.width()), min(980, _av.height()))
         self._build_ui()
         self._install_shortcuts()
         if self.dm.patients:
@@ -297,9 +307,9 @@ class CuratorWindow(QMainWindow):
         # ---- Left: patient list ----
         side = QWidget(); side.setFixedWidth(210)
         sl = QVBoxLayout(side); sl.setContentsMargins(0, 0, 0, 0); sl.setSpacing(5)
-        cap = QLabel("Patients")
-        cap.setStyleSheet(f"font-weight:bold; font-size:12px; color:{T['text']};")
-        sl.addWidget(cap)
+        self.patient_cap = QLabel("Patients")
+        self.patient_cap.setStyleSheet(f"font-weight:bold; font-size:12px; color:{T['text']};")
+        sl.addWidget(self.patient_cap)
         self.patient_list = QListWidget()
         self.patient_list.currentItemChanged.connect(self._on_patient_selected)
         sl.addWidget(self.patient_list, 1)
@@ -369,8 +379,9 @@ class CuratorWindow(QMainWindow):
                 f"border:1px solid {T['card_border']}; border-radius:6px; "
                 "padding:4px 12px; font-size:12px; } "
                 f"QPushButton:hover {{ background:#ece9e1; }}")
-        self.btn_undo = QPushButton("↩ undo   ⌘Z")
-        self.btn_redo = QPushButton("↪ redo   ⌘⇧Z")
+        self.btn_undo = QPushButton("↩ undo")
+        self.btn_redo = QPushButton("↪ redo")
+        self.btn_undo.setToolTip("Undo  ⌘Z"); self.btn_redo.setToolTip("Redo  ⌘⇧Z")
         for b in (self.btn_undo, self.btn_redo):
             b.setCursor(Qt.PointingHandCursor); b.setStyleSheet(flat)
         self.btn_undo.clicked.connect(self._undo)
@@ -404,22 +415,33 @@ class CuratorWindow(QMainWindow):
                     f"border:1px solid {color}; border-radius:6px; "
                     "padding:4px 12px; font-size:12px; font-weight:bold; } "
                     f"QPushButton:hover {{ background:#ece9e1; }}")
+        # Reset the CURRENT action's curation back to the auto-curator picks.
+        # Undoable (Ctrl+Z) + snapshot-backed; flags/notes preserved.
+        self.btn_reset = QPushButton("↺ reset")
+        self.btn_reset.setToolTip("Reset THIS action's curation to the auto-curator "
+                                  "picks (start the scoring over). Undoable; flags/notes kept.")
+        self.btn_reset.setCursor(Qt.PointingHandCursor)
+        self.btn_reset.setStyleSheet(_outline_css('#b05a5a'))   # muted red
+        self.btn_reset.clicked.connect(self._reset_current_action)
+        tb.addWidget(self.btn_reset)
+
         self.btn_export = QPushButton("⤓ export xlsx")
         self.btn_export.setCursor(Qt.PointingHandCursor)
         self.btn_export.setStyleSheet(_outline_css('#0e9488'))   # teal text
         self.btn_export.clicked.connect(self._export_xlsx)
-        tb.addWidget(self.btn_export)
+        # (added to the bar just left of Confirm & Next — see below)
 
-        self.btn_rescore = QPushButton("↻ re-score in S2")
+        self.btn_rescore = QPushButton("↻ re-score")
         self.btn_rescore.setToolTip("Re-open this patient's video in S2 for "
                                     "re-scoring; returns here when you save & exit S2")
         self.btn_rescore.setCursor(Qt.PointingHandCursor)
         self.btn_rescore.setStyleSheet(_outline_css('#b8762e'))  # amber text
         self.btn_rescore.clicked.connect(self._rescore_in_s2)
         tb.addWidget(self.btn_rescore)
+        tb.addWidget(self.btn_export)   # export sits just left of Confirm & Next
 
         # Primary: confirm the curated selection + advance
-        self.btn_save = QPushButton("Confirm && Next   ↵")
+        self.btn_save = QPushButton("Confirm && Next")
         self.btn_save.setCursor(Qt.PointingHandCursor)
         self.btn_save.setStyleSheet(
             f"QPushButton {{ background:{T['primary']}; color:white; border:none; "
@@ -428,17 +450,10 @@ class CuratorWindow(QMainWindow):
         self.btn_save.clicked.connect(self._save_next)
         tb.addWidget(self.btn_save)
 
-        self.btn_close = QPushButton("✕ close")
-        self.btn_close.setToolTip("Close the curator (all state is autosaved)")
-        self.btn_close.setCursor(Qt.PointingHandCursor)
-        self.btn_close.setStyleSheet(flat)
-        self.btn_close.clicked.connect(self.close)
-        tb.addWidget(self.btn_close)
-
         # Uniform height for every control in the toolbar.
         for b in (self.btn_undo, self.btn_redo, self.btn_flag_np, self.btn_flag_ab,
-                  self.save_state, self.btn_export, self.btn_rescore,
-                  self.btn_save, self.btn_close):
+                  self.save_state, self.btn_reset, self.btn_rescore, self.btn_export,
+                  self.btn_save):
             b.setFixedHeight(30)
         cl.addLayout(tb)
         # Poll for an S2 re-score response while a handoff is pending.
@@ -482,7 +497,10 @@ class CuratorWindow(QMainWindow):
             done, total = self.dm.patient_progress(pid)
             # one line; colored status dot via icon; normal text
             needs_merge = self.dm.needs_merge(pid)
-            label = f"{pid}   {done}/{total}"
+            # resume awareness: a leading ✓ marks fully-curated patients so a
+            # returning user instantly sees what's done vs left to do.
+            mark = "✓ " if status == 'done' else ""
+            label = f"{mark}{pid}   {done}/{total}"
             if needs_merge:
                 label += "  ⮌merge"
             # (Synthesized-BL markers intentionally NOT shown in the patient list,
@@ -506,6 +524,9 @@ class CuratorWindow(QMainWindow):
             it.setForeground(QColor(T['text']))
             self.patient_list.addItem(it)
         self.patient_list.blockSignals(False)
+        # title shows completed/total so progress is visible at a glance
+        done, total = self.dm.overall_progress()
+        self.patient_cap.setText(f"Patients  ({done}/{total})")
 
     def _on_patient_selected(self, cur, prev):
         if cur is None:
@@ -545,7 +566,7 @@ class CuratorWindow(QMainWindow):
                 # only the active action shows its real categorical color
                 bg = config.ACTION_COLORS.get(action, '#b0bec5')
                 fg = contrast_text(bg)
-                border = f'1px solid {config.ACTIVE_GOLD}'   # gold = active
+                border = f'2px solid {config.ACTIVE_GOLD}'   # gold = active
             else:
                 bg = '#ded9d0'          # inactive / not-current actions
                 fg = '#6b6760'
@@ -635,16 +656,22 @@ class CuratorWindow(QMainWindow):
         self.filename.setText(self.cur_pid)
         meta_txt = (f"patient {pidx} / {n}　·　{action}　·　"
                     f"{total_frames} frames{rng_note}")
-        # Elevated synthesized-baseline flag now lives HERE (not in the patient
-        # list, per user pref): when viewing a recovered BL for which no neutral
-        # rest window existed, surface the possible resting-tone finding inline.
-        if action == 'BL' and self.dm.bl_quality(self.cur_pid) == 'elevated':
+        # Baseline-quality flag lives HERE (not in the patient list, per user
+        # pref): when viewing a caveated BL, surface the finding inline.
+        #   elevated → no neutral rest window existed (possible resting tone)
+        #   smiling  → patient smiled throughout; least-smiling frames kept
+        BL_FLAG = {
+            'elevated': '⚠ elevated baseline — possible resting tone',
+            'smiling':  '⚠ smiling baseline — no neutral rest; least-smiling frames kept',
+        }
+        flag_msg = BL_FLAG.get(self.dm.bl_quality(self.cur_pid)) if action == 'BL' else None
+        if flag_msg:
             self.meta.setTextFormat(Qt.RichText)
             # wrap base in the muted color so rich text matches the plain look,
             # then append the finding in amber.
             meta_txt = (f'<span style="color:{T["text_muted"]};">{meta_txt}</span>'
                         '　·　<span style="color:#b8762e; font-weight:bold;">'
-                        '⚠ elevated baseline — possible resting tone</span>')
+                        f'{flag_msg}</span>')
         else:
             self.meta.setTextFormat(Qt.PlainText)
         self.meta.setText(meta_txt)
@@ -669,6 +696,27 @@ class CuratorWindow(QMainWindow):
         self.undo_stack.append(self.dm.snapshot(self.cur_pid, self.cur_action))
         if len(self.undo_stack) > 50:
             self.undo_stack.pop(0)
+
+    def _reset_current_action(self):
+        """Reset the CURRENT action's curation to the auto-curator picks (redo the
+        scoring from scratch). Undoable (Ctrl+Z) + snapshot-backed; flags + notes
+        preserved. Mirrors _undo's in-place cell update — does NOT call load_action,
+        which would wipe the undo stack."""
+        if not self.cur_pid or not self.cur_action:
+            return
+        self._push_undo()                                  # Ctrl+Z restores
+        self.redo_stack = []
+        self.dm._snapshot_curation(f"reset_{self.cur_pid}_{self.cur_action}")
+        auto = set(self.dm.reset_action_to_auto(self.cur_pid, self.cur_action))
+        for sec in self.sections.values():                 # update grid in place
+            for f, cell in sec.cells.items():
+                cell.set_kept(f in auto)
+        self._update_counts()
+        self._refresh_flag_buttons()
+        self._action_dirty = True
+        self._schedule_save()
+        self.btn_reset.setText("✓ reset to auto")
+        QTimer.singleShot(2000, lambda: self.btn_reset.setText("↺ reset"))
 
     def _cell_for(self, frame):
         for sec in self.sections.values():
@@ -837,7 +885,7 @@ class CuratorWindow(QMainWindow):
             f"QPushButton:hover {{ background:#ece9e1; }}")
 
     def _rescore_reset_btn(self):
-        self.btn_rescore.setText("↻ re-score in S2")
+        self.btn_rescore.setText("↻ re-score")
         self.btn_rescore.setStyleSheet(
             f"QPushButton {{ background:{T['app_bg']}; color:#b8762e; "
             "border:1px solid #b8762e; border-radius:6px; "
@@ -870,15 +918,13 @@ class CuratorWindow(QMainWindow):
             self._rescore_status("no source video", '#c0392b')
             QTimer.singleShot(3000, self._rescore_reset_btn)
             return
-        # S2 also needs the paired _mirrored.csv AU files in Combined Data; without
-        # them its matcher finds nothing, S2 falls through to its file dialog, and
-        # this poll would hang. Pre-check so re-score fails cleanly instead.
-        if not ((sdir / f"{pid}_left_mirrored.csv").exists() or
-                (sdir / f"{pid}_right_mirrored.csv").exists()):
-            self._rescore_status("no AU CSVs — can't re-score", '#c0392b')
+        # S2 needs the paired _mirrored.csv AU files in Combined Data. If they're
+        # not there, derive them on demand from v1316 (so any patient is re-scorable
+        # without pre-generating all of them). Only block if there's no v1316 data.
+        if not self.dm.ensure_mirrored_csvs(pid):
+            self._rescore_status("no AU data — can't re-score", '#c0392b')
             QTimer.singleShot(4000, self._rescore_reset_btn)
-            print(f"[re-score] {pid}: no _mirrored.csv in {sdir} — re-score blocked "
-                  "(only source video present; AU CSVs were never combined here).")
+            print(f"[re-score] {pid}: no mirrored CSV and no v1316 data to derive from.")
             return
         if not os.path.exists(config.S2_PYTHON):
             self._rescore_status("S2 python missing", '#c0392b')
@@ -1131,10 +1177,10 @@ class CuratorWindow(QMainWindow):
         it confirms + exports (Enter still triggers it)."""
         nxt = self._next_target()
         if nxt is None:
-            self.btn_save.setText("Confirm && Finish   ↵")
+            self.btn_save.setText("Confirm && Finish")
             bg, hov = T['keep_border'], '#27572f'   # green = finish / export
         else:
-            self.btn_save.setText("Confirm && Next   ↵")
+            self.btn_save.setText("Confirm && Next")
             bg, hov = T['primary'], T['primary_hover']
         self.btn_save.setStyleSheet(
             f"QPushButton {{ background:{bg}; color:white; border:none; "
@@ -1142,19 +1188,65 @@ class CuratorWindow(QMainWindow):
             f"QPushButton:hover {{ background:{hov}; }}")
 
     def _save_next(self):
+        nxt = self._next_target()
+        if nxt is None:
+            self._finish_and_export()     # terminal: guard -> export -> close
+            return
         self.dm.mark_status(self.cur_pid, self.cur_action, 'done')
         self._action_dirty = False
         self._flush_save(announce=False); self._refresh_patient_list()
-        nxt = self._next_target()
-        if nxt is None:
-            self._export_xlsx()           # end of batch → write the workbook
-            self._update_save_button()
-            return
         npid, nact = nxt
         if npid != self.cur_pid:
             self.load_patient(npid)
         else:
             self.load_action(nact)
+
+    def _patients_not_done(self):
+        """(n_not_fully_done, n_total) over the loaded series, EXCLUDING the current
+        patient (which the finish is about to confirm)."""
+        total = len(self.dm.patients)
+        nd = sum(1 for p in self.dm.patients
+                 if p != self.cur_pid and self.dm.patient_status(p) != 'done')
+        return nd, total
+
+    def _finish_and_export(self):
+        """Confirm-and-Finish (last action of the last patient): guard against a
+        premature finish, export the curation, then confirm + close. Pop-ups here
+        are intentional — this is the terminal step (unlike the routine export
+        button, which stays non-modal)."""
+        # 1) premature-finish guard: warn if other patients aren't fully reviewed
+        not_done, total = self._patients_not_done()
+        if not_done > 0:
+            if QMessageBox.question(
+                    self, "Finish curation?",
+                    f"{not_done} of {total} patients in this folder are not fully "
+                    "reviewed yet.\n\nFinish, export, and close anyway?",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+                return   # abort — nothing confirmed, nothing exported
+        # 2) confirm the current (last) action, then export
+        self.dm.mark_status(self.cur_pid, self.cur_action, 'done')
+        self._action_dirty = False
+        self._flush_save(announce=False); self._refresh_patient_list()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            result = self.dm.export_long_xlsx()
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.critical(self, "Export failed", str(e))
+            self._update_save_button(); return
+        QApplication.restoreOverrideCursor()
+        if not result:
+            QMessageBox.warning(self, "Export", "Nothing curated to export yet.")
+            self._update_save_button(); return
+        # 3) confirm export + close on OK (Cancel keeps the curator open)
+        path, nrows = result
+        if QMessageBox.information(
+                self, "Curation exported",
+                f"Exported {nrows} rows to:\n{path}\n\nClick OK to close the curator.",
+                QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok) == QMessageBox.Ok:
+            self.close()
+        else:
+            self._update_save_button()
 
     def closeEvent(self, event):
         self._flush_save(announce=False)
