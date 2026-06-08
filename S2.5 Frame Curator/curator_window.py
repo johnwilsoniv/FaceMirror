@@ -282,10 +282,11 @@ class CuratorWindow(QMainWindow):
         self._save_revert.setInterval(1200)
         self._save_revert.timeout.connect(self._save_idle)
         self.setWindowTitle("S2.5 Frame Curator")
-        # Open at our preferred size but never larger than the screen (logical
-        # points), so it fits laptops at default scaling (e.g. 1440x900).
+        # Open at a comfortable size that leaves a margin on laptop screens, never
+        # larger than the available screen area (logical points). The layout's own
+        # minimum stays well below this so the window remains freely resizable.
         _av = QApplication.primaryScreen().availableGeometry()
-        self.resize(min(1560, _av.width()), min(980, _av.height()))
+        self.resize(min(1320, _av.width() - 40), min(900, _av.height() - 40))
         self._build_ui()
         self._install_shortcuts()
         if self.dm.patients:
@@ -333,6 +334,11 @@ class CuratorWindow(QMainWindow):
             f"font-size:22px; font-weight:bold; color:{T['text']}; "
             "border:none; background:transparent;")
         self.meta = QLabel()
+        # Word-wrap so a long status line (e.g. a baseline-quality flag) wraps to a
+        # second line instead of reporting its full text width as the layout's
+        # MINIMUM — which would force the whole window wider than the screen and
+        # make it un-shrinkable.
+        self.meta.setWordWrap(True)
         self.meta.setStyleSheet(
             f"font-size:12px; color:{T['text_muted']}; "
             "border:none; background:transparent;")
@@ -662,7 +668,7 @@ class CuratorWindow(QMainWindow):
         #   smiling  → patient smiled throughout; least-smiling frames kept
         BL_FLAG = {
             'elevated': '⚠ elevated baseline — possible resting tone',
-            'smiling':  '⚠ smiling baseline — no neutral rest; least-smiling frames kept',
+            'smiling':  '⚠ smiling baseline — least-smiling frames kept',
         }
         flag_msg = BL_FLAG.get(self.dm.bl_quality(self.cur_pid)) if action == 'BL' else None
         if flag_msg:
