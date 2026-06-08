@@ -6,15 +6,15 @@ the tarball named below.
 
 | field | value |
 |---|---|
-| snapshot | `20260607_111644` |
-| note | initial snapshot: 30-patient cohort, auto-curator v2 deployed |
-| code commit | `d4802f1f8cbe06501a0e745dfe3a94cc05dfbeb2` (s25-autocurator-handoff) |
+| snapshot | `20260607_210749` |
+| note | post smiling-baseline fix: relocated 8 to mid-clip neutral, flagged 10 smiling; 18 BL nodes pending re-review |
+| code commit | `5db74db3327b46357b8de394ca75ff992723cb4b` (s25-autocurator-handoff) |
 | v1316 CSVs | 222 files |
-| v1316 rollup sha256 | `ba0a6d6ca4df8d5b8cdc9224da97be0780cc18c64f8789fbc7daebc3f0d79774` |
-| curation sha256 | `86e72bdd0996ee49fe9464729178c0d78445a612350ebc78e8cf0b350aea758c` |
-| params sha256 | `7f756468c8581eb86d855a2a196d14a3bb15cae97d3e801b8ac04f9eedc0bd1b` |
-| Combined Data mirrored CSVs | 96 files |
-| local archive | `/Users/johnwilsoniv/Documents/SplitFace/dataset_snapshots/dataset_20260607_111644.tar.gz` (35M) |
-| archive sha256 | `080459a6479dea58c53e6a73c5f573594848998ebcf2bc4de092c65411bd82b0` |
+| v1316 rollup sha256 | `93d5272291bc064370ed3f8bbed036fb4f72165e317e2113aefff6ac1a21b08c` |
+| curation sha256 | `7e2f330d70859301b8d4da277337b7fa7303374011ef2b5318685166daf27eb3` |
+| params sha256 | `9ba763eb043bbb0b57bc23168a2b2da00bb9ee2586c6748d6da67db6db6efa09` |
+| Combined Data mirrored CSVs | 102 files |
+| local archive | `/Users/johnwilsoniv/Documents/SplitFace/dataset_snapshots/dataset_20260607_210749.tar.gz` (40M) |
+| archive sha256 | `d814e55e8aea428e0c252283ecf56c7a86e912df6fcf60dfb5fdf0ed8fb7ac9a` |
 
 _Regenerate: `bash 'S3 Data Analysis/snapshot_dataset.sh' "note"`_

@@ -81,3 +81,17 @@ s2_5_curated_frames.csv
 recoded_window_combined_results.csv
 pilot15_window_frame_indices.csv
 pilot15_inset_aus.csv
+
+# Pilot-15 analysis OUTPUTS (audit cards, LCA/discriminator tables, render PDFs).
+# All patient-derived (contain patient IDs + AU/clinical data) -> pre-publication,
+# kept local. Broad globs so a stray `git add .` can never stage them. Scripts
+# (*.py) and method docs (*.md) are NOT matched and remain trackable.
+Pilot_15_*.pdf
+pilot15_*.csv
+pilot15_*.txt
+pilot15_*.pdf
+FPRS_FP_Key*.csv
+
+# Deployed-params local backups (timestamped/.pre_*/.prebak). The live
+# s25_auto_params.json itself stays tracked; only its backups are ignored.
+s25_auto_params.json.*
