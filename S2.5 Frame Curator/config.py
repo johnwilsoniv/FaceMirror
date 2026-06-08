@@ -77,6 +77,7 @@ BL_BROW_AUS    = ['AU01', 'AU02']  # frontalis: a baseline must be brow-quiet to
 BL_BROW_MAX    = 1.5               # later-window candidates must have brow below this
 BL_OPEN_EYE    = 0.7               # AU45 below this = eyes open (a BL frame must be)
 BL_SEED_WIN    = 8                 # seed window length scored for the quietest run
+BL_MIN_LEN     = 6                 # shortest acceptable baseline (brief pre-task rest)
 BL_EXTEND_TONE = 2.0               # widen the coded window across frames within this of seed tone
 BL_EXTEND_CAP  = 20                # max baseline window length
 BL_CONTAM_SMILE = 2.5              # opening "contaminated" if its smile >= this ...

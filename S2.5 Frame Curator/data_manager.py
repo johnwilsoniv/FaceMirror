@@ -712,22 +712,21 @@ class DataManager:
         brow = self._aus_sum(df, config.BL_BROW_AUS)
         acts = df['action'].values
         eo = au45 < config.BL_OPEN_EYE
-        L = config.BL_SEED_WIN
 
-        def best_run(mask):
-            """Lowest-tone eyes-open run in `mask`. Score = the quietest L-window
+        def best_run(mask, wlen=config.BL_SEED_WIN):
+            """Lowest-tone eyes-open run in `mask`. Score = the quietest `wlen`-window
             (seed); widen only across frames within BL_EXTEND_TONE of it so a wider
             coded window never inflates the score. Returns (lo, hi, seed, smile)."""
             best = None
-            for s in range(0, len(tone) - L + 1):
-                if mask[s:s + L].all():
-                    m = float(tone[s:s + L].mean())
+            for s in range(0, len(tone) - wlen + 1):
+                if mask[s:s + wlen].all():
+                    m = float(tone[s:s + wlen].mean())
                     if best is None or m < best[0]:
                         best = (m, s)
             if best is None:
                 return None
             seed, s = best
-            lo, hi = s, s + L
+            lo, hi = s, s + wlen
             while lo > 0 and mask[lo - 1] and tone[lo - 1] <= seed + config.BL_EXTEND_TONE \
                     and (hi - lo) < config.BL_EXTEND_CAP:
                 lo -= 1
@@ -758,12 +757,13 @@ class DataManager:
                         onset = i
                         break
 
-        # ---- opening candidate (before onset); fall back to the current BL region
+        # ---- opening candidate (before onset). Prefer a full seed; accept a SHORTER
+        # window when the pre-task rest is brief (a clip that opens straight into the
+        # first task, e.g. RE coded from frame 0); else fall back to the current BL.
         om = eo.copy()
         om[onset:] = False
-        ob = best_run(om) or best_run(eo & (acts == 'BL'))
-        if ob is None:
-            return None
+        ob = best_run(om) or best_run(om, config.BL_MIN_LEN) \
+            or best_run(eo & (acts == 'BL'))
         # ---- later candidate (eyes-open, brow-quiet, uncoded-or-BL, at/after onset)
         lm = eo & (brow < config.BL_BROW_MAX) \
             & np.array([a in ('nan', '', 'BL') for a in acts])
@@ -780,11 +780,19 @@ class DataManager:
                 lm[i] = False
         lb = best_run(lm)
 
-        ot, osm = ob[2], ob[3]
-        contaminated = (osm >= config.BL_CONTAM_SMILE) or (ot >= config.BL_CONTAM_TONE)
-        much_quieter = lb is not None and lb[2] <= ot - config.BL_SWITCH_MARGIN \
-            and lb[3] <= osm + 0.3
-        win, decision = (lb, 'later') if (contaminated and much_quieter) else (ob, 'opening')
+        if ob is None:
+            # No usable opening rest (clip opens straight into the first task). Fall
+            # back to a later quiet window so every patient still gets a baseline; if
+            # there is no eyes-open window anywhere, none can be synthesized.
+            if lb is None:
+                return None
+            win, decision = lb, 'later'
+        else:
+            ot, osm = ob[2], ob[3]
+            contaminated = (osm >= config.BL_CONTAM_SMILE) or (ot >= config.BL_CONTAM_TONE)
+            much_quieter = lb is not None and lb[2] <= ot - config.BL_SWITCH_MARGIN \
+                and lb[3] <= osm + 0.3
+            win, decision = (lb, 'later') if (contaminated and much_quieter) else (ob, 'opening')
         lo, hi, seed_tone, win_smile = win
         bl_frames = [int(f) for f in fr[lo:hi]]
         reclaim = sorted(set(acts[lo:hi]) - {'BL', 'nan', ''})
