@@ -281,12 +281,15 @@ class MainWindow(QMainWindow):
     def set_total_frames(self,tf): # (Unchanged)
         mfi=max(0,tf-1); self.frame_slider.setMaximum(mfi); cf=self.frame_slider.value(); self.frame_label.setText(f"Frame: {cf}/{mfi}")
     def toggle_play_pause(self):
-        # Optimistic UI update for instant feedback
+        # Optimistic text update for instant feedback. We deliberately do NOT
+        # disable the button: the enabled-state used to be re-enabled only by an
+        # async playback_state_changed, which can be missed after a seek (e.g.
+        # editing a timeline range) — leaving the button permanently dead while the
+        # spacebar QShortcut still worked. Keeping it enabled makes the button
+        # behave exactly like the spacebar; set_play_button_state still corrects the
+        # text from the real playback state.
         should_play = (self.play_pause_btn.text() == "Play")
-        # Immediately update button text and disable to prevent double-clicks
         self.play_pause_btn.setText("Pause" if should_play else "Play")
-        self.play_pause_btn.setEnabled(False)
-        # Emit signal to controller
         self.play_pause_signal.emit(should_play)
 
     @pyqtSlot(bool)
