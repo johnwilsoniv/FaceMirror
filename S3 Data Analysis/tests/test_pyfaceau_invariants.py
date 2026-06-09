@@ -11,17 +11,17 @@ Two distinct test families:
    the state-carryover test from silently rubber-stamping non-determinism
    as "no carryover".
 
-2. test_clnf_config_use_gpu_disabled / test_pyfaceau_gpu_divergence_within_band
-   — guards the documented "use_gpu=False" production state. The GPU path
-   currently diverges from CPU on asymmetric (paralyzed) faces because
-   PyTorch grid_sample interpolates differently than cv2.warpAffine
-   (per pyfaceau/config.py:22 comment, "CPU mode gives 38% better landmark
-   accuracy on paralyzed patients"). The Tier 0 test makes sure no one
-   silently re-enables GPU. The Tier 1 test compares CPU vs GPU on
-   IMG_0942 left and asserts the divergence stays within today's locked
-   bounds — fails if (a) GPU is fixed and divergence shrinks (good news;
-   re-lock the bounds), or (b) some unrelated change makes the divergence
-   worse.
+2. test_clnf_config_use_gpu_enabled / test_pyfaceau_gpu_divergence_within_band
+   — guards the production "use_gpu=True" state. The v1316 dataset was built
+   with GPU CLNF on Windows-CUDA (confirmed bit-exact, MAE=0 / r=1.0 on every
+   canary x side; see S3 Data Analysis/LIDO_PART_A_WINDOWS_RESULTS.md), so
+   flipping to CPU would diverge from the dataset (CPU is close but not
+   bit-exact, mean r 0.86-0.98 vs the v1316 goldens). An older comment claimed
+   CPU was "38% better on paralyzed faces" (grid_sample vs cv2.warpAffine);
+   that was re-validated under pyfaceau 1.3.16 on paralyzed canaries and
+   REFUTED — GPU vs CPU correlate equally with the C++ ground truth (r-delta
+   in [-0.009, +0.003], FP-drift). The Tier 1 test still locks the CPU-vs-GPU
+   divergence bounds so an unrelated change that moves them fails loudly.
 """
 
 from __future__ import annotations
@@ -152,26 +152,25 @@ def test_pyfaceau_run_to_run_determinism(cpu_processor_factory):
 
 
 @pytest.mark.tier0
-def test_clnf_config_use_gpu_disabled():
-    """CLNF_CONFIG['use_gpu'] must remain False in production. GPU mode is
-    disabled because PyTorch grid_sample diverges from cv2.warpAffine on
-    asymmetric faces — re-enabling without re-validating costs ~38%
-    accuracy on paralyzed patients (per pyfaceau/config.py:22).
+def test_clnf_config_use_gpu_enabled():
+    """CLNF_CONFIG['use_gpu'] must be True in production — it is the config the
+    v1316 dataset was built with (GPU CLNF on Windows-CUDA), confirmed bit-exact
+    (MAE=0 / r=1.0) on every canary x side. Flipping to CPU would diverge from
+    the dataset (CPU is close but not bit-exact, mean r 0.86-0.98 vs the v1316
+    goldens). See S3 Data Analysis/LIDO_PART_A_WINDOWS_RESULTS.md.
 
-    If you legitimately want to re-enable GPU after a real fix:
-      1. Update pyfaceau/config.py CLNF_CONFIG['use_gpu'] = True
-      2. Re-measure CPU vs GPU divergence (rerun
-         test_pyfaceau_gpu_divergence_within_band; lock new bounds)
-      3. Re-run all Tier 1 tests; expect bbox/landmark/AU goldens to
-         shift — regenerate them via update_goldens.py
-      4. Update this test to expect True
+    HISTORY: an older comment pinned use_gpu=False, claiming CPU was "~38%
+    better on paralyzed faces" (PyTorch grid_sample vs cv2.warpAffine). That was
+    re-validated under pyfaceau 1.3.16 on the paralyzed canaries and REFUTED:
+    GPU and CPU correlate equally with the C++ ground truth (GPU-CPU r-delta in
+    [-0.009, +0.003] — FP-drift, not a 38% effect). The accuracy reason to
+    prefer CPU is gone; GPU is the validated production path (and matches v1316).
     """
     from pyfaceau.config import CLNF_CONFIG
 
-    assert CLNF_CONFIG.get("use_gpu") is False, (
-        "GPU has been re-enabled in CLNF_CONFIG. This is a major behavioral "
-        "change. See the docstring on this test for the re-validation steps "
-        "required before flipping use_gpu to True."
+    assert CLNF_CONFIG.get("use_gpu") is True, (
+        "CLNF use_gpu flipped to False — this DIVERGES from the v1316 dataset "
+        "(built with use_gpu=True; see LIDO_PART_A_WINDOWS_RESULTS.md)."
     )
 
 
