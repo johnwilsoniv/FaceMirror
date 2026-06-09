@@ -109,8 +109,11 @@ Input: **42 raw Lido `.MOV`** shipped from command center (26 affected + 16 cont
 
 **Step B1 — split+mirror** each raw video via S1 (`batch_process.py` or the FaceMirror GUI)
 → 84 `<patient>_<side>_mirrored.mp4`, same naming as the existing 221. Use the CLNF config
-resolved in Part A. (`batch_process.py` also writes a single-mode AU CSV as a byproduct —
-ignore it; the dual-mode pass below re-extracts AU.)
+resolved in Part A. **Keep `batch_process.py`'s normal S1 outputs** (the mirrored mp4s in
+`Face Mirror 1.0 Output/` and the single-mode AU CSVs in `Combined Data/`) — those are the
+artifacts the Mac's **S2 action coder** reads (it plays the mirrored mp4 and loads the AU
+CSV from the sibling `Combined Data/`). The dual-mode pass below re-extracts AU for the
+analysis format, but does NOT replace what S2 needs.
 
 **Step B2 — dual-mode AU** on those 84 mirrors. Adapt the reprocess script from
 `WINDOWS_DUAL_MODE_REPROCESS_BRIEF.md` (Step 3) with these **deltas**:
@@ -130,9 +133,14 @@ Spot-check (per `WINDOWS_DUAL_MODE_REPROCESS_BRIEF.md` Step 4): each CSV has 17 
 `_r_static` columns, frame counts match the source clip, default-mode p10 ≈ 0, static-mode
 floor elevated for the affected patients. **No `action` column expected** for these.
 
-Handback to command center:
-1. Ship the 84 new `recoded_rerun_dual_v1316/<patient>_<side>_mirrored_coded.csv` back.
-2. One-line status: # processed, # errored, the Part A GPU/CPU numbers, the Part A config verdict.
+Handback to command center — **S2 coding on the Mac needs the video + AU artifacts, not
+just the analysis CSVs.** Ship all three:
+1. **Dual CSVs** (84) → for `recoded_rerun_dual_v1316/` — the analysis format (no `action`).
+2. **Mirrored mp4s** (84, `<patient>_<side>_mirrored.mp4`) → for `Face Mirror 1.0 Output/` —
+   S2 plays these to code actions; S2.5 renders frames from them.
+3. **Combined Data AU CSVs** (B1's single-mode S1 output) → for `Combined Data/` — S2 loads
+   these alongside the videos.
+4. One-line status: # processed, # errored, the Part A GPU/CPU numbers, the Part A config verdict.
 
 ---
 
@@ -142,7 +150,9 @@ Handback to command center:
   + its two Mac mirrors. SMB share off the Mac, or zip + cloud/USB. Do NOT stage on iCloud
   Drive on Windows (files-on-demand hangs ffmpeg — copy to a local non-cloud path first;
   `fetch_canaries.ps1` at repo root is the SMB template).
-- **Windows → Mac:** the 84 output CSVs (small).
+- **Windows → Mac:** (1) 84 dual CSVs (small); (2) 84 mirrored mp4s (~the bulk — needed
+  for S2 coding + S2.5 frame rendering); (3) 84 Combined Data AU CSVs (small). All three
+  per the Part C handback.
 - Command center will provide the share path / method.
 
 ## Guardrails
