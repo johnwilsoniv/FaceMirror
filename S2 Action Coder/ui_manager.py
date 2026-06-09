@@ -29,7 +29,16 @@ class UIManager(QObject):
         if hasattr(self.window, 'batch_completed_label') and self.window.batch_completed_label:
             completed_text = f"{completed_count} file{'s' if completed_count != 1 else ''} completed"
             self.window.batch_completed_label.setText(completed_text)
-        if enabled: self.window.save_btn.setText("Save and Complete" if current_index >= total_files - 1 else "Save and Continue")
+        # In S2.5 re-score handoff mode the save button returns control to S2.5.
+        # UIManager is constructed as UIManager(window, controller) so the
+        # controller is its Qt parent().
+        handoff = getattr(self.parent(), 'handoff', None) if callable(getattr(self, 'parent', None)) else None
+        abort_btn = getattr(self.window, 'abort_rescore_btn', None)
+        if abort_btn is not None:
+            abort_btn.setVisible(handoff is not None)   # only in re-score handoff
+        if handoff is not None:
+            self.window.save_btn.setText("Save and Return to Frame Curator")
+        elif enabled: self.window.save_btn.setText("Save and Complete" if current_index >= total_files - 1 else "Save and Continue")
         else: self.window.save_btn.setText("Generate Output Files")
 
     # --- MODIFIED update_action_display for pending state styling ---

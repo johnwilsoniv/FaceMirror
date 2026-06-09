@@ -56,6 +56,11 @@ else:
     from splash_screen import SplashScreen  # macOS Tk path
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import Qt
+# config_paths is otherwise only imported lazily inside configure_pydub() (called
+# at line ~340), but the splash at line ~330 references config_paths.VERSION —
+# so a top-level import is required when running from source. (Import-safe:
+# config_paths is just stdlib + module-level constants, no side effects.)
+import config_paths
 
 # ============================================================================
 # FILE LOGGING - Redirect console output to log file for bundled app

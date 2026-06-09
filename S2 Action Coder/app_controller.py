@@ -28,6 +28,10 @@ import copy
 import traceback
 import time
 import sys
+try:
+    import s2_handoff   # S2 <-> S2.5 re-score handoff (optional)
+except Exception:
+    s2_handoff = None
 
 class ApplicationController(QObject):
     def __init__(self, app_instance, whisper_model=None):
@@ -51,6 +55,9 @@ class ApplicationController(QObject):
         self.history_manager = HistoryManager(self)
         self.current_file_set = None
         self.whisper_processed = False
+        # Re-score handoff: set if S2 was launched by S2.5 for one patient.
+        self.handoff = None           # the request payload, or None (normal mode)
+        self._handoff_saved = False    # did the handoff save succeed?
         self.final_timeline_events = []
         self.generated_action_ranges = []
         # --- Prompt State ---
@@ -98,7 +105,55 @@ class ApplicationController(QObject):
         self.window.activateWindow()
 
     # (_run_startup_sequence, _initialize_managers, _connect_signals - unchanged)
+    def _load_handoff_request(self, req):
+        """Build the file set from an S2.5 handoff request (no dialog). Returns
+        True on success. Enters handoff mode so the save button + close write the
+        response back to S2.5."""
+        try:
+            videos = [v for v in req.get('input_videos', []) if os.path.exists(v)]
+            if not videos:
+                print(f"Handoff: no existing input videos in request: "
+                      f"{req.get('input_videos')}")
+                return False
+            search_dir = req.get('input_dir') or os.path.dirname(videos[0])
+            # mirror the dialog path's S1 'Combined Data' redirect
+            vdir = os.path.dirname(videos[0])
+            if os.path.basename(vdir) == "Face Mirror 1.0 Output":
+                cand = os.path.join(os.path.dirname(vdir), "Combined Data")
+                if os.path.isdir(cand):
+                    search_dir = cand
+            file_sets = self.batch_processor.find_matching_files_for_videos(
+                videos, search_dir)
+            if not file_sets:
+                print(f"Handoff: no matching CSVs for {videos} in {search_dir}")
+                return False
+            self.batch_processor.set_file_sets(file_sets)
+            self.handoff = req
+            print(f"Handoff: re-scoring {req.get('patient_id')} "
+                  f"({len(file_sets)} set(s)) — picker bypassed.")
+            return True
+        except Exception as e:
+            print(f"Handoff load failed: {e}")
+            traceback.print_exc()
+            return False
+
     def _run_startup_sequence(self):
+        # --- S2.5 re-score handoff: if S2.5 asked us to re-score one patient,
+        # load that file set directly and skip the picker entirely. ---
+        if s2_handoff is not None:
+            req = s2_handoff.claim_request()
+            if req:
+                if self._load_handoff_request(req):
+                    return True
+                # Claimed but couldn't load (e.g. the patient's _mirrored.csv AU
+                # files aren't in Combined Data). Tell S2.5 so it stops polling
+                # instead of hanging, then fall through to the normal file dialog.
+                try:
+                    s2_handoff.write_response(req.get('patient_id'), 'cancelled')
+                    print("Handoff: request claimed but load failed -> 'cancelled' "
+                          "sent to S2.5; showing file dialog.")
+                except Exception as e:
+                    print(f"Handoff: failed to send load-failure response: {e}")
         # Parent the file dialog to the main window so it inherits its screen
         # and stays in front instead of floating off behind other apps.
         file_dialog=QFileDialog(self.window,"Select Video Files or a Directory"); file_dialog.setFileMode(QFileDialog.ExistingFiles); file_dialog.setOption(QFileDialog.DontUseNativeDialog,False); file_dialog.setNameFilter("Video Files (*.mp4 *.avi *.mov *.mkv)")
@@ -240,6 +295,7 @@ class ApplicationController(QObject):
         self.window.play_pause_signal.connect(self._toggle_playback)
         self.window.frame_changed_signal.connect(self.playback_manager.seek)
         self.window.save_signal.connect(self._initiate_save)
+        self.window.abort_rescore_signal.connect(self._abort_handoff)
         self.window.next_file_signal.connect(self.load_next_file)
         self.window.previous_file_signal.connect(self.load_previous_file)
         self.window.clear_manual_annotations_signal.connect(self._handle_clear_manual_annotations)
@@ -1097,6 +1153,28 @@ class ApplicationController(QObject):
                 self._show_batch_completion_summary(incomplete=True)
                 return
 
+        # Handoff mode: one file, save just completed -> answer S2.5 and exit.
+        if success and self.handoff is not None and s2_handoff is not None:
+            outs = []
+            try:
+                fs = self.current_file_set or {}
+                base = os.path.splitext(os.path.basename(fs.get('video', '')))[0]
+                outdir = str(config_paths.get_output_base_dir())
+                # the coded CSVs S2 writes are <csvbase>_coded.csv
+                for key in ('csv1', 'csv2'):
+                    c = fs.get(key)
+                    if c:
+                        cb = os.path.splitext(os.path.basename(c))[0]
+                        outs.append(os.path.join(outdir, f"{cb}_coded.csv"))
+            except Exception:
+                pass
+            self._handoff_saved = True
+            s2_handoff.write_response(self.handoff.get('patient_id'),
+                                      'completed', outs)
+            print("Handoff: save complete, response written -> returning to S2.5.")
+            QTimer.singleShot(200, self.app.quit)
+            return
+
         # Remove the completed file from the batch (decreases total count)
         if success:
             self.batch_processor.remove_current_file()
@@ -1187,7 +1265,39 @@ class ApplicationController(QObject):
         print("Controller: Exiting application after batch completion")
         QTimer.singleShot(100, lambda: self.app.quit())
 
-    def cleanup_on_exit(self): # (Unchanged)
+    def _abort_handoff(self):
+        """Handoff mode 'Abort re-score' button: discard this re-score and return
+        to S2.5 unchanged. Writes a 'cancelled' response and quits. Guarded by a
+        confirm so an accidental click doesn't throw away the scoring."""
+        if self.handoff is None or s2_handoff is None:
+            return
+        try:
+            if not native_dialogs.ask_yes_no(
+                    "Abort re-score?",
+                    "Discard this re-score and return to the Frame Curator?\n"
+                    "No changes will be saved for this patient."):
+                return
+        except Exception:
+            pass   # if the dialog fails, proceed with the abort
+        self._handoff_saved = True   # mark handoff resolved -> cleanup won't re-answer
+        try:
+            s2_handoff.write_response(self.handoff.get('patient_id'), 'cancelled')
+            print("Handoff: re-score ABORTED by user -> 'cancelled' sent to S2.5.")
+        except Exception as e:
+            print(f"Handoff: abort failed to write response: {e}")
+        QTimer.singleShot(150, self.app.quit)
+
+    def cleanup_on_exit(self):
+        # Handoff mode: if we're exiting WITHOUT a successful save, tell S2.5 the
+        # re-score was cancelled so it doesn't wait forever.
+        if (self.handoff is not None and not self._handoff_saved
+                and s2_handoff is not None):
+            try:
+                s2_handoff.write_response(self.handoff.get('patient_id'),
+                                          'cancelled')
+                print("Handoff: exited without save -> 'cancelled' sent to S2.5.")
+            except Exception:
+                pass
         print("Controller: Cleanup on exit..."); self._cleanup_active_snippet()
         if self.processing_manager: self.processing_manager.cleanup_on_exit()
         if self.playback_manager and self.playback_manager.player:

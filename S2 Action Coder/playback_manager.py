@@ -73,19 +73,25 @@ class PlaybackManager(QObject):
         """Starts or resumes playback."""
         if self._is_paused_for_prompt:
             print("PlaybackManager: Play requested but paused for prompt. Ignoring.")
+            self.playback_state_changed.emit(False)   # re-sync button (stays Play)
             return
         if self.player.video_path and not self.is_playing:
-            # print("PlaybackManager: Requesting Play") # Less verbose
             self.player.play()
-            # self.playback_state_changed.emit(True) # State change handled by _on_player_state_changed
+            # State change handled by _on_player_state_changed
+        else:
+            # No transition will fire (already playing, or no video). Re-emit the
+            # real state so the play button never gets stuck (e.g. after a seek
+            # left is_playing in sync with the target already).
+            self.playback_state_changed.emit(self.is_playing)
 
     @pyqtSlot()
     def pause(self, triggered_by_prompt=False):
         """Pauses playback."""
         if self.is_playing:
-            # print(f"PlaybackManager: Requesting Pause (Prompt: {triggered_by_prompt})") # Less verbose
             self.player.pause()
             self.set_paused_for_prompt(triggered_by_prompt) # Set flag *after* pausing
+        else:
+            self.playback_state_changed.emit(False)   # already paused -> re-sync button
 
 
     @pyqtSlot(int)
